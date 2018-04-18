@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# vim: ft=sh
+
+CLASSPATH=$PWD
+java -cp "$CLASSPATH" com.craftinginterpreters.lox.Lox "$@"
