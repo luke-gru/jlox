@@ -163,7 +163,11 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     @Override
     public String visitCatchStmt(Stmt.Catch stmt) {
         StringBuilder builder = new StringBuilder();
-        builder.append(indent() + "(catch " + stmt.catchExpr.accept(this) + "\n");
+        builder.append(indent() + "(catch " + stmt.catchExpr.accept(this));
+        if (stmt.catchVar != null) {
+            builder.append(" " + stmt.catchVar.accept(this));
+        }
+        builder.append("\n");
         indent++;
         builder.append(stmt.block.accept(this));
         indent--;

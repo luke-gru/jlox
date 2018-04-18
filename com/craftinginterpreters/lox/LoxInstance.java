@@ -72,4 +72,19 @@ class LoxInstance {
         if (method != null) return method;
         return null;
     }
+
+    public boolean isA(LoxClass testKlass) {
+        LoxClass klass = this.klass;
+        while (klass != null) {
+            if (klass == testKlass) {
+                return true;
+            }
+            klass = klass.getSuper();
+        }
+        return false;
+    }
+
+    public boolean isInstance(LoxClass testKlass) {
+        return this.klass == testKlass;
+    }
 }

@@ -12,7 +12,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeThrow extends RuntimeException {
         final Object value;
         RuntimeThrow(Object value) {
-            super((String)value, null, false, false);
+            super(null, null, false, false);
             this.value = value;
         }
     }
@@ -74,7 +74,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
         } catch (RuntimeThrow error) {
-            System.err.println("Uncaught error: " + (String)error.value);
+            System.err.println("Uncaught error: " + stringify(error.value));
         }
     }
 
@@ -396,12 +396,15 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         try {
             execute(stmt.tryBlock);
         } catch (RuntimeThrow throwErr) {
-            String throwStr = (String)throwErr.value;
+            Object throwVal = throwErr.value;
             for (Stmt.Catch catchStmt : stmt.catchStmts) {
                 Object catchVal = evaluate(catchStmt.catchExpr);
-                String catchStr = (String)catchVal;
-                if (throwStr.equals(catchStr)) {
-                    execute(catchStmt.block);
+                if (isCatchEqual(throwVal, catchVal)) {
+                    Environment blockEnv = new Environment(this.environment);
+                    if (catchStmt.catchVar != null) {
+                        blockEnv.define(catchStmt.catchVar.name.lexeme, throwVal);
+                    }
+                    executeBlock(catchStmt.block.statements, new Environment(blockEnv));
                     return null;
                 }
             }
@@ -522,6 +525,16 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (a == null) return false;
 
         return a.equals(b);
+    }
+
+    private boolean isCatchEqual(Object thrown, Object caught) {
+        if (isEqual(thrown, caught)) {
+            return true;
+        }
+        if (thrown instanceof LoxInstance && caught instanceof LoxClass) {
+            return ((LoxInstance)thrown).isA((LoxClass)caught);
+        }
+        return false;
     }
 
     private void checkNumberOperand(Token operator, Object operand) {

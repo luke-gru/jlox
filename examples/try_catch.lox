@@ -1,10 +1,25 @@
-fun throws() {
+fun throws(throwExpr) {
   print "throwing";
-  throw "hi";
+  throw throwExpr;
 }
 
 try {
-  throws();
+  throws("hi");
 } catch ("hi") {
-  print "caught";
+  print "caught hi";
+} catch ("other") {
+  print "caught other";
+}
+
+class Error {
+  init(msg) {
+    this.msg = msg;
+  }
+}
+class ErrorB < Error {}
+
+try {
+  throws(ErrorB("uh oh"));
+} catch (Error err) {
+  print "caught Error: msg: " + err.msg;
 }

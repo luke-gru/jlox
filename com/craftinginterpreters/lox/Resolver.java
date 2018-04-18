@@ -202,16 +202,31 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitTryStmt(Stmt.Try stmt) {
+        resolve(stmt.tryBlock);
+        for (Stmt.Catch catchStmt : stmt.catchStmts) {
+            resolve(catchStmt);
+        }
         return null;
     }
 
     @Override
     public Void visitCatchStmt(Stmt.Catch stmt) {
+        resolve(stmt.catchExpr);
+        if (stmt.catchVar != null) {
+            beginScope();
+            declare(stmt.catchVar.name);
+            define(stmt.catchVar.name);
+        }
+        resolve(stmt.block);
+        if (stmt.catchVar != null) {
+            endScope();
+        }
         return null;
     }
 
     @Override
     public Void visitThrowStmt(Stmt.Throw stmt) {
+        resolve(stmt.throwExpr);
         return null;
     }
 

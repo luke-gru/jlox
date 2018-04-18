@@ -50,7 +50,8 @@ import static com.craftinginterpreters.lox.TokenType.*;
  * ifStmt         : "if" "(" expression ")" statement ( "else" statement )? ;
  * whileStmt      : "while" "(" expression ")" statement ;
  * forStmt        : "for" "(" (varDecl | exprStmt | ";") expression? ";" expression? ")" statement ;
- * tryStmt        : "try" blockStmt ( "catch" "(" STRING ")" blockStmt )*
+ * tryStmt        : "try" blockStmt ( "catch" "(" expression IDENTIFIER? ")" blockStmt )*
+ * throwStmt      : "throw" expression ";" ;
  * continueStmt   : "continue" ";" ;
  * breakStmt      : "break" ";" ;
  * expression     : assignment ;
@@ -351,23 +352,21 @@ class Parser {
             List<Stmt.Catch> catchStmts = new ArrayList<>();
             while (matchAny(CATCH)) {
                 consumeTok(LEFT_PAREN, "Expected '(' after keyword 'catch'");
-                if (peekTok().type != STRING) {
-                    throw error(prevTok(), "Can only 'catch' string literals");
+                Expr catchExpr = expression();
+                Token identToken = null;
+                if (matchAny(IDENTIFIER)) {
+                    identToken = prevTok();
                 }
-                Expr catchExpr = primary();
                 consumeTok(RIGHT_PAREN, "Expected ')' after 'catch' expression");
                 consumeTok(LEFT_BRACE, "Expected '{' after 'catch' expression");
                 Stmt.Block catchBlock = new Stmt.Block(blockStmts());
-                Stmt.Catch catchStmt = new Stmt.Catch(catchExpr, catchBlock);
+                Stmt.Catch catchStmt = new Stmt.Catch(catchExpr, identToken == null ? null : new Expr.Variable(identToken), catchBlock);
                 catchStmts.add(catchStmt);
             }
             return new Stmt.Try(tryBlock, catchStmts);
         }
         if (matchAny(THROW)) {
-            if (peekTok().type != STRING) {
-                throw error(prevTok(), "Expected string literal after keyword 'throw'");
-            }
-            Expr throwExpr = primary();
+            Expr throwExpr = expression();
             consumeTok(SEMICOLON, "Expected ';' after throw statement");
             return new Stmt.Throw(throwExpr);
         }
