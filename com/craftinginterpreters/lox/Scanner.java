@@ -37,6 +37,9 @@ class Scanner {
         keywords.put("while",  WHILE);
         keywords.put("break",  BREAK);
         keywords.put("continue",  CONTINUE);
+        keywords.put("try",  TRY);
+        keywords.put("catch",  CATCH);
+        keywords.put("throw",  THROW);
     }
 
     Scanner(String source) {

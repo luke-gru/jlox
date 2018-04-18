@@ -201,6 +201,21 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitTryStmt(Stmt.Try stmt) {
+        return null;
+    }
+
+    @Override
+    public Void visitCatchStmt(Stmt.Catch stmt) {
+        return null;
+    }
+
+    @Override
+    public Void visitThrowStmt(Stmt.Throw stmt) {
+        return null;
+    }
+
+    @Override
     public Void visitContinueStmt(Stmt.Continue stmt) {
         // do nothing
         return null;

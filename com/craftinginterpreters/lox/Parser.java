@@ -39,6 +39,8 @@ import static com.craftinginterpreters.lox.TokenType.*;
  *                | ifStmt
  *                | whileStmt
  *                | forStmt
+ *                | tryStmt
+ *                | throwStmt
  *                | continueStmt
  *                | breakStmt ;
  *
@@ -48,6 +50,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
  * ifStmt         : "if" "(" expression ")" statement ( "else" statement )? ;
  * whileStmt      : "while" "(" expression ")" statement ;
  * forStmt        : "for" "(" (varDecl | exprStmt | ";") expression? ";" expression? ")" statement ;
+ * tryStmt        : "try" blockStmt ( "catch" "(" STRING ")" blockStmt )*
  * continueStmt   : "continue" ";" ;
  * breakStmt      : "break" ";" ;
  * expression     : assignment ;
@@ -340,6 +343,33 @@ class Parser {
             this.inLoopStmt = oldInLoopStmt;
             forStmt.body = body;
             return forStmt;
+        }
+        if (matchAny(TRY)) {
+            consumeTok(LEFT_BRACE, "Expected '{' after keyword 'try'");
+            List<Stmt> tryBlockStmts = blockStmts();
+            Stmt.Block tryBlock = new Stmt.Block(tryBlockStmts);
+            List<Stmt.Catch> catchStmts = new ArrayList<>();
+            while (matchAny(CATCH)) {
+                consumeTok(LEFT_PAREN, "Expected '(' after keyword 'catch'");
+                if (peekTok().type != STRING) {
+                    throw error(prevTok(), "Can only 'catch' string literals");
+                }
+                Expr catchExpr = primary();
+                consumeTok(RIGHT_PAREN, "Expected ')' after 'catch' expression");
+                consumeTok(LEFT_BRACE, "Expected '{' after 'catch' expression");
+                Stmt.Block catchBlock = new Stmt.Block(blockStmts());
+                Stmt.Catch catchStmt = new Stmt.Catch(catchExpr, catchBlock);
+                catchStmts.add(catchStmt);
+            }
+            return new Stmt.Try(tryBlock, catchStmts);
+        }
+        if (matchAny(THROW)) {
+            if (peekTok().type != STRING) {
+                throw error(prevTok(), "Expected string literal after keyword 'throw'");
+            }
+            Expr throwExpr = primary();
+            consumeTok(SEMICOLON, "Expected ';' after throw statement");
+            return new Stmt.Throw(throwExpr);
         }
         if (matchAny(CONTINUE)) {
             Token contTok = prevTok();

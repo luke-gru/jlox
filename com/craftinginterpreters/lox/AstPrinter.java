@@ -147,6 +147,38 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     @Override
+    public String visitTryStmt(Stmt.Try stmt) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(indent() + "(try \n");
+        indent++;
+        builder.append(stmt.tryBlock.accept(this));
+        for (Stmt.Catch catchStmt : stmt.catchStmts) {
+            builder.append("\n" + catchStmt.accept(this));
+        }
+        indent--;
+        builder.append("\n" + indent() + ")");
+        return builder.toString();
+    }
+
+    @Override
+    public String visitCatchStmt(Stmt.Catch stmt) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(indent() + "(catch " + stmt.catchExpr.accept(this) + "\n");
+        indent++;
+        builder.append(stmt.block.accept(this));
+        indent--;
+       builder.append("\n"+indent()+")");
+        return builder.toString();
+    }
+
+    @Override
+    public String visitThrowStmt(Stmt.Throw stmt) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(indent() + "(throw " + stmt.throwExpr.accept(this) + ")");
+        return builder.toString();
+    }
+
+    @Override
     public String visitBreakStmt(Stmt.Break stmt) {
         return indent() + "(break)";
     }

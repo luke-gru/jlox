@@ -2,17 +2,25 @@ package com.craftinginterpreters.lox;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Stack;
 import java.util.List;
 import java.util.Map;
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeBreak extends RuntimeException {}
     private static class RuntimeContinue extends RuntimeException {}
+    private static class RuntimeThrow extends RuntimeException {
+        final Object value;
+        RuntimeThrow(Object value) {
+            super((String)value, null, false, false);
+            this.value = value;
+        }
+    }
 
     public static class RuntimeReturn extends RuntimeException {
         final Object value;
         RuntimeReturn(Object value) {
-            super(null, null, false, false);
+            super(null, null, true, true);
             this.value = value;
         }
     }
@@ -23,6 +31,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private LoxCallable fnCall = null; // current function being executed
     private LoxClass currentClass = null; // current class being visited
     private Map<String, LoxClass> classMap = new HashMap<>();
+
+    private Stack<StackFrame> stack = new Stack<>();
+    private Stack<Stmt.Try> tryStack = new Stack<>();
 
     Interpreter() {
         // native functions
@@ -62,6 +73,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
+        } catch (RuntimeThrow error) {
+            System.err.println("Uncaught error: " + (String)error.value);
         }
     }
 
@@ -377,6 +390,37 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
         return null;
     }
+
+    @Override
+    public Void visitTryStmt(Stmt.Try stmt) {
+        try {
+            execute(stmt.tryBlock);
+        } catch (RuntimeThrow throwErr) {
+            String throwStr = (String)throwErr.value;
+            for (Stmt.Catch catchStmt : stmt.catchStmts) {
+                Object catchVal = evaluate(catchStmt.catchExpr);
+                String catchStr = (String)catchVal;
+                if (throwStr.equals(catchStr)) {
+                    execute(catchStmt.block);
+                    return null;
+                }
+            }
+            throw throwErr;
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitCatchStmt(Stmt.Catch stmt) {
+        return null; // see visitTryStmt
+    }
+
+    @Override
+    public Void visitThrowStmt(Stmt.Throw stmt) {
+        Object throwValue = evaluate(stmt.throwExpr);
+        throw new RuntimeThrow(throwValue);
+    }
+
 
     @Override
     public Void visitBreakStmt(Stmt.Break stmt) {

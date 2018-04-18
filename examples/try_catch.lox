@@ -1,0 +1,10 @@
+fun throws() {
+  print "throwing";
+  throw "hi";
+}
+
+try {
+  throws();
+} catch ("hi") {
+  print "caught";
+}
