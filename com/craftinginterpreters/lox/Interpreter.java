@@ -11,9 +11,11 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeContinue extends RuntimeException {}
     private static class RuntimeThrow extends RuntimeException {
         final Object value;
-        RuntimeThrow(Object value) {
+        final Token keywordTok;
+        RuntimeThrow(Object value, Token keywordTok) {
             super(null, null, false, false);
             this.value = value;
+            this.keywordTok = keywordTok;
         }
     }
 
@@ -32,14 +34,13 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private LoxClass currentClass = null; // current class being visited
     private Map<String, LoxClass> classMap = new HashMap<>();
 
-    private Stack<StackFrame> stack = new Stack<>();
-    private Stack<Stmt.Try> tryStack = new Stack<>();
+    public Stack<StackFrame> stack = new Stack<>();
 
     Interpreter() {
         // native functions
         globals.define("clock", new LoxCallable() {
             @Override
-            public Object call(Interpreter interpreter, List<Object> arguments) {
+            public Object call(Interpreter interpreter, List<Object> arguments, Token callToken) {
                 return (double)System.currentTimeMillis() / 1000.0;
             }
 
@@ -74,7 +75,12 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } catch (RuntimeError error) {
             Lox.runtimeError(error);
         } catch (RuntimeThrow error) {
+            System.err.println("==============");
             System.err.println("Uncaught error: " + stringify(error.value));
+            System.err.println("Stacktrace:");
+            System.err.println(stacktrace());
+            System.err.println("==============");
+            Lox.hadRuntimeError = true;
         }
     }
 
@@ -241,7 +247,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     callable.getName() + "> called with wrong number of arguments."
                 );
             }
-            return evaluateCall(callable, args);
+            return evaluateCall(callable, args, tokenFromExpr(callExpr.left));
         } else {
             Token tok = tokenFromExpr(callExpr);
             throw new RuntimeError(tok, "Undefined function or method " + tok.lexeme);
@@ -270,16 +276,39 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Object visitPropSetExpr(Expr.PropSet expr) {
-        Object obj = evaluate(expr.object);
+        Object obj = null;
+        LoxFunction setterFunc = null;
+        // "super.property = rvalue"
+        if (expr.object instanceof Expr.Super) {
+            obj = environment.get("this", true, ((Expr.Super)expr.object).keyword);
+            Stmt.Class classStmt = this.fnCall.getDecl().klass;
+            Stmt.Class superClassStmt = classStmt.superClass;
+            if (superClassStmt == null) {
+                throw new RuntimeError(expr.property, "Couldn't find superclass! BUG");
+            }
+            LoxClass superKlass = classMap.get(superClassStmt.name.lexeme);
+            setterFunc = superKlass.getSetter(expr.property.lexeme);
+            if (setterFunc == null) {
+                throw new RuntimeError(
+                    expr.property,
+                    "'super." + expr.property.lexeme + " = VALUE' needs to refer to a setter method"
+                );
+            }
+        } else {
+            obj = evaluate(expr.object);
+            if (!(obj instanceof LoxInstance)) {
+                throw new RuntimeError(expr.property, "Attempt to set property of non-instance");
+            }
+            setterFunc = ((LoxInstance)obj).getKlass().getSetter(expr.property.lexeme);
+        }
         if (obj instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)obj;
-            LoxFunction setterFunc = instance.getKlass().getSetter(expr.property.lexeme);
             LoxCallable oldFnCall = this.fnCall;
             if (setterFunc != null) {
                 this.fnCall = setterFunc;
             }
             Object value = evaluate(expr.value);
-            instance.setProperty(expr.property.lexeme, value, this);
+            instance.setProperty(expr.property.lexeme, value, this, setterFunc);
             if (setterFunc != null) {
                 this.fnCall = oldFnCall;
             }
@@ -289,11 +318,11 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    private Object evaluateCall(LoxCallable callable, List<Object> args) {
+    private Object evaluateCall(LoxCallable callable, List<Object> args, Token callToken) {
         LoxCallable oldFnCall = this.fnCall;
         try {
             this.fnCall = callable;
-            return callable.call(this, args);
+            return callable.call(this, args, callToken);
         } finally {
             this.fnCall = oldFnCall;
         }
@@ -393,6 +422,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitTryStmt(Stmt.Try stmt) {
+        int oldStackSz = stack.size();
         try {
             execute(stmt.tryBlock);
         } catch (RuntimeThrow throwErr) {
@@ -400,6 +430,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             for (Stmt.Catch catchStmt : stmt.catchStmts) {
                 Object catchVal = evaluate(catchStmt.catchExpr);
                 if (isCatchEqual(throwVal, catchVal)) {
+                    unwindStack(oldStackSz);
                     Environment blockEnv = new Environment(this.environment);
                     if (catchStmt.catchVar != null) {
                         blockEnv.define(catchStmt.catchVar.name.lexeme, throwVal);
@@ -421,7 +452,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitThrowStmt(Stmt.Throw stmt) {
         Object throwValue = evaluate(stmt.throwExpr);
-        throw new RuntimeThrow(throwValue);
+        stack.add(new StackFrame(stmt, stmt.keyword));
+        throw new RuntimeThrow(throwValue, stmt.keyword);
     }
 
 
@@ -557,6 +589,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 text = text.substring(0, text.length() - 2);
             }
             return text;
+        } else if (object instanceof String) {
+            return "\"" + object.toString() + "\"";
         }
 
         return object.toString();
@@ -610,5 +644,21 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public void resolve(Expr expr, int depth) {
         locals.put(expr, depth);
+    }
+
+    public String stacktrace() {
+        StringBuilder builder = new StringBuilder();
+        while (!stack.empty()) {
+            StackFrame frame = stack.pop();
+            builder.append(frame.toString() + "\n");
+        }
+        builder.append("<main>");
+        return builder.toString();
+    }
+
+    private void unwindStack(int size) {
+        while (stack.size() > size) {
+            stack.pop();
+        }
     }
 }

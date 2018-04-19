@@ -26,7 +26,7 @@ class LoxInstance {
             if (klass.getters.containsKey(name)) {
                 LoxFunction getter = klass.getters.get(name);
                 List<Object> objs = new ArrayList<>();
-                return getter.bind(this).call(interp, objs);
+                return getter.bind(this).call(interp, objs, null);
             }
             klass = klass.getSuper();
         }
@@ -39,13 +39,11 @@ class LoxInstance {
         }
     }
 
-    public void setProperty(String name, Object value, Interpreter interp) {
-        LoxClass curClass = getKlass();
-        if (curClass.setters.containsKey(name)) {
-            LoxFunction setter = curClass.setters.get(name);
+    public void setProperty(String name, Object value, Interpreter interp, LoxFunction setterFunc) {
+        if (setterFunc != null) {
             List<Object> objs = new ArrayList<>();
             objs.add(value);
-            setter.bind(this).call(interp, objs);
+            setterFunc.bind(this).call(interp, objs, null);
             return;
         }
         properties.put(name, value);
@@ -64,7 +62,7 @@ class LoxInstance {
             if (klass.getters.containsKey(name)) {
                 LoxFunction getter = klass.getters.get(name);
                 List<Object> args = new ArrayList<>();
-                return getter.bind(this).call(interp, args);
+                return getter.bind(this).call(interp, args, null);
             }
             klass = klass.getSuper();
         }

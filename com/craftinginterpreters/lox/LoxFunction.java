@@ -14,7 +14,7 @@ class LoxFunction implements LoxCallable {
     }
 
     @Override
-    public Object call(Interpreter interpreter, List<Object> args) {
+    public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
         Environment environment = new Environment(closure);
         for (int i = 0; i < declaration.formals.size(); i++) {
             environment.define(
@@ -25,12 +25,15 @@ class LoxFunction implements LoxCallable {
 
         Environment fnEnv = new Environment(environment);
         try {
+            interpreter.stack.add(new StackFrame(declaration, callToken));
             interpreter.executeBlock(
                 ((Stmt.Block)declaration.body).statements,
                 fnEnv
             );
+            interpreter.stack.pop();
             return null;
         } catch (Interpreter.RuntimeReturn ret) {
+            interpreter.stack.pop();
             if (isInitializer) {
                 return fnEnv.getAt(0, "this");
             } else {

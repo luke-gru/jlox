@@ -366,9 +366,10 @@ class Parser {
             return new Stmt.Try(tryBlock, catchStmts);
         }
         if (matchAny(THROW)) {
+            Token throwTok = prevTok();
             Expr throwExpr = expression();
             consumeTok(SEMICOLON, "Expected ';' after throw statement");
-            return new Stmt.Throw(throwExpr);
+            return new Stmt.Throw(throwTok, throwExpr);
         }
         if (matchAny(CONTINUE)) {
             Token contTok = prevTok();
@@ -436,6 +437,9 @@ class Parser {
             } else if (expr instanceof Expr.Variable) {
                 Token name = ((Expr.Variable)expr).name;
                 return new Expr.Assign(name, value);
+            } else if (expr instanceof Expr.Super) {
+                Expr.Super superExpr = (Expr.Super)expr;
+                return new Expr.PropSet(superExpr, superExpr.property, value);
             }
             throw error(equals, "Invalid assignment target, must be variable or property name");
         }

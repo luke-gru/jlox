@@ -23,3 +23,5 @@ try {
 } catch (Error err) {
   print "caught Error: msg: " + err.msg;
 }
+
+throw "error";

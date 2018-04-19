@@ -1,11 +1,27 @@
 package com.craftinginterpreters.lox;
 
 class StackFrame {
-    final Expr.Call callExpr;
-    final Stmt.Function fnStmt;
+    final Stmt stmt;
+    final Token token;
 
-    StackFrame(Expr.Call callExpr, Stmt.Function fnStmt) {
-        this.callExpr = callExpr;
-        this.fnStmt = fnStmt;
+    StackFrame(Stmt stmt, Token tok) {
+        this.stmt = stmt;
+        this.token = tok;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        if (stmt instanceof Stmt.Throw) {
+            builder.append("<throw>");
+        } else if (stmt instanceof Stmt.Function) {
+            builder.append("<fun " + ((Stmt.Function)stmt).name.lexeme + ">");
+        } else {
+            throw new RuntimeException("bad statement class given to stackframe. BUG");
+        }
+        if (token != null) {
+            builder.append(" at line " + token.line + ".");
+        }
+        return builder.toString();
     }
 }

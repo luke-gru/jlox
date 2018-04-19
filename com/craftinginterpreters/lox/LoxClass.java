@@ -43,7 +43,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
 
     // constructor call
     @Override
-    public Object call(Interpreter interpreter, List<Object> args) {
+    public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
         LoxInstance instance = new LoxInstance(this, name);
         LoxFunction constructor = getMethod("init");
         if (constructor != null) {
@@ -51,7 +51,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
                 Lox.error(constructor.getDecl().name, "constructor called with wrong number of arguments");
                 return null;
             }
-            constructor.bind(instance).call(interpreter, args);
+            constructor.bind(instance).call(interpreter, args, callToken);
         }
         return instance;
     }
