@@ -7,7 +7,7 @@ TOOLSOURCEPATH=${BASEDIR}/com/craftinginterpreters/tool
 lox: gen_ast
 	cd ${LOXSOURCEPATH} && javac -sourcepath ${LOXSOURCEPATH} Lox.java Scanner.java TokenType.java Token.java \
 		Parser.java AstPrinter.java Expr.java Stmt.java Interpreter.java RuntimeError.java Environment.java \
-		LoxCallable.java LoxFunction.java Resolver.java LoxClass.java LoxInstance.java StackFrame.java
+		LoxCallable.java LoxFunction.java Resolver.java LoxClass.java LoxInstance.java StackFrame.java LoxArray.java
 
 .PHONY: clean
 clean:

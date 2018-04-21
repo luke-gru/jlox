@@ -8,12 +8,13 @@ import java.util.Map;
 import static com.craftinginterpreters.lox.TokenType.*;
 
 class Scanner {
-    private final String source;
+    private String source;
     private final List<Token> tokens = new ArrayList<>();
 
     private int start = 0;
     private int current = 0;
     private int line = 1;
+    public int inBlock = 0;
 
     private static final Map<String, TokenType> keywords;
 
@@ -37,7 +38,7 @@ class Scanner {
         keywords.put("while",  WHILE);
         keywords.put("break",  BREAK);
         keywords.put("continue",  CONTINUE);
-        keywords.put("try",  TRY);
+        keywords.put("try",    TRY);
         keywords.put("catch",  CATCH);
         keywords.put("throw",  THROW);
     }
@@ -46,16 +47,35 @@ class Scanner {
         this.source = source;
     }
 
+    void reset() {
+        this.start = 0;
+        this.current = 0;
+        this.line = 1;
+        this.inBlock = 0;
+        this.tokens.clear();
+    }
 
     List<Token> scanTokens() {
+        scanUntilEnd();
+        addEOF();
+        return tokens;
+    }
+
+    List<Token> scanUntilEnd() {
         while (!isAtEnd()) {
             // We are at the beginning of the next lexeme.
             start = current;
             scanToken();
         }
-
-        tokens.add(new Token(EOF, "", null, line));
         return tokens;
+    }
+
+    void appendSrc(String src) {
+        this.source = source + src;
+    }
+
+    void addEOF() {
+        tokens.add(new Token(EOF, "", null, line));
     }
 
     private boolean isAtEnd() {
@@ -67,8 +87,10 @@ class Scanner {
         switch (c) {
             case '(': addToken(LEFT_PAREN); break;
             case ')': addToken(RIGHT_PAREN); break;
-            case '{': addToken(LEFT_BRACE); break;
-            case '}': addToken(RIGHT_BRACE); break;
+            case '{': addToken(LEFT_BRACE); inBlock++; break;
+            case '}': addToken(RIGHT_BRACE); inBlock--; break;
+            case '[': addToken(LEFT_BRACKET); break;
+            case ']': addToken(RIGHT_BRACKET); break;
             case ',': addToken(COMMA); break;
             case '.': addToken(DOT); break;
             case '-': addToken(MINUS); break;

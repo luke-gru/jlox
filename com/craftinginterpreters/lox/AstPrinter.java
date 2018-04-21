@@ -287,6 +287,39 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     @Override
+    public String visitArrayExpr(Expr.Array expr) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("(array");
+        for (Expr el : expr.expressions) {
+            builder.append(" ");
+            builder.append(el.accept(this));
+        }
+        builder.append(")");
+        return builder.toString();
+    }
+
+    @Override
+    public String visitArrayGetExpr(Expr.ArrayGet expr) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("(arrayget ");
+        builder.append(expr.left.accept(this) + " ");
+        builder.append(expr.indexExpr.accept(this));
+        builder.append(")");
+        return builder.toString();
+    }
+
+    @Override
+    public String visitArraySetExpr(Expr.ArraySet expr) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("(arrayset ");
+        builder.append(expr.left.accept(this) + " ");
+        builder.append(expr.indexExpr.accept(this) + " ");
+        builder.append(expr.value.accept(this));
+        builder.append(")");
+        return builder.toString();
+    }
+
+    @Override
     public String visitLiteralExpr(Expr.Literal expr) {
         if (expr.value == null) return "nil";
         if (expr.value instanceof String) {

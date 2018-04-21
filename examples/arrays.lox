@@ -1,0 +1,43 @@
+var a = [1,2,3];
+print a;
+print a[0];
+print a[2];
+a[2] = 100;
+print a[2];
+var f = fun() {
+  a[3] = 1000;
+};
+print "len()";
+for (var i = 0; i < len(a); i = i + 1) {
+  print a[i];
+}
+print "";
+
+class Object {
+  init(length) {
+    this.length = 3;
+  }
+}
+
+class Object2 {
+  length() {
+    return 4;
+  }
+}
+
+class Object3 {
+  length {
+    return 5;
+  }
+}
+
+var o = Object(3);
+print "object len: ";
+print len(o);
+var o2 = Object2();
+print "object2 len: ";
+print len(o2);
+var o3 = Object3();
+print "object3 len: ";
+print len(o3);
+

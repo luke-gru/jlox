@@ -37,7 +37,7 @@ public class Lox {
 
     private static void runFile(String path) throws IOException {
         byte[] bytes = Files.readAllBytes(Paths.get(path));
-        run(new String(bytes, Charset.defaultCharset()));
+        runSrc(new String(bytes, Charset.defaultCharset()));
         if (hadError) System.exit(65);
         if (hadRuntimeError) System.exit(70);
     }
@@ -46,21 +46,47 @@ public class Lox {
         InputStreamReader input = new InputStreamReader(System.in);
         BufferedReader reader = new BufferedReader(input);
 
+        Scanner scanner = new Scanner("");
+        Parser parser;
+        List<Token> tokens;
+        List<Stmt> statements;
+        System.out.print("> ");
         for (;;) {
-            System.out.print("> ");
-            run(reader.readLine());
+            String line = reader.readLine();
+            scanner.appendSrc(line);
+            tokens = scanner.scanUntilEnd();
+            if (scanner.inBlock > 0) {
+                System.out.print("> ");
+                for (int i = 0; i < scanner.inBlock; i++) {
+                    System.out.print("  "); // indent
+                }
+            } else {
+                scanner.addEOF();
+                parser = new Parser(tokens);
+                statements = parser.parse();
+                if (hadError) {
+                    hadError = false;
+                    scanner = new Scanner("");
+                    System.out.print("> ");
+                    continue;
+                }
+                runStmts(statements);
+                scanner = new Scanner("");
+                System.out.print("> ");
+            }
             hadError = false;
         }
     }
 
-    private static void run(String source) {
-        Scanner scanner = new Scanner(source);
+    static void runSrc(String src) {
+        Scanner scanner = new Scanner(src);
         List<Token> tokens = scanner.scanTokens();
         Parser parser = new Parser(tokens);
         List<Stmt> statements = parser.parse();
-        if (hadError) {
-            return;
-        }
+        runStmts(statements);
+    }
+
+    private static void runStmts(List<Stmt> statements) {
         Resolver resolver = new Resolver(interpreter);
         resolver.resolve(statements);
         if (hadError) {

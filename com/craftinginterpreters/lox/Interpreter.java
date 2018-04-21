@@ -40,7 +40,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         // native functions
         globals.define("clock", new LoxCallable() {
             @Override
-            public Object call(Interpreter interpreter, List<Object> arguments, Token callToken) {
+            public Object call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 return (double)System.currentTimeMillis() / 1000.0;
             }
 
@@ -56,7 +56,68 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
             @Override
             public String toString() {
-                return "<fn " + getName() + ">";
+                return "<fn " + getName() + " (builtin)>";
+            }
+
+            // FIXME: implement in terms of Stmt.Function node
+            @Override
+            public Stmt.Function getDecl() {
+                return null;
+            }
+        });
+        globals.define("typeof", new LoxCallable() {
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                if (arguments.size() != arity()) {
+                    throw new RuntimeError(tok, "typeof() can only take 1 argument");
+                }
+                Object obj = arguments.get(0);
+                return interpreter.nativeTypeof(tok, obj);
+            }
+
+            @Override
+            public String getName() {
+                return "typeof";
+            }
+
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public String toString() {
+                return "<fn " + getName() + " (builtin)>";
+            }
+
+            // FIXME: implement in terms of Stmt.Function node
+            @Override
+            public Stmt.Function getDecl() {
+                return null;
+            }
+        });
+        globals.define("len", new LoxCallable() {
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                if (arguments.size() != arity()) {
+                    throw new RuntimeError(tok, "len() can only take 1 argument");
+                }
+                return interpreter.nativeLen(tok, arguments.get(0));
+            }
+
+            @Override
+            public String getName() {
+                return "len";
+            }
+
+            @Override
+            public int arity() {
+                return 1;
+            }
+
+            @Override
+            public String toString() {
+                return "<fn " + getName() + " (builtin)>";
             }
 
             // FIXME: implement in terms of Stmt.Function node
@@ -73,7 +134,12 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 execute(statement);
             }
         } catch (RuntimeError error) {
+            System.err.println("==============");
+            System.err.print("RuntimeError: ");
             Lox.runtimeError(error);
+            System.err.println("Stacktrace:");
+            System.err.println(stacktrace());
+            System.err.println("==============");
         } catch (RuntimeThrow error) {
             System.err.println("==============");
             System.err.println("Uncaught error: " + stringify(error.value));
@@ -87,6 +153,47 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitLiteralExpr(Expr.Literal expr) {
         return expr.value;
+    }
+
+    @Override
+    public Object visitArrayExpr(Expr.Array expr) {
+        List<Object> objs = new ArrayList<>();
+        for (Expr el : expr.expressions) {
+            objs.add(evaluate(el));
+        }
+        return new LoxArray(objs);
+    }
+
+    @Override
+    public Object visitArrayGetExpr(Expr.ArrayGet expr) {
+        Object obj = evaluate(expr.left);
+        if (!(obj instanceof LoxArray)) {
+            throw new RuntimeError(tokenFromExpr(expr.left), "array access expr, LHS must be array!");
+        }
+        LoxArray ary = (LoxArray)obj;
+        Object index = evaluate(expr.indexExpr);
+        if (!(index instanceof Double)) {
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "array access index must be number!");
+        }
+        Token tok = tokenFromExpr(expr.left);
+        return ary.get(((Double)index).intValue(), tok);
+    }
+
+    @Override
+    public Object visitArraySetExpr(Expr.ArraySet expr) {
+        Object obj = evaluate(expr.left);
+        if (!(obj instanceof LoxArray)) {
+            throw new RuntimeError(tokenFromExpr(expr.left), "array set expr, LHS must be array!");
+        }
+        LoxArray ary = (LoxArray)obj;
+        Object index = evaluate(expr.indexExpr);
+        if (!(index instanceof Double)) {
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "array access index must be number!");
+        }
+        Object val = evaluate(expr.value);
+        Token tok = tokenFromExpr(expr.left);
+        ary.set(((Double)index).intValue(), val, tok);
+        return val;
     }
 
     @Override
@@ -382,40 +489,47 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitForStmt(Stmt.For stmt) {
-        if (stmt.initializer != null) {
-            execute(stmt.initializer);
-        }
-        boolean runtimeBreak = false;
-        if (stmt.test != null) {
-            Object evalBody = evaluate(stmt.test);
-            while (isTruthy(evalBody)) {
-                try {
-                    execute(stmt.body);
-                } catch (RuntimeBreak err) {
-                    runtimeBreak = true;
-                } catch (RuntimeContinue err) {
-                    // do nothing, continue
-                }
-                if (runtimeBreak) break;
-                if (stmt.increment != null) {
-                   evaluate(stmt.increment);
-                }
-                evalBody = evaluate(stmt.test);
+        Environment oldEnv = this.environment;
+        // so that (var i = 0) initializer is not leaked to outer scope
+        this.environment = new Environment(oldEnv);
+        try {
+            if (stmt.initializer != null) {
+                execute(stmt.initializer);
             }
-        } else {
-            while (true) {
-                try  {
-                    execute(stmt.body);
-                } catch (RuntimeBreak err) {
-                    runtimeBreak = true;
-                } catch (RuntimeContinue err) {
-                    // do nothing, continue
-                }
-                if (runtimeBreak) break;
-                if (stmt.increment != null) {
+            boolean runtimeBreak = false;
+            if (stmt.test != null) {
+                Object evalBody = evaluate(stmt.test);
+                while (isTruthy(evalBody)) {
+                    try {
+                        execute(stmt.body);
+                    } catch (RuntimeBreak err) {
+                        runtimeBreak = true;
+                    } catch (RuntimeContinue err) {
+                        // do nothing, continue
+                    }
+                    if (runtimeBreak) break;
+                    if (stmt.increment != null) {
                     evaluate(stmt.increment);
+                    }
+                    evalBody = evaluate(stmt.test);
+                }
+            } else {
+                while (true) {
+                    try  {
+                        execute(stmt.body);
+                    } catch (RuntimeBreak err) {
+                        runtimeBreak = true;
+                    } catch (RuntimeContinue err) {
+                        // do nothing, continue
+                    }
+                    if (runtimeBreak) break;
+                    if (stmt.increment != null) {
+                        evaluate(stmt.increment);
+                    }
                 }
             }
+        } finally {
+            this.environment = oldEnv;
         }
         return null;
     }
@@ -589,11 +703,40 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 text = text.substring(0, text.length() - 2);
             }
             return text;
-        } else if (object instanceof String) {
-            return "\"" + object.toString() + "\"";
         }
 
         return object.toString();
+    }
+
+    public Object nativeTypeof(Token tok, Object object) {
+        if (object == null) { return "nil"; }
+        if (object instanceof Double) { return "number"; }
+        if (object instanceof String) { return "string"; }
+        if (object instanceof LoxClass) { return "class"; }
+        if (object instanceof LoxInstance) { return "instance"; }
+        if (object instanceof LoxCallable) { return "function"; }
+        if (object instanceof LoxArray) { return "array"; }
+        throw new RuntimeException("typeof() BUG, unknown type (" + object.getClass().getName() + ")!");
+    }
+
+    public Object nativeLen(Token tok, Object object) {
+        if (object instanceof String) { return (double)((String)object).length(); }
+        if (object instanceof LoxArray) { return ((LoxArray)object).length(); }
+        if (object instanceof LoxCallable) { return (double)((LoxCallable)object).arity(); }
+        if (object instanceof LoxInstance) {
+            LoxInstance instance = (LoxInstance)object;
+            Object methodOrProp = instance.getProperty("length", this);
+            if (methodOrProp == null) {
+                throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with the length property or method");
+            }
+            if (methodOrProp instanceof Double) {
+                return (double)methodOrProp;
+            }
+            if (methodOrProp instanceof LoxFunction) {
+                return ((LoxFunction)methodOrProp).call(this, new ArrayList<Object>(), tok);
+            }
+        }
+        throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with the length property or method");
     }
 
     private void execute(Stmt stmt) {
@@ -638,6 +781,12 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             tok = ((Expr.This)expr).keyword;
         } else if (expr instanceof Expr.AnonFn) {
             tok = ((Expr.AnonFn)expr).fun;
+        } else if (expr instanceof Expr.Array) {
+            tok = ((Expr.Array)expr).lbracket;
+        } else if (expr instanceof Expr.ArrayGet) {
+            tok = ((Expr.ArrayGet)expr).lbracket;
+        } else if (expr instanceof Expr.ArraySet) {
+            tok = ((Expr.ArraySet)expr).lbracket;
         }
         return tok;
     }

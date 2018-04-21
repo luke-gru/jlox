@@ -15,7 +15,9 @@ class StackFrame {
         if (stmt instanceof Stmt.Throw) {
             builder.append("<throw>");
         } else if (stmt instanceof Stmt.Function) {
-            builder.append("<fun " + ((Stmt.Function)stmt).name.lexeme + ">");
+            Stmt.Function func = (Stmt.Function)stmt;
+            String funcName = func.name == null ? "(anon)" : func.name.lexeme;
+            builder.append("<fun " + funcName + ">");
         } else {
             throw new RuntimeException("bad statement class given to stackframe. BUG");
         }

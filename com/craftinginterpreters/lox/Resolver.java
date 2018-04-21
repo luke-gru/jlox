@@ -36,6 +36,27 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitArrayExpr(Expr.Array expr) {
+        resolveExprs(expr.expressions);
+        return null;
+    }
+
+    @Override
+    public Void visitArrayGetExpr(Expr.ArrayGet expr) {
+        resolve(expr.left);
+        resolve(expr.indexExpr);
+        return null;
+    }
+
+    @Override
+    public Void visitArraySetExpr(Expr.ArraySet expr) {
+        resolve(expr.left);
+        resolve(expr.indexExpr);
+        resolve(expr.value);
+        return null;
+    }
+
+    @Override
     public Void visitLiteralExpr(Expr.Literal expr) {
         // do nothing
         return null;
@@ -187,6 +208,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitForStmt(Stmt.For stmt) {
+        beginScope();
         if (stmt.initializer != null) {
             resolve(stmt.initializer);
         }
@@ -197,6 +219,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             resolve(stmt.increment);
         }
         resolve(stmt.body);
+        endScope();
         return null;
     }
 

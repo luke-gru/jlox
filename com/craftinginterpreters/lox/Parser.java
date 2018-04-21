@@ -55,7 +55,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
  * continueStmt   : "continue" ";" ;
  * breakStmt      : "break" ";" ;
  * expression     : assignment ;
- * assignment     : ( call "." )? IDENTIFIER "=" assignment
+ * assignment     : ( (call ".") | (call "[" expression "]"))? IDENTIFIER "=" assignment
  *                | logic_or ;
  * logic_or       : logic_and ("or" logic_and)* ;
  * logic_and      : equality ("and" equality)* ;
@@ -67,8 +67,10 @@ import static com.craftinginterpreters.lox.TokenType.*;
  *                | call ;
  * call           : primary ( "(" arguments? ")" | "." IDENTIFIER )*
  * arguments      : (expression ",")+
+ * expressionList : (expression ",")+
  * primary        : NUMBER | STRING | "false" | "true" | "nil" | "this" | "super" "." IDENTIFIER
-                  | IDENTIFIER | anonFn | "(" expression ")" ;
+                  | IDENTIFIER | anonFn | arrayLiteral | "(" expression ")" ;
+ * arrayLiteral   : "[" expressionList? "]"
  * anonFn         : "fun" "(" parameterList? ")" blockStmt ;
  */
 
@@ -440,8 +442,11 @@ class Parser {
             } else if (expr instanceof Expr.Super) {
                 Expr.Super superExpr = (Expr.Super)expr;
                 return new Expr.PropSet(superExpr, superExpr.property, value);
+            } else if (expr instanceof Expr.ArrayGet) {
+                Expr.ArrayGet arrayGet = (Expr.ArrayGet)expr;
+                return new Expr.ArraySet(arrayGet.lbracket, arrayGet.left, arrayGet.indexExpr, value);
             }
-            throw error(equals, "Invalid assignment target, must be variable or property name");
+            throw error(equals, "Invalid assignment target, must be variable, property name or array element");
         }
         return expr;
     }
@@ -547,6 +552,12 @@ class Parser {
                 advance();
                 Token name = consumeTok(IDENTIFIER, "Expected identifier after '.' in object property access");
                 expr = new Expr.PropAccess(expr, name);
+            } else if (checkTok(LEFT_BRACKET)) {
+                advance();
+                Token lbracket = prevTok();
+                Expr indexExpr = expression();
+                expr = new Expr.ArrayGet(lbracket, expr, indexExpr);
+                consumeTok(RIGHT_BRACKET, "Expected ']' at end of Array access expression");
             } else {
                 break;
             }
@@ -576,6 +587,23 @@ class Parser {
             Token propName = consumeTok(IDENTIFIER, "Expected identifier after 'super.'");
             Expr superExpr = new Expr.Super(superTok, propName);
             return superExpr;
+        }
+
+        if (matchAny(LEFT_BRACKET)) {
+            List<Expr> list = new ArrayList<>();
+            Expr.Array ary = new Expr.Array(prevTok(), list);
+            while (!checkTok(RIGHT_BRACKET)) {
+                list.add(expression());
+                if (checkTok(COMMA) && peekTokN(1).type == RIGHT_BRACKET) {
+                    break;
+                }
+                if (checkTok(RIGHT_BRACKET)) {
+                    break;
+                }
+                consumeTok(COMMA, "Expected ',' to separate expressions in Array literal");
+            }
+            consumeTok(RIGHT_BRACKET, "Expected ']' to end array expression");
+            return ary;
         }
 
         if (matchAny(IDENTIFIER)) {
