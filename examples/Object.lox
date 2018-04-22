@@ -1,0 +1,9 @@
+var o = Object();
+var o2 = Object();
+print o;
+print o2;
+print Object;
+print o.equals(o);
+print o2.equals(o2);
+print o2.equals(o);
+print o.equals(o2);

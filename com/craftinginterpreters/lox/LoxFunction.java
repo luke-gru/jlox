@@ -66,8 +66,12 @@ class LoxFunction implements LoxCallable {
         return declaration;
     }
 
-    public LoxFunction bind(LoxInstance instance) {
-        Environment environment = new Environment(closure);
+    @Override
+    public LoxCallable bind(LoxInstance instance, Environment env) {
+        if (env != closure) {
+            throw new RuntimeException("BUG! closure should == env passed to bind()");
+        }
+        Environment environment = new Environment(env);
         environment.define("this", instance);
         return new LoxFunction(declaration, environment, isInitializer);
     }

@@ -7,17 +7,17 @@ import java.util.Map;
 class LoxClass extends LoxInstance implements LoxCallable {
     final String name;
     final LoxClass superClass;
-    final Map<String, LoxFunction> methods;
-    final Map<String, LoxFunction> getters;
-    final Map<String, LoxFunction> setters;
+    final Map<String, LoxCallable> methods;
+    final Map<String, LoxCallable> getters;
+    final Map<String, LoxCallable> setters;
 
-    LoxClass(String name, LoxClass superClass, Map<String, LoxFunction> methods) {
+    LoxClass(String name, LoxClass superClass, Map<String, LoxCallable> methods) {
         super(null, "metaclass " + name);
         this.name = name;
         this.superClass = superClass;
         this.methods = methods;
-        this.getters = new HashMap<String, LoxFunction>();
-        this.setters = new HashMap<String, LoxFunction>();
+        this.getters = new HashMap<>();
+        this.setters = new HashMap<>();
     }
 
     @Override
@@ -33,7 +33,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
     // constructor arity
     @Override
     public int arity() {
-        LoxFunction constructor = getMethod("init");
+        LoxCallable constructor = getMethod("init");
         if (constructor == null) {
             return 0;
         } else {
@@ -45,13 +45,13 @@ class LoxClass extends LoxInstance implements LoxCallable {
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
         LoxInstance instance = new LoxInstance(this, name);
-        LoxFunction constructor = getMethod("init");
+        LoxCallable constructor = getMethod("init");
         if (constructor != null) {
             if (args.size() != constructor.arity()) {
                 Lox.error(constructor.getDecl().name, "constructor called with wrong number of arguments");
                 return null;
             }
-            constructor.bind(instance).call(interpreter, args, callToken);
+            constructor.bind(instance, interpreter.environment).call(interpreter, args, callToken);
         }
         return instance;
     }
@@ -59,17 +59,22 @@ class LoxClass extends LoxInstance implements LoxCallable {
     // constructor declaration
     @Override
     public Stmt.Function getDecl() {
-        LoxFunction constructor = getMethod("init");
+        LoxCallable constructor = getMethod("init");
         if (constructor != null) {
             return constructor.getDecl();
         }
         return null;
     }
 
-    public LoxFunction boundMethod(LoxInstance instance, String name) {
-        LoxFunction method = getMethod(name);
+    @Override
+    public LoxCallable bind(LoxInstance instance, Environment env) {
+        return this;
+    }
+
+    public LoxCallable boundMethod(LoxInstance instance, Environment env, String name) {
+        LoxCallable method = getMethod(name);
         if (method != null) {
-            return method.bind(instance);
+            return method.bind(instance, env);
         }
         return null;
     }
@@ -78,10 +83,10 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return superClass;
     }
 
-    public LoxFunction getMethod(String name) {
+    public LoxCallable getMethod(String name) {
         LoxClass klass = this;
         while (klass != null) {
-            LoxFunction func = klass.methods.get(name);
+            LoxCallable func = klass.methods.get(name);
             if (func != null) {
                 return func;
             }
@@ -90,10 +95,10 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return null;
     }
 
-    public LoxFunction getGetter(String name) {
+    public LoxCallable getGetter(String name) {
         LoxClass klass = this;
         while (klass != null) {
-            LoxFunction func = klass.getters.get(name);
+            LoxCallable func = klass.getters.get(name);
             if (func != null) {
                 return func;
             }
@@ -102,10 +107,10 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return null;
     }
 
-    public LoxFunction getSetter(String name) {
+    public LoxCallable getSetter(String name) {
         LoxClass klass = this;
         while (klass != null) {
-            LoxFunction func = klass.setters.get(name);
+            LoxCallable func = klass.setters.get(name);
             if (func != null) {
                 return func;
             }

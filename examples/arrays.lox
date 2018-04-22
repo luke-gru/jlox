@@ -3,6 +3,7 @@ print a;
 print a[0];
 print a[2];
 a[2] = 100;
+//a[4] = "omg";
 print a[2];
 var f = fun() {
   a[3] = 1000;
@@ -41,3 +42,13 @@ var o3 = Object3();
 print "object3 len: ";
 print len(o3);
 
+var string =  "my string";
+print string;
+print len(string); // 9
+print string[0]; // m
+string[0] = "y"; //
+print string; // "yy string"
+print len(string);
+string[100] = "hello"; // len = 105
+print string;
+print len(string);

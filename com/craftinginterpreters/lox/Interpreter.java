@@ -29,7 +29,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public final Map<Expr, Integer> locals = new HashMap<>();
     final Environment globals = new Environment();
-    private Environment environment = globals;
+    final Runtime runtime;
+    public Environment environment = globals;
     private LoxCallable fnCall = null; // current function being executed
     private LoxClass currentClass = null; // current class being visited
     private Map<String, LoxClass> classMap = new HashMap<>();
@@ -37,95 +38,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Stack<StackFrame> stack = new Stack<>();
 
     Interpreter() {
-        // native functions
-        globals.define("clock", new LoxCallable() {
-            @Override
-            public Object call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                return (double)System.currentTimeMillis() / 1000.0;
-            }
-
-            @Override
-            public String getName() {
-                return "clock";
-            }
-
-            @Override
-            public int arity() {
-                return 0;
-            }
-
-            @Override
-            public String toString() {
-                return "<fn " + getName() + " (builtin)>";
-            }
-
-            // FIXME: implement in terms of Stmt.Function node
-            @Override
-            public Stmt.Function getDecl() {
-                return null;
-            }
-        });
-        globals.define("typeof", new LoxCallable() {
-            @Override
-            public Object call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                if (arguments.size() != arity()) {
-                    throw new RuntimeError(tok, "typeof() can only take 1 argument");
-                }
-                Object obj = arguments.get(0);
-                return interpreter.nativeTypeof(tok, obj);
-            }
-
-            @Override
-            public String getName() {
-                return "typeof";
-            }
-
-            @Override
-            public int arity() {
-                return 1;
-            }
-
-            @Override
-            public String toString() {
-                return "<fn " + getName() + " (builtin)>";
-            }
-
-            // FIXME: implement in terms of Stmt.Function node
-            @Override
-            public Stmt.Function getDecl() {
-                return null;
-            }
-        });
-        globals.define("len", new LoxCallable() {
-            @Override
-            public Object call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                if (arguments.size() != arity()) {
-                    throw new RuntimeError(tok, "len() can only take 1 argument");
-                }
-                return interpreter.nativeLen(tok, arguments.get(0));
-            }
-
-            @Override
-            public String getName() {
-                return "len";
-            }
-
-            @Override
-            public int arity() {
-                return 1;
-            }
-
-            @Override
-            public String toString() {
-                return "<fn " + getName() + " (builtin)>";
-            }
-
-            // FIXME: implement in terms of Stmt.Function node
-            @Override
-            public Stmt.Function getDecl() {
-                return null;
-            }
-        });
+        this.runtime = new Runtime(globals);
+        runtime.defineGlobalFunctions();
+        runtime.defineBuiltinClasses();
     }
 
     public void interpret(List<Stmt> statements) {
@@ -167,33 +82,61 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitArrayGetExpr(Expr.ArrayGet expr) {
         Object obj = evaluate(expr.left);
-        if (!(obj instanceof LoxArray)) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "array access expr, LHS must be array!");
+        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer)) {
+            throw new RuntimeError(tokenFromExpr(expr.left), "array access expr, LHS must be array or string!");
         }
-        LoxArray ary = (LoxArray)obj;
         Object index = evaluate(expr.indexExpr);
         if (!(index instanceof Double)) {
             throw new RuntimeError(tokenFromExpr(expr.indexExpr), "array access index must be number!");
         }
-        Token tok = tokenFromExpr(expr.left);
-        return ary.get(((Double)index).intValue(), tok);
+        if (obj instanceof LoxArray) {
+            LoxArray ary = (LoxArray)obj;
+            Token tok = tokenFromExpr(expr.left);
+            return ary.get(((Double)index).intValue(), tok);
+        } else {
+            StringBuffer strBuf = (StringBuffer)obj;
+            int start = ((Double)index).intValue();
+            return new StringBuffer(strBuf.substring(start, start+1));
+        }
     }
 
     @Override
     public Object visitArraySetExpr(Expr.ArraySet expr) {
         Object obj = evaluate(expr.left);
-        if (!(obj instanceof LoxArray)) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "array set expr, LHS must be array!");
+        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer)) {
+            throw new RuntimeError(tokenFromExpr(expr.left), "array set expr, LHS must be array or string!");
         }
-        LoxArray ary = (LoxArray)obj;
         Object index = evaluate(expr.indexExpr);
         if (!(index instanceof Double)) {
             throw new RuntimeError(tokenFromExpr(expr.indexExpr), "array access index must be number!");
         }
-        Object val = evaluate(expr.value);
-        Token tok = tokenFromExpr(expr.left);
-        ary.set(((Double)index).intValue(), val, tok);
-        return val;
+        if (obj instanceof LoxArray) {
+            LoxArray ary = (LoxArray)obj;
+            Object val = evaluate(expr.value);
+            Token tok = tokenFromExpr(expr.left);
+            ary.set(((Double)index).intValue(), val, tok);
+            return val;
+        } else {
+            StringBuffer strBuf = (StringBuffer)obj;
+            Object val = evaluate(expr.value);
+            if (!(val instanceof StringBuffer)) {
+                throw new RuntimeError(tokenFromExpr(expr.indexExpr), "string[]=value, value must be a string!");
+            }
+            int start = ((Double)index).intValue();
+            int end = start + ((StringBuffer)val).length();
+            if (start > strBuf.length()) {
+                int len = strBuf.length();
+                while (len < start) {
+                    strBuf.append(" ");
+                    len++;
+                }
+            } else {
+                strBuf.delete(start, end);
+            }
+            // TODO
+            strBuf.insert(start, ((StringBuffer)val).toString());
+            return val;
+        }
     }
 
     @Override
@@ -240,8 +183,10 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     return (double)left + (double)right;
                 }
 
-                if (left instanceof String && right instanceof String) {
-                    return (String)left + (String)right;
+                if (left instanceof StringBuffer && right instanceof StringBuffer) {
+                    return new StringBuffer(
+                            ((StringBuffer)left).toString() + ((StringBuffer)right).toString()
+                    );
                 }
 
                 throw new RuntimeError(expr.operator, "operands must be two numbers or two strings");
@@ -366,7 +311,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object obj = evaluate(expr.left);
         if (obj instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)obj;
-            LoxFunction getterFunc = instance.getKlass().getGetter(expr.property.lexeme);
+            LoxCallable getterFunc = instance.getKlass().getGetter(expr.property.lexeme);
             LoxCallable oldFnCall = this.fnCall;
             if (getterFunc != null) {
                 this.fnCall = getterFunc;
@@ -384,7 +329,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitPropSetExpr(Expr.PropSet expr) {
         Object obj = null;
-        LoxFunction setterFunc = null;
+        LoxCallable setterFunc = null;
         // "super.property = rvalue"
         if (expr.object instanceof Expr.Super) {
             obj = environment.get("this", true, ((Expr.Super)expr.object).keyword);
@@ -597,7 +542,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Void visitClassStmt(Stmt.Class stmt) {
         environment.define(stmt.name.lexeme, null);
         LoxClass enclosingClass = this.currentClass;
-        Map<String, LoxFunction> methods = new HashMap<>();
+        Map<String, LoxCallable> methods = new HashMap<>();
         LoxClass superKlass = null;
         if (stmt.superClass != null) {
             superKlass = classMap.get(stmt.superClass.name.lexeme);
@@ -616,7 +561,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 boolean isStaticMethod = method.type == Parser.FunctionType.CLASS_METHOD;
                 boolean isGetter = method.type == Parser.FunctionType.GETTER;
                 boolean isSetter = method.type == Parser.FunctionType.SETTER;
-                LoxFunction func = new LoxFunction(method, environment, isInitializer);
+                LoxCallable func = new LoxFunction(method, environment, isInitializer);
                 if (isStaticMethod) {
                     klass.getKlass().methods.put(method.name.lexeme, func);
                 } else if (isGetter) {
@@ -669,6 +614,11 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         // nil is only equal to nil.
         if (a == null && b == null) return true;
         if (a == null) return false;
+        if (a instanceof StringBuffer && b instanceof StringBuffer) {
+            return ((StringBuffer)a).toString().equals(
+                ((StringBuffer)b).toString()
+            );
+        }
 
         return a.equals(b);
     }
@@ -710,8 +660,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public Object nativeTypeof(Token tok, Object object) {
         if (object == null) { return "nil"; }
+        if (object instanceof Boolean) { return "bool"; }
         if (object instanceof Double) { return "number"; }
-        if (object instanceof String) { return "string"; }
+        if (object instanceof StringBuffer) { return "string"; }
         if (object instanceof LoxClass) { return "class"; }
         if (object instanceof LoxInstance) { return "instance"; }
         if (object instanceof LoxCallable) { return "function"; }
@@ -720,7 +671,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public Object nativeLen(Token tok, Object object) {
-        if (object instanceof String) { return (double)((String)object).length(); }
+        if (object instanceof StringBuffer) { return (double)((StringBuffer)object).length(); }
         if (object instanceof LoxArray) { return ((LoxArray)object).length(); }
         if (object instanceof LoxCallable) { return (double)((LoxCallable)object).arity(); }
         if (object instanceof LoxInstance) {
@@ -732,8 +683,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             if (methodOrProp instanceof Double) {
                 return (double)methodOrProp;
             }
-            if (methodOrProp instanceof LoxFunction) {
-                return ((LoxFunction)methodOrProp).call(this, new ArrayList<Object>(), tok);
+            if (methodOrProp instanceof LoxCallable) {
+                return ((LoxCallable)methodOrProp).call(this, new ArrayList<Object>(), tok);
             }
         }
         throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with the length property or method");

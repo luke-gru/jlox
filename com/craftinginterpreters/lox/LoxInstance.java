@@ -24,26 +24,26 @@ class LoxInstance {
         LoxClass klass = getKlass();
         while (klass != null) {
             if (klass.getters.containsKey(name)) {
-                LoxFunction getter = klass.getters.get(name);
+                LoxCallable getter = klass.getters.get(name);
                 List<Object> objs = new ArrayList<>();
-                return getter.bind(this).call(interp, objs, null);
+                return getter.bind(this, interp.environment).call(interp, objs, null);
             }
             klass = klass.getSuper();
         }
         if (properties.containsKey(name)) {
             return properties.get(name);
         } else {
-            LoxFunction method = getKlass().boundMethod(this, name);
+            LoxCallable method = getKlass().boundMethod(this, interp.environment, name);
             if (method != null) return method;
             return null;
         }
     }
 
-    public void setProperty(String name, Object value, Interpreter interp, LoxFunction setterFunc) {
+    public void setProperty(String name, Object value, Interpreter interp, LoxCallable setterFunc) {
         if (setterFunc != null) {
             List<Object> objs = new ArrayList<>();
             objs.add(value);
-            setterFunc.bind(this).call(interp, objs, null);
+            setterFunc.bind(this, interp.environment).call(interp, objs, null);
             return;
         }
         properties.put(name, value);
@@ -51,7 +51,7 @@ class LoxInstance {
 
     public LoxClass getKlass() {
         if (klass == null) {
-            klass = new LoxClass(klassName, null, new HashMap<String, LoxFunction>());
+            klass = new LoxClass(klassName, null, new HashMap<String, LoxCallable>());
         }
         return klass;
     }
@@ -60,13 +60,13 @@ class LoxInstance {
         LoxClass klass = klassBeginSearch;
         while (klass != null) {
             if (klass.getters.containsKey(name)) {
-                LoxFunction getter = klass.getters.get(name);
+                LoxCallable getter = klass.getters.get(name);
                 List<Object> args = new ArrayList<>();
-                return getter.bind(this).call(interp, args, null);
+                return getter.bind(this, interp.environment).call(interp, args, null);
             }
             klass = klass.getSuper();
         }
-        LoxFunction method = klassBeginSearch.boundMethod(this, name);
+        LoxCallable method = klassBeginSearch.boundMethod(this, interp.environment, name);
         if (method != null) return method;
         return null;
     }

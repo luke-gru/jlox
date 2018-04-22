@@ -570,8 +570,13 @@ class Parser {
         if (matchAny(TRUE)) return new Expr.Literal(true);
         if (matchAny(NIL)) return new Expr.Literal(null);
 
-        if (matchAny(NUMBER, STRING)) {
+        if (matchAny(NUMBER)) {
             return new Expr.Literal(prevTok().literal);
+        }
+        if (matchAny(STRING)) {
+            return new Expr.Literal(
+                new StringBuffer((String)prevTok().literal)
+            );
         }
 
         if (matchAny(LEFT_PAREN)) {
