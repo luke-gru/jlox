@@ -290,20 +290,46 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (obj instanceof LoxCallable) {
             List<Object> args = new ArrayList<>();
             for (Expr expr : callExpr.args) {
-                args.add(evaluate(expr));
+                if (expr instanceof Expr.SplatCall) {
+                    Object ary = evaluate(((Expr.SplatCall)expr).expression);
+                    if (!(ary instanceof LoxArray)) {
+                        throw new RuntimeError(tokenFromExpr(callExpr), "Splat arg expression must evaluate to an array");
+                    }
+                    args.addAll(((LoxArray)ary).elements);
+                } else {
+                    args.add(evaluate(expr));
+                }
             }
             LoxCallable callable = (LoxCallable)obj;
-            if (callable.arity() != args.size()) {
+            if (!Runtime.acceptsNArgs(callable, args.size())) {
+                int arity = callable.arity();
+                int expectedN = arity;
+                String expectedNStr;
+                if (expectedN < 0) {
+                    expectedNStr = "at least " + String.valueOf(-expectedN);
+                } else {
+                    expectedNStr = String.valueOf(expectedN);
+                }
+                int actualN = args.size();
+                String actualNStr = String.valueOf(actualN);
                 throw new RuntimeError(
                     tokenFromExpr(callExpr.left), "Function <" +
-                    callable.getName() + "> called with wrong number of arguments."
+                    callable.getName() + "> called with wrong number of arguments. Expected " +
+                    expectedNStr + ", got " + actualNStr + "."
                 );
             }
+            //System.err.println("CALL(" + ((LoxCallable)obj).getName() + "): args size: ");
+            //System.err.println(args.size());
             return evaluateCall(callable, args, tokenFromExpr(callExpr.left));
         } else {
             Token tok = tokenFromExpr(callExpr);
             throw new RuntimeError(tok, "Undefined function or method " + tok.lexeme);
         }
+    }
+
+    @Override
+    public Object visitSplatCallExpr(Expr.SplatCall expr) {
+        return null;
     }
 
     @Override

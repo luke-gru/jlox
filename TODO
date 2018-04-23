@@ -1,1 +1,16 @@
 TODO:
+* multiple assignment, return multiple values
+* splat parameters + splat arguments
+* dicts and dict literals
+* iterators
+* private fields for classes
+* all classes inherit from Object automatically
+* send("funcname") or ["funcname"]() for dynamic calls;
+* add Dict and Array classes, and instead of using LoxArray, use LoxInstance
+* add standard Error classes
+* throw Interrupt errors on interrupts
+* signal handling
+* keyword arguments
+* frozen objects, can't use setProperty on the instance
+* better library
+* add test suite

@@ -1,5 +1,6 @@
 package com.craftinginterpreters.lox;
 
+import java.util.ArrayList;
 import java.util.List;
 
 class LoxFunction implements LoxCallable {
@@ -16,11 +17,34 @@ class LoxFunction implements LoxCallable {
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
         Environment environment = new Environment(closure);
-        for (int i = 0; i < declaration.formals.size(); i++) {
-            environment.define(
-                declaration.formals.get(i).lexeme,
-                args.get(i)
-            );
+        int numParams = declaration.formals.size();
+        int numArgs = args.size();
+        boolean hasSplat = false;
+        boolean addedSplat = false;
+        if (numParams > 0) {
+            hasSplat = declaration.formals.get(numParams-1).isSplatted;
+        }
+        for (int i = 0; i < numArgs; i++) {
+            boolean isLastParam = (numParams-1) == i;
+            Param param = declaration.formals.get(i);
+            if (isLastParam && param.isSplatted) {
+                Object splatAry;
+                if (i == numArgs-1) { // single splat argument
+                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs));
+                } else {
+                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs-1));
+                }
+                environment.define(param.varName(), splatAry);
+                addedSplat = true;
+                break;
+            } else {
+                environment.define(param.varName(), args.get(i));
+            }
+        }
+
+        if (hasSplat && !addedSplat) { // add empty splat array argument
+            Param param = declaration.formals.get(numParams-1);
+            environment.define(param.varName(), Runtime.array(new ArrayList<Object>()));
         }
 
         Environment fnEnv = new Environment(environment);
@@ -53,7 +77,16 @@ class LoxFunction implements LoxCallable {
 
     @Override
     public int arity() {
-        return declaration.formals.size();
+        int i = 0;
+        for (Param param : declaration.formals) {
+            if (param.isSplatted) {
+                i++;
+                return -i;
+            } else {
+                i++;
+            }
+        }
+        return i;
     }
 
     @Override

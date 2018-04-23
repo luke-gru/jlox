@@ -1,0 +1,26 @@
+fun splats(arg1, *splat) {
+  print arg1;
+  print len(splat);
+  for (var i = 0 ; i < len(splat); i = i + 1) {
+    print splat[i];
+  }
+}
+
+fun splats_copy(*splat) {
+  if (len(splat) > 0) {
+    splat[0] = "WOOPS";
+  }
+}
+
+splats("just me");
+print "DONE";
+splats("hi", "why hello there");
+print "DONE";
+var ary = ["why hello again", "HI!", "OMG"];
+splats(*ary);
+splats("first", "second", *ary);
+
+var ary = [1,2,3];
+print ary[0]; // expect: 1
+splats_copy(*ary);
+print ary[0]; // expect: 1

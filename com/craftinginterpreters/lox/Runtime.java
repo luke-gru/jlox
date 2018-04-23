@@ -17,8 +17,27 @@ class Runtime {
         return (Boolean)val;
     }
 
+    static Object array(List<Object> list) {
+        return new LoxArray(list);
+    }
+
+    static Object arrayCopy(List<Object> list) {
+        List<Object> copy = new ArrayList<>();
+        copy.addAll(list);
+        return new LoxArray(copy);
+    }
+
+    static boolean acceptsNArgs(LoxCallable callable, int n) {
+        int arity = callable.arity();
+        if (arity >= 0) {
+            return arity == n;
+        } else {
+            int necessaryArgs = -(arity+1);
+            return necessaryArgs <= n;
+        }
+    }
+
     public void defineGlobalFunctions() {
-        // native functions
         globalEnv.define("clock", new LoxNativeCallable("clock", 0) {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {

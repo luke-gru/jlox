@@ -207,8 +207,9 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         }
         builder.append(indent() + "(" + fnDeclStr + " " + fnReceiver + stmt.name.lexeme);
         int idx = 0;
-        for (Token var : stmt.formals) {
-            builder.append(" " + var.lexeme);
+        for (Param param : stmt.formals) {
+            boolean isSplat = param.isSplatted;
+            builder.append(" " + (isSplat ? "*" + param.varName() : param.varName()));
             idx++;
         }
         builder.append("\n");
@@ -217,6 +218,11 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         indent--;
         builder.append("\n" + indent() + ")");
         return builder.toString();
+    }
+
+    @Override
+    public String visitSplatCallExpr(Expr.SplatCall expr) {
+        return "*" + expr.expression.accept(this);
     }
 
     @Override
@@ -248,8 +254,9 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         StringBuilder builder = new StringBuilder();
         builder.append(indent() + "(fnAnon");
         int idx = 0;
-        for (Token var : expr.formals) {
-            builder.append(" " + var.lexeme);
+        for (Param param : expr.formals) {
+            boolean isSplat = param.isSplatted;
+            builder.append(" " + (isSplat ? "*" + param.varName() : param.varName()));
             idx++;
         }
         builder.append("\n");

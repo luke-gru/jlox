@@ -168,13 +168,13 @@ class Parser {
     private Stmt varDeclaration() {
         Token name = consumeTok(IDENTIFIER, "Expected variable name in 'var' declaration.");
         if (this.currentFn != null) {
-            for (Token param : this.currentFn.formals) {
-                if (param.lexeme.equals(name.lexeme)) {
+            for (Param param : this.currentFn.formals) {
+                if (param.varName().equals(name.lexeme)) {
                     throw error(
-                            name,
-                            "'var' assignment error: can't shadow parameter '" + name.lexeme + "' in function <" +
-                            this.currentFn.name.lexeme + ">"
-                            );
+                        name,
+                        "'var' assignment error: can't shadow parameter '" + name.lexeme + "' in function <" +
+                        this.currentFn.name.lexeme + ">"
+                        );
                 }
             }
         }
@@ -191,14 +191,26 @@ class Parser {
     private Stmt funDeclaration(FunctionType fnType) {
         Token name = consumeTok(IDENTIFIER, "Expected function name after 'fun' keyword.");
         consumeTok(LEFT_PAREN, "Expected '(' after function name.");
-        List<Token> formals = new ArrayList<>();
-        while (matchAny(IDENTIFIER)) {
-            Token parameter = prevTok();
-            formals.add(parameter);
+        List<Param> formals = new ArrayList<>();
+        while (matchAny(IDENTIFIER, STAR)) {
+            Token tok = prevTok();
+            Token paramTok;
+            boolean isSplat = false;
+            if (tok.type == STAR) {
+                paramTok = consumeTok(IDENTIFIER, "Expected parameter name in function parameter list after '*'.");
+                isSplat = true;
+            } else {
+                paramTok = tok;
+            }
+            Param paramObj = new Param(paramTok, null, isSplat);
+            formals.add(paramObj);
             if (peekTok().type == RIGHT_PAREN) {
                 break;
             } else {
                 consumeTok(COMMA, "Expected ',' in function parameter list.");
+            }
+            if (isSplat) { // handle (arg1, *splat,) [with trailing comma]
+                break;
             }
         }
         consumeTok(RIGHT_PAREN, "Expected ')' to end function parameter list.");
@@ -227,7 +239,8 @@ class Parser {
         Token name = consumeTok(IDENTIFIER, "Expected getter name in getter decl");
         consumeTok(LEFT_BRACE, "Expected '{' after getter name in getter decl");
         FunctionType fnType = FunctionType.GETTER;
-        Stmt.Function fnStmt = new Stmt.Function(name, new ArrayList<Token>(), null, fnType, this.currentClass);
+        List<Param> params = new ArrayList<>();
+        Stmt.Function fnStmt = new Stmt.Function(name, params, null, fnType, this.currentClass);
         this.currentFn = fnStmt;
         Stmt body = new Stmt.Block(blockStmts());
         fnStmt.body = body;
@@ -239,13 +252,13 @@ class Parser {
         Token name = consumeTok(IDENTIFIER, "Expected setter name in setter decl");
         consumeTok(EQUAL, "Expected '=' after setter name in setter decl");
         FunctionType fnType = FunctionType.SETTER;
-        List<Token> formals = new ArrayList<>();
+        List<Param> params = new ArrayList<>();
         consumeTok(LEFT_PAREN, "Expected '(' after '=' in setter decl");
-        Token param = consumeTok(IDENTIFIER, "Expected parameter in setter decl");
-        formals.add(param);
+        Token paramTok = consumeTok(IDENTIFIER, "Expected parameter in setter decl");
+        params.add(new Param(paramTok, null, false));
         consumeTok(RIGHT_PAREN, "Expected ')' after parameter in setter decl");
         consumeTok(LEFT_BRACE, "Expected '{' after parameter in setter decl");
-        Stmt.Function fnStmt = new Stmt.Function(name, formals, null, fnType, this.currentClass);
+        Stmt.Function fnStmt = new Stmt.Function(name, params, null, fnType, this.currentClass);
         this.currentFn = fnStmt;
         Stmt body = new Stmt.Block(blockStmts());
         fnStmt.body = body;
@@ -537,7 +550,12 @@ class Parser {
                 } else {
                     Expr arg;
                     while (true) {
-                        arg = expression();
+                        if (matchAny(STAR)) {
+                            arg = expression();
+                            args.add(new Expr.SplatCall(arg));
+                        } else {
+                            arg = expression();
+                        }
                         args.add(arg);
                         if (matchAny(COMMA)) {
                             // continue parsing arguments
@@ -618,14 +636,25 @@ class Parser {
         if (matchAny(FUN)) {
             Token funTok = prevTok();
             consumeTok(LEFT_PAREN, "Expected '(' after keyword 'fun' for anon function");
-            List<Token> formals = new ArrayList<>();
-            while (matchAny(IDENTIFIER)) {
-                Token parameter = prevTok();
-                formals.add(parameter);
+            List<Param> params = new ArrayList<>();
+            while (matchAny(IDENTIFIER, STAR)) {
+                Token tok = prevTok();
+                Token paramTok;
+                boolean isSplat = false;
+                if (tok.type == STAR) {
+                    paramTok = consumeTok(IDENTIFIER, "Expected parameter name after '*' in parameter list");
+                    isSplat = true;
+                } else {
+                    paramTok = tok;
+                }
+                params.add(new Param(paramTok, null, isSplat));
                 if (peekTok().type == RIGHT_PAREN) {
                     break;
                 } else {
                     consumeTok(COMMA, "Expected ',' in anon function parameter list.");
+                }
+                if (isSplat) {
+                    break;
                 }
             }
             consumeTok(RIGHT_PAREN, "Expected ')' to end anon function parameter list.");
@@ -635,7 +664,7 @@ class Parser {
             } else {
                 consumeTok(LEFT_BRACE, "Expected { after anon function parameter list");
             }
-            Expr.AnonFn anonFn = new Expr.AnonFn(funTok, formals, body);
+            Expr.AnonFn anonFn = new Expr.AnonFn(funTok, params, body);
             return anonFn;
         }
 

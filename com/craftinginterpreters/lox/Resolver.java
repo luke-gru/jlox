@@ -106,6 +106,12 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitSplatCallExpr(Expr.SplatCall expr) {
+        resolve(expr.expression);
+        return null;
+    }
+
+    @Override
     public Void visitUnaryExpr(Expr.Unary expr) {
         resolve(expr.right);
         return null;
@@ -150,9 +156,9 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     @Override
     public Void visitAnonFnExpr(Expr.AnonFn expr) {
         beginScope();
-        for (Token param : expr.formals) {
-            declare(param);
-            define(param);
+        for (Param param : expr.formals) {
+            declare(param.token);
+            define(param.token);
         }
         resolve(expr.body);
         endScope();
@@ -321,9 +327,9 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     private void resolveFunction(Stmt.Function stmt) {
         beginScope();
-        for (Token param : stmt.formals) {
-            declare(param);
-            define(param);
+        for (Param param : stmt.formals) {
+            declare(param.token);
+            define(param.token);
         }
         resolve(stmt.body);
         endScope();

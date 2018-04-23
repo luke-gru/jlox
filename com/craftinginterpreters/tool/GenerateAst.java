@@ -24,11 +24,12 @@ public class GenerateAst {
         "Variable : Token name",
         "Assign   : Token name, Expr value",
         "Call     : Expr left, List<Expr> args",
-        "AnonFn   : Token fun, List<Token> formals, Stmt body",
+        "AnonFn   : Token fun, List<Param> formals, Stmt body",
         "PropAccess : Expr left, Token property",
         "PropSet    : Expr object, Token property, Expr value",
         "This       : Token keyword",
-        "Super      : Token keyword, Token property"
+        "Super      : Token keyword, Token property",
+        "SplatCall  : Expr expression"
     ));
     defineAst(outputDir, "Stmt", Arrays.asList(
         "Expression : Expr expression",
@@ -40,7 +41,7 @@ public class GenerateAst {
         "For        : Stmt initializer, Expr test, Expr increment, Stmt body",
         "Continue   : Token token, Stmt loopStmt", // while or for stmt
         "Break      : Token token, Stmt loopStmt", // while or for stmt
-        "Function   : Token name, List<Token> formals, Stmt body, Parser.FunctionType type, Class klass",
+        "Function   : Token name, List<Param> formals, Stmt body, Parser.FunctionType type, Class klass",
         "Return     : Token token, Expr expression",
         "Class      : Token name, Stmt.Class superClass, List<Stmt> body",
         "Try        : Block tryBlock, List<Catch> catchStmts",
