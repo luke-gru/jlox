@@ -38,9 +38,8 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Stack<StackFrame> stack = new Stack<>();
 
     Interpreter() {
-        this.runtime = new Runtime(globals);
-        runtime.defineGlobalFunctions();
-        runtime.defineBuiltinClasses();
+        this.runtime = new Runtime(globals, classMap);
+        runtime.init();
     }
 
     public void interpret(List<Stmt> statements) {
@@ -80,51 +79,66 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Object visitArrayGetExpr(Expr.ArrayGet expr) {
+    public Object visitIndexedGetExpr(Expr.IndexedGet expr) {
         Object obj = evaluate(expr.left);
-        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer)) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "array access expr, LHS must be array or string!");
+        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer) &&
+           (!(obj instanceof LoxInstance))) {
+            throw new RuntimeError(tokenFromExpr(expr.left), "index access expr (expr[]), LHS must be array, string or object.");
         }
         Object index = evaluate(expr.indexExpr);
-        if (!(index instanceof Double)) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "array access index must be number!");
+        boolean needsNumberIndex = (obj instanceof LoxArray) || (obj instanceof StringBuffer);
+        boolean needsStringIndex = (obj instanceof LoxInstance);
+        if (needsNumberIndex && !(index instanceof Double)) {
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "index access accessor (expr[accessor]) must be number for arrays and strings.");
+        } else if (needsStringIndex && !(index instanceof StringBuffer)) {
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "index access accessor (expr[accessor]) must be string for objects.");
         }
         if (obj instanceof LoxArray) {
             LoxArray ary = (LoxArray)obj;
             Token tok = tokenFromExpr(expr.left);
             return ary.get(((Double)index).intValue(), tok);
-        } else {
+        } else if (obj instanceof StringBuffer) {
             StringBuffer strBuf = (StringBuffer)obj;
             int start = ((Double)index).intValue();
             return new StringBuffer(strBuf.substring(start, start+1));
+        } else if (obj instanceof LoxInstance) {
+            LoxInstance instance = (LoxInstance)obj;
+            StringBuffer strIndex = (StringBuffer)index;
+            return instance.getProperty(strIndex.toString(), this);
+        } else {
+            throw new RuntimeException("unreachable");
         }
     }
 
     @Override
-    public Object visitArraySetExpr(Expr.ArraySet expr) {
+    public Object visitIndexedSetExpr(Expr.IndexedSet expr) {
         Object obj = evaluate(expr.left);
-        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer)) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "array set expr, LHS must be array or string!");
+        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer) &&
+            !(obj instanceof LoxInstance)) {
+            throw new RuntimeError(tokenFromExpr(expr.left), "indexed set expr (expr[index] = rval), LHS must be an array, string or object.");
         }
+        boolean needsNumberIndex = (obj instanceof LoxArray) || (obj instanceof StringBuffer);
+        boolean needsStringIndex = (obj instanceof LoxInstance);
         Object index = evaluate(expr.indexExpr);
-        if (!(index instanceof Double)) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "array access index must be number!");
+        if (needsNumberIndex && !(index instanceof Double)) {
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a number when expr evaluates to a string or array.");
+        } else if (needsStringIndex && !(index instanceof StringBuffer)) {
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a string when expr evaluates to an object.");
         }
+        Object val = evaluate(expr.value);
         if (obj instanceof LoxArray) {
             LoxArray ary = (LoxArray)obj;
-            Object val = evaluate(expr.value);
             Token tok = tokenFromExpr(expr.left);
             ary.set(((Double)index).intValue(), val, tok);
             return val;
-        } else {
+        } else if (obj instanceof StringBuffer) {
             StringBuffer strBuf = (StringBuffer)obj;
-            Object val = evaluate(expr.value);
             if (!(val instanceof StringBuffer)) {
                 throw new RuntimeError(tokenFromExpr(expr.indexExpr), "string[]=value, value must be a string!");
             }
             int start = ((Double)index).intValue();
             int end = start + ((StringBuffer)val).length();
-            if (start > strBuf.length()) {
+            if (start > strBuf.length()) { // FIXME: very slow
                 int len = strBuf.length();
                 while (len < start) {
                     strBuf.append(" ");
@@ -136,6 +150,21 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             // TODO
             strBuf.insert(start, ((StringBuffer)val).toString());
             return val;
+        } else if (obj instanceof LoxInstance) {
+            LoxInstance instance = (LoxInstance)obj;
+            String indexStr = ((StringBuffer)index).toString();
+            LoxCallable setterFunc = instance.getKlass().getSetter(indexStr);
+            LoxCallable oldFnCall = this.fnCall;
+            if (setterFunc != null) {
+                this.fnCall = setterFunc;
+            }
+            instance.setProperty(indexStr, val, this, setterFunc);
+            if (setterFunc != null) {
+                this.fnCall = oldFnCall;
+            }
+            return val;
+        } else {
+            throw new RuntimeException("unreachable");
         }
     }
 
@@ -570,7 +599,9 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         LoxClass enclosingClass = this.currentClass;
         Map<String, LoxCallable> methods = new HashMap<>();
         LoxClass superKlass = null;
-        if (stmt.superClass != null) {
+        if (stmt.superClass == null) {
+            superKlass = classMap.get("Object");
+        } else {
             superKlass = classMap.get(stmt.superClass.name.lexeme);
             if (superKlass == null) {
                 throw new RuntimeError(stmt.name, "Couldn't resolve superclass! BUG");
@@ -756,14 +787,18 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             tok = ((Expr.PropSet)expr).property;
         } else if (expr instanceof Expr.This) {
             tok = ((Expr.This)expr).keyword;
+        } else if (expr instanceof Expr.Super) {
+            tok = ((Expr.Super)expr).keyword;
         } else if (expr instanceof Expr.AnonFn) {
             tok = ((Expr.AnonFn)expr).fun;
         } else if (expr instanceof Expr.Array) {
             tok = ((Expr.Array)expr).lbracket;
-        } else if (expr instanceof Expr.ArrayGet) {
-            tok = ((Expr.ArrayGet)expr).lbracket;
-        } else if (expr instanceof Expr.ArraySet) {
-            tok = ((Expr.ArraySet)expr).lbracket;
+        } else if (expr instanceof Expr.IndexedGet) {
+            tok = ((Expr.IndexedGet)expr).lbracket;
+        } else if (expr instanceof Expr.IndexedSet) {
+            tok = ((Expr.IndexedSet)expr).lbracket;
+        } else if (expr instanceof Expr.SplatCall) {
+            tok = tokenFromExpr(((Expr.SplatCall)expr).expression);
         }
         return tok;
     }

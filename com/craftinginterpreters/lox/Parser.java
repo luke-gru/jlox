@@ -83,6 +83,7 @@ class Parser {
     private Stmt inLoopStmt = null;
     private Stmt.Function currentFn = null;
     public Map<String, Stmt.Class> classMap = new HashMap<>();
+    private List<String> nativeClassNames = new ArrayList<>();
     private Stmt.Class currentClass = null;
 
     public enum FunctionType {
@@ -125,6 +126,10 @@ class Parser {
         return lastError;
     }
 
+    public void setNativeClassNames(List<String> classNames) {
+        this.nativeClassNames = classNames;
+    }
+
     private Stmt declaration() {
         try {
             if (matchAny(VAR)) return varDeclaration();
@@ -134,15 +139,19 @@ class Parser {
             }
             if (matchAny(CLASS)) {
                 Token name = consumeTok(IDENTIFIER, "Expected identifier after 'class' keyword");
-                if (classMap.containsKey(name.lexeme)) {
-                    throw error(name, "Class " + name.lexeme + " already defined");
+                if (classExists(name.lexeme)) {
+                    String msg = "";
+                    if (nativeClassExists(name.lexeme)) {
+                        msg = " (it's defined natively)";
+                    }
+                    throw error(name, "Class " + name.lexeme + " already exists" + msg + ".");
                 }
                 Token superName = null;
                 Stmt.Class superClassStmt = null;
 
                 if (matchAny(LESS)) {
                     superName = consumeTok(IDENTIFIER, "Expected class name after '<'");
-                    if (!classMap.containsKey(superName.lexeme)) {
+                    if (!classExists(superName.lexeme)) {
                         throw error(superName, "Class " + superName.lexeme + " must be defined before being inherited from");
                     }
                     superClassStmt = classMap.get(superName.lexeme);
@@ -455,9 +464,9 @@ class Parser {
             } else if (expr instanceof Expr.Super) {
                 Expr.Super superExpr = (Expr.Super)expr;
                 return new Expr.PropSet(superExpr, superExpr.property, value);
-            } else if (expr instanceof Expr.ArrayGet) {
-                Expr.ArrayGet arrayGet = (Expr.ArrayGet)expr;
-                return new Expr.ArraySet(arrayGet.lbracket, arrayGet.left, arrayGet.indexExpr, value);
+            } else if (expr instanceof Expr.IndexedGet) {
+                Expr.IndexedGet idxGet = (Expr.IndexedGet)expr;
+                return new Expr.IndexedSet(idxGet.lbracket, idxGet.left, idxGet.indexExpr, value);
             }
             throw error(equals, "Invalid assignment target, must be variable, property name or array element");
         }
@@ -574,8 +583,8 @@ class Parser {
                 advance();
                 Token lbracket = prevTok();
                 Expr indexExpr = expression();
-                expr = new Expr.ArrayGet(lbracket, expr, indexExpr);
-                consumeTok(RIGHT_BRACKET, "Expected ']' at end of Array access expression");
+                expr = new Expr.IndexedGet(lbracket, expr, indexExpr);
+                consumeTok(RIGHT_BRACKET, "Expected ']' at end of index access expression");
             } else {
                 break;
             }
@@ -744,5 +753,13 @@ class Parser {
 
             advance();
         }
+    }
+
+    private boolean classExists(String name) {
+        return classMap.containsKey(name) || nativeClassNames.contains(name);
+    }
+
+    private boolean nativeClassExists(String name) {
+        return nativeClassNames.contains(name);
     }
 }

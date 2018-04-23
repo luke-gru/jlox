@@ -63,6 +63,7 @@ public class Lox {
             } else {
                 scanner.addEOF();
                 parser = new Parser(tokens);
+                parser.setNativeClassNames(interpreter.runtime.nativeClassNames());
                 statements = parser.parse();
                 if (hadError) {
                     hadError = false;
@@ -82,6 +83,7 @@ public class Lox {
         Scanner scanner = new Scanner(src);
         List<Token> tokens = scanner.scanTokens();
         Parser parser = new Parser(tokens);
+        parser.setNativeClassNames(interpreter.runtime.nativeClassNames());
         List<Stmt> statements = parser.parse();
         runStmts(statements);
     }

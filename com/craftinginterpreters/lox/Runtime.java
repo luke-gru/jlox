@@ -8,9 +8,12 @@ import java.util.Map;
 
 class Runtime {
     final Environment globalEnv;
+    static Map<String, LoxClass> classMap;
+    boolean inited = false;
 
-    Runtime(Environment globalEnv) {
+    Runtime(Environment globalEnv, Map<String, LoxClass> classMap) {
         this.globalEnv = globalEnv;
+        this.classMap = classMap;
     }
 
     static Object bool(boolean val) {
@@ -35,6 +38,34 @@ class Runtime {
             int necessaryArgs = -(arity+1);
             return necessaryArgs <= n;
         }
+    }
+
+    static LoxClass classOf(LoxInstance instance) {
+        return instance.klass;
+    }
+
+    // native or user-defined class
+    static LoxClass getClass(String name) {
+        LoxClass klass = classMap.get(name);
+        if (klass == null) return null;
+        return klass;
+    }
+
+    // native class only
+    static LoxNativeClass getNativeClass(String name) {
+        LoxClass klass = classMap.get(name);
+        if (klass == null) return null;
+        if (!(klass instanceof LoxNativeClass)) return null;
+        return (LoxNativeClass)klass;
+    }
+
+    public void init() {
+        if (inited) {
+            return;
+        }
+        defineGlobalFunctions();
+        defineBuiltinClasses();
+        inited = true;
     }
 
     public void defineGlobalFunctions() {
@@ -62,7 +93,7 @@ class Runtime {
 
     public void defineBuiltinClasses() {
         LoxNativeClass objClass = new LoxNativeClass("Object", null);
-        objClass.defineMethod("equals", new LoxNativeCallable("equals", 1) {
+        objClass.defineMethod(new LoxNativeCallable("equals", 1) {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 return Runtime.bool(
@@ -70,7 +101,34 @@ class Runtime {
                 );
             }
         });
+        objClass.defineGetter(new LoxNativeCallable("_class", 0) {
+            @Override
+            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                return Runtime.classOf(
+                    interpreter.environment.getThis()
+                );
+            }
+        });
+        objClass.defineMethod(new LoxNativeCallable("freeze", 0) {
+            @Override
+            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                interpreter.environment.getThis().freeze();
+                return null;
+            }
+        });
         globalEnv.define("Object", objClass);
+        classMap.put("Object", objClass);
+    }
+
+    public List<String> nativeClassNames() {
+        List<String> classNames = new ArrayList<String>();
+        for (String className : classMap.keySet()) {
+            LoxClass klass = classMap.get(className);
+            if (klass instanceof LoxNativeClass) {
+                classNames.add(className);
+            }
+        }
+        return classNames;
     }
 
 }

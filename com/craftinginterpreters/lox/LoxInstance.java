@@ -9,6 +9,7 @@ class LoxInstance {
     public LoxClass klass;
     public String klassName;
     private final Map<String, Object> properties = new HashMap<>();
+    public boolean isFrozen = false;
 
     LoxInstance(LoxClass klass, String className) {
         this.klass = klass;
@@ -40,6 +41,9 @@ class LoxInstance {
     }
 
     public void setProperty(String name, Object value, Interpreter interp, LoxCallable setterFunc) {
+        if (isFrozen) {
+            throw new RuntimeException("object is frozen");
+        }
         if (setterFunc != null) {
             List<Object> objs = new ArrayList<>();
             objs.add(value);
@@ -84,5 +88,9 @@ class LoxInstance {
 
     public boolean isInstance(LoxClass testKlass) {
         return this.klass == testKlass;
+    }
+
+    public void freeze() {
+        this.isFrozen = true;
     }
 }

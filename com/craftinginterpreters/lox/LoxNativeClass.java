@@ -10,16 +10,22 @@ class LoxNativeClass extends LoxClass implements LoxCallable {
         super(name, superClass, new HashMap<>());
     }
 
-    public void defineMethod(String name, LoxNativeCallable callable) {
-        methods.put(name, callable);
+    public void defineMethod(LoxNativeCallable callable) {
+        methods.put(callable.getName(), callable);
     }
 
-    public void defineGetter(String name, LoxNativeCallable callable) {
-        getters.put(name, callable);
+    public void defineGetter(LoxNativeCallable callable) {
+        if (callable.arity() != 0) {
+            throw new RuntimeException("defineGetter() callable must have arity of 0: " + name + "#" + callable.getName());
+        }
+        getters.put(callable.getName(), callable);
     }
 
-    public void defineSetter(String name, LoxNativeCallable callable) {
-        setters.put(name, callable);
+    public void defineSetter(LoxNativeCallable callable) {
+        if (callable.arity() != 1) {
+            throw new RuntimeException("defineSetter() callable must have arity of 1: " + name + "#" + callable.getName());
+        }
+        setters.put(callable.getName(), callable);
     }
 
 }

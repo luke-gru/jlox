@@ -42,14 +42,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
-    public Void visitArrayGetExpr(Expr.ArrayGet expr) {
+    public Void visitIndexedGetExpr(Expr.IndexedGet expr) {
         resolve(expr.left);
         resolve(expr.indexExpr);
         return null;
     }
 
     @Override
-    public Void visitArraySetExpr(Expr.ArraySet expr) {
+    public Void visitIndexedSetExpr(Expr.IndexedSet expr) {
         resolve(expr.left);
         resolve(expr.indexExpr);
         resolve(expr.value);

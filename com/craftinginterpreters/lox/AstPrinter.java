@@ -306,9 +306,9 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     @Override
-    public String visitArrayGetExpr(Expr.ArrayGet expr) {
+    public String visitIndexedGetExpr(Expr.IndexedGet expr) {
         StringBuilder builder = new StringBuilder();
-        builder.append("(arrayget ");
+        builder.append("(indexedget ");
         builder.append(expr.left.accept(this) + " ");
         builder.append(expr.indexExpr.accept(this));
         builder.append(")");
@@ -316,9 +316,9 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     @Override
-    public String visitArraySetExpr(Expr.ArraySet expr) {
+    public String visitIndexedSetExpr(Expr.IndexedSet expr) {
         StringBuilder builder = new StringBuilder();
-        builder.append("(arrayset ");
+        builder.append("(indexedset ");
         builder.append(expr.left.accept(this) + " ");
         builder.append(expr.indexExpr.accept(this) + " ");
         builder.append(expr.value.accept(this));

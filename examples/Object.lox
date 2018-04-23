@@ -7,3 +7,16 @@ print o.equals(o);
 print o2.equals(o2);
 print o2.equals(o);
 print o.equals(o2);
+print o._class;
+var klass = "_class";
+print o[klass];
+print o[klass + "_"];
+
+class SetterObj < Object {
+}
+
+var newobj = SetterObj();
+newobj[klass+"_"] = Object;
+print newobj[klass+"_"];
+newobj.freeze();
+newobj[klass+"_"] = Object;
