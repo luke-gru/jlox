@@ -445,10 +445,43 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitVarStmt(Stmt.Var stmt) {
         Object value = null;
-        if (stmt.initializer != null) {
-            value = evaluate(stmt.initializer);
+        int varIdx = 0;
+        boolean useArrayElements = false;
+        boolean canUseArray = false;
+        int useArrayElementsIdx = 0;
+        for (Token varTok : stmt.names) {
+            if (!useArrayElements) {
+                boolean isLastVar = (varIdx+1) == stmt.names.size();
+                canUseArray = (!isLastVar) && ((varIdx+1) <= stmt.initializers.size());
+            }
+            Expr init = null;
+            boolean initEvaled = false;
+            if (stmt.initializers.size() >= (varIdx+1)) {
+                init = stmt.initializers.get(varIdx);
+            }
+            if (init == null && !useArrayElements) {
+                environment.define(varTok.lexeme, null);
+            } else {
+                if (!useArrayElements && canUseArray) {
+                    value = evaluate(init);
+                    initEvaled = true;
+                    useArrayElements = (value instanceof LoxArray);
+                }
+                if (useArrayElements) {
+                    LoxArray ary = (LoxArray)value;
+                    Object val = ary.get(useArrayElementsIdx, varTok);
+                    environment.define(varTok.lexeme, val);
+                    useArrayElementsIdx++;
+                } else {
+                    if (!initEvaled) {
+                        value = evaluate(init);
+                        initEvaled = true;
+                    }
+                    environment.define(varTok.lexeme, value);
+                }
+            }
+            varIdx++;
         }
-        environment.define(stmt.name.lexeme, value);
         return null;
     }
 

@@ -76,9 +76,12 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     @Override
     public String visitVarStmt(Stmt.Var stmt) {
         StringBuilder builder = new StringBuilder();
-        builder.append(indent() + "(varDecl ").append(stmt.name.lexeme);
-        if (stmt.initializer != null) {
-            builder.append(" " + stmt.initializer.accept(this));
+        builder.append(indent() + "(varDecl");
+        for (Token varTok : stmt.names) {
+            builder.append(" (" + varTok.lexeme + ")");
+        }
+        for (Expr init : stmt.initializers) {
+            builder.append(" " + init.accept(this));
         }
         builder.append(")");
         return builder.toString();

@@ -1,0 +1,15 @@
+var a, b = 1, 2;
+print a;
+print b;
+
+var c, d = [1, 2];
+print c;
+print d;
+
+fun return_ary() {
+  return [3,nil];
+}
+
+var ret, err = return_ary();
+print ret;
+print err;

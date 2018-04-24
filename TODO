@@ -1,8 +1,8 @@
 TODO:
-* multiple assignment, return multiple values
+* multiple var declaration [DONE], multiple assignment [], return multiple values []
 * splat parameters + splat arguments [DONE]
 * dicts and dict literals
-* iterators
+* iterators, with returning iterator with instance iter() method like python
 * private fields for classes
 * all classes inherit from Object automatically [DONE]
 * ["propName"] and ["propName"]= for dynamic property get and set; [DONE]

@@ -20,6 +20,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
  *                | statement ;
  *
  * varDecl        : "var" IDENTIFIER ( "=" expression )? ";"
+ *                | "var" IDENTIFIER ( "," IDENTIFIER )+ ( "= " expression )? * ";"
  * funDecl        : "fun" IDENTIFIER "(" parameterList? ")" blockStmt ;
  *
  * classDecl      : "class" IDENTIFIER ( "<" IDENTIFIER )? "{" classBody "}" ;
@@ -175,26 +176,53 @@ class Parser {
     }
 
     private Stmt varDeclaration() {
-        Token name = consumeTok(IDENTIFIER, "Expected variable name in 'var' declaration.");
+        List<Token> names = new ArrayList<Token>();
+        List<String> nameStrs = new ArrayList<String>();
+        boolean expectNewName = true;
+        while (expectNewName && matchAny(IDENTIFIER)) {
+            Token name = prevTok();
+            names.add(name);
+            nameStrs.add(name.lexeme);
+            expectNewName = matchAny(COMMA);
+        }
+        if (expectNewName) {
+            consumeTok(IDENTIFIER, "Expected variable name after 'var' keyword.");
+        }
+        // check that we don't shadow function parameters
         if (this.currentFn != null) {
             for (Param param : this.currentFn.formals) {
-                if (param.varName().equals(name.lexeme)) {
+                if (nameStrs.contains(param.varName())) {
+                    int index = names.indexOf(param.varName());
+                    Token nameTok = names.get(index);
                     throw error(
-                        name,
-                        "'var' assignment error: can't shadow parameter '" + name.lexeme + "' in function <" +
+                        nameTok,
+                        "'var' assignment error: can't shadow parameter '" + param.varName() + "' in function <" +
                         this.currentFn.name.lexeme + ">"
-                        );
+                    );
                 }
             }
         }
 
-        Expr initializer = null;
+        List<Expr> initializers = new ArrayList<>();
+        Expr initializer;
+        int numInits = 0;
         if (matchAny(EQUAL)) {
             initializer = expression();
+            initializers.add(initializer);
+            numInits++;
+            while (numInits < names.size() && matchAny(COMMA)) {
+                initializer = expression();
+                initializers.add(initializer);
+                numInits++;
+            }
+        }
+
+        if (initializers.size() > names.size()) {
+            throw error(names.get(0), "too many initializer expressions in var statement");
         }
 
         consumeTok(SEMICOLON, "Expected ';' after variable declaration.");
-        return new Stmt.Var(name, initializer);
+        return new Stmt.Var(names, initializers);
     }
 
     private Stmt funDeclaration(FunctionType fnType) {

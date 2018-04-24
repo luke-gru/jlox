@@ -179,11 +179,15 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitVarStmt(Stmt.Var stmt) {
-        declare(stmt.name);
-        if (stmt.initializer != null) {
-            resolve(stmt.initializer);
+        for (Token varTok : stmt.names) {
+            declare(varTok);
         }
-        define(stmt.name);
+        for (Expr init : stmt.initializers) {
+            resolve(init);
+        }
+        for (Token varTok : stmt.names) {
+            define(varTok);
+        }
         return null;
     }
 
