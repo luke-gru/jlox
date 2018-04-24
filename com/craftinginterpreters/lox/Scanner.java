@@ -93,21 +93,48 @@ class Scanner {
             case ']': addToken(RIGHT_BRACKET); break;
             case ',': addToken(COMMA); break;
             case '.': addToken(DOT); break;
-            case '-': addToken(MINUS); break;
-            case '+': addToken(PLUS); break;
             case ';': addToken(SEMICOLON); break;
-            case '*': addToken(STAR); break;
+            case '*': {
+                if (match('=')) {
+                    addToken(STAR_EQUAL);
+                } else {
+                    addToken(STAR);
+                }
+                break;
+            }
+            case '-': {
+                if (match('=')) {
+                    addToken(MINUS_EQUAL);
+                } else {
+                    addToken(MINUS);
+                }
+                break;
+            }
+            case '+': {
+                if (match('=')) {
+                    addToken(PLUS_EQUAL);
+                } else {
+                    addToken(PLUS);
+                }
+                break;
+            }
             case '!': addToken(match('=') ? BANG_EQUAL : BANG); break;
             case '=': addToken(match('=') ? EQUAL_EQUAL : EQUAL); break;
             case '<': addToken(match('=') ? LESS_EQUAL : LESS); break;
             case '>': addToken(match('=') ? GREATER_EQUAL : GREATER); break;
-            case '/':
+            case '/': {
                 if (match('/')) {
                     // A comment goes until the end of the line.
                     while (peek() != '\n' && !isAtEnd()) advance();
                 } else {
-                    addToken(SLASH);
+                    if (match('=')) {
+                        addToken(SLASH_EQUAL);
+                    } else {
+                        addToken(SLASH);
+                    }
                 }
+                break;
+            }
             case ' ':
             case '\r':
             case '\t':

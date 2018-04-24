@@ -11,6 +11,7 @@ TODO:
 * throw Interrupt errors on interrupts
 * signal handling
 * keyword arguments
-* frozen objects, can't use setProperty on the instance
+* frozen objects, can't use setProperty on the instance [DONE]
 * better library
 * add test suite
+* add '+=, -=,' etc binary operators

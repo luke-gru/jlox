@@ -480,9 +480,22 @@ class Parser {
 
     private Expr assignment() {
         Expr expr = logicOr();
-        if (matchAny(EQUAL)) {
-            Token equals = prevTok();
+        if (matchAny(EQUAL, PLUS_EQUAL, MINUS_EQUAL, STAR_EQUAL, SLASH_EQUAL)) {
+            Token tok = prevTok();
             Expr value = assignment();
+            if (tok.type == PLUS_EQUAL) { // ex: a += 3 => a = a + 3
+                tok.setType(PLUS, "+");
+                value = new Expr.Binary(expr, tok, value);
+            } else if (tok.type == MINUS_EQUAL) {
+                tok.setType(MINUS, "-");
+                value = new Expr.Binary(expr, tok, value);
+            } else if (tok.type == STAR_EQUAL) {
+                tok.setType(STAR, "*");
+                value = new Expr.Binary(expr, tok, value);
+            } else if (tok.type == SLASH_EQUAL) {
+                tok.setType(SLASH, "/");
+                value = new Expr.Binary(expr, tok, value);
+            }
             if (expr instanceof Expr.PropAccess) {
                 Expr.PropAccess propAccess = (Expr.PropAccess)expr;
                 return new Expr.PropSet(propAccess.left, propAccess.property, value);
@@ -496,7 +509,7 @@ class Parser {
                 Expr.IndexedGet idxGet = (Expr.IndexedGet)expr;
                 return new Expr.IndexedSet(idxGet.lbracket, idxGet.left, idxGet.indexExpr, value);
             }
-            throw error(equals, "Invalid assignment target, must be variable, property name or array element");
+            throw error(tok, "Invalid assignment target, must be variable, property name or array element");
         }
         return expr;
     }

@@ -13,3 +13,13 @@ fun return_ary() {
 var ret, err = return_ary();
 print ret;
 print err;
+
+for (var i = 1; i < 10; i *= 2) {
+  print i;
+}
+
+var o = Object();
+o.int = 1;
+for (; o.int < 10; o.int *= 2) {
+  print o.int;
+}
