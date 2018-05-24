@@ -14,4 +14,4 @@ TODO:
 * frozen objects, can't use setProperty on the instance [DONE]
 * better library
 * add test suite
-* add '+=, -=,' etc binary operators
+* add '+=, -=,' etc binary operators [DONE]

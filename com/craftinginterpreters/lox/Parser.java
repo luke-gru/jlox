@@ -598,11 +598,11 @@ class Parser {
                 if (matchAny(RIGHT_PAREN)) {
                     // no args
                 } else {
-                    Expr arg;
                     while (true) {
+                        Expr arg;
                         if (matchAny(STAR)) {
                             arg = expression();
-                            args.add(new Expr.SplatCall(arg));
+                            arg = new Expr.SplatCall(arg);
                         } else {
                             arg = expression();
                         }

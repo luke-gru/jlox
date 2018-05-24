@@ -13,6 +13,8 @@ public class Lox {
 
     static boolean hadError = false;
     static boolean hadRuntimeError = false;
+    public static boolean silenceParseErrors = false;
+    public static boolean silenceRuntimeErrors = false;
 
     public static void main(String[] args) throws IOException {
         String fname = null;
@@ -97,6 +99,7 @@ public class Lox {
         interpreter.interpret(statements);
     }
 
+    // parse error
     static void error(Token tok, String message) {
         if (tok.type == TokenType.EOF) {
             report(tok.line, " at end", message);
@@ -105,19 +108,27 @@ public class Lox {
         }
     }
 
+    // parse error
     static void error(int line, String message) {
-        System.err.println("[line " + line + "] Error: " + message);
+        if (!silenceParseErrors) {
+            System.err.println("[line " + line + "] Error: " + message);
+        }
         hadError = true;
     }
 
     static void runtimeError(RuntimeError error) {
-        System.err.println(error.getMessage() +
-                "\n[line " + error.token.line + "]");
+        if (!silenceRuntimeErrors) {
+            System.err.println(error.getMessage() +
+                    "\n[line " + error.token.line + "]");
+        }
         hadRuntimeError = true;
     }
 
+    // parse error
     private static void report(int line, String where, String message) {
-        System.err.println("[line " + line + "] Error" + where + ": " + message);
+        if (!silenceParseErrors) {
+            System.err.println("[line " + line + "] Error" + where + ": " + message);
+        }
         hadError = true;
     }
 }

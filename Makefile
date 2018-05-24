@@ -1,7 +1,12 @@
 BASEDIR=/home/luke/workspace/jlox
+VENDORPATH=${BASEDIR}/vendor
+VENDOR_JARPATHS=${VENDORPATH}/hamcrest-core-1.3.jar:${VENDORPATH}/junit-4.12.jar
 CLASSPATH=${BASEDIR}
 LOXSOURCEPATH=${BASEDIR}/com/craftinginterpreters/lox
 TOOLSOURCEPATH=${BASEDIR}/com/craftinginterpreters/tool
+TESTSOURCEPATH=${BASEDIR}/com/craftinginterpreters/test
+
+TEST_FILES = AstPrinterTest.java
 
 .PHONY: lox
 lox: gen_ast
@@ -13,7 +18,9 @@ lox: gen_ast
 .PHONY: clean
 clean:
 	rm -f ${LOXSOURCEPATH}/*.class
+	rm -f ${TESTSOURCEPATH}/*.class
 	rm -f ${BASEDIR}/*.class
+	rm -f ${TESTSOURCEPATH}/*.class
 	rm -f ${LOXSOURCEPATH}/{Expr,Stmt}.java
 
 .PHONY: repl
@@ -30,3 +37,8 @@ tool:
 .PHONY: gen_ast
 gen_ast: tool
 	java -cp ${CLASSPATH} com.craftinginterpreters.tool.GenerateAst ${LOXSOURCEPATH}
+
+test: lox
+	cd ${TESTSOURCEPATH} && javac -sourcepath ${TESTSOURCEPATH}:${BASEDIR} -cp ${VENDOR_JARPATHS} MyRunner.java $(TEST_FILES) && \
+	java -cp ${BASEDIR}:${VENDOR_JARPATHS} com.craftinginterpreters.test.MyRunner
+

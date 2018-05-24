@@ -6,10 +6,13 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
-class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
+public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     private int indent = 0;
     private Resolver resolver = null;
     private Stmt.Class currentClass = null;
+
+    public static boolean silenceErrorOutput = false;
+    public static String PARSE_ERROR = "!error!";
 
     public static void main(String[] args) throws IOException {
         String fname = null;
@@ -21,20 +24,32 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
             if (args[i].equals("-f")) {
                 fname = args[i+1];
                 i = i + 2;
+            } else if (args[i].equals("-s")) {
+                src = args[i+1];
+                i = i + 2;
             } else if (args[i].equals("-r")) {
                 printVarResolution = true;
                 i++;
             } else {
-                System.err.println("Usage: AstPrinter -f FILENAME");
+                System.err.println("Usage: AstPrinter [-f FILENAME] [-s SRC]");
                 System.exit(1);
             }
         }
 
-        byte[] bytes = Files.readAllBytes(Paths.get(fname));
-        src = new String(bytes, Charset.defaultCharset());
+        if (src == null) {
+            byte[] bytes = Files.readAllBytes(Paths.get(fname));
+            src = new String(bytes, Charset.defaultCharset());
+        }
         Parser parser = Parser.newFromSource(src);
+        boolean silenceErrorsOld = Lox.silenceParseErrors;
+        if (silenceErrorOutput) {
+            Lox.silenceParseErrors = true;
+        }
         List<Stmt> statements = parser.parse();
-        if (parser.getError() != null) {
+        if (silenceErrorOutput) {
+            Lox.silenceParseErrors = silenceErrorsOld;
+        }
+        if (parser.getError() != null && !silenceErrorOutput) {
             System.err.println("[Warning]: parse error");
         }
         Resolver resolver = null;
@@ -46,8 +61,33 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         System.out.print(new AstPrinter(resolver).stmtsToString(statements));
     }
 
+    public static String print(String src, boolean printVarResolution) {
+        Parser parser = Parser.newFromSource(src);
+        boolean silenceErrorsOld = Lox.silenceParseErrors;
+        if (silenceErrorOutput) {
+            Lox.silenceParseErrors = true;
+        }
+        List<Stmt> statements = parser.parse();
+        if (silenceErrorOutput) {
+            Lox.silenceParseErrors = silenceErrorsOld;
+        }
+        if (parser.getError() != null) {
+            return PARSE_ERROR;
+        }
+        Resolver resolver = null;
+        if (printVarResolution) {
+            resolver = new Resolver(new Interpreter());
+            resolver.resolve(statements);
+        }
+        return (new AstPrinter(resolver)).stmtsToString(statements);
+    }
+
     AstPrinter(Resolver resolver) {
         this.resolver = resolver;
+    }
+
+    public static String print(String src) {
+        return print(src, false);
     }
 
     public String stmtsToString(List<Stmt> stmts) {
@@ -90,6 +130,9 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     @Override
     public String visitBlockStmt(Stmt.Block blockStmt) {
         StringBuilder builder = new StringBuilder();
+        if (blockStmt.statements.size() == 0) {
+            return builder.append(indent() + "(block)").toString();
+        }
         builder.append(indent() + "(block\n");
         indent++;
         for (Stmt stmt : blockStmt.statements) {
@@ -141,7 +184,7 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         if (stmt.increment != null) {
             incr = stmt.increment.accept(this);
         }
-        builder.append(indent() + "(for " + init + " " + test + " " + incr + ")\n");
+        builder.append(indent() + "(for " + init + " " + test + " " + incr + "\n");
         indent++;
         builder.append(stmt.body.accept(this));
         indent--;
@@ -152,7 +195,7 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     @Override
     public String visitTryStmt(Stmt.Try stmt) {
         StringBuilder builder = new StringBuilder();
-        builder.append(indent() + "(try \n");
+        builder.append(indent() + "(try\n");
         indent++;
         builder.append(stmt.tryBlock.accept(this));
         for (Stmt.Catch catchStmt : stmt.catchStmts) {
@@ -225,7 +268,10 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
 
     @Override
     public String visitSplatCallExpr(Expr.SplatCall expr) {
-        return "*" + expr.expression.accept(this);
+        StringBuilder builder = new StringBuilder();
+        builder.append("*");
+        builder.append(expr.expression.accept(this));
+        return builder.toString();
     }
 
     @Override
@@ -233,7 +279,7 @@ class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         Stmt.Class enclosingClass = this.currentClass;
         this.currentClass = stmt;
         StringBuilder builder = new StringBuilder();
-        builder.append(indent() + "(class " + stmt.name.lexeme);
+        builder.append(indent() + "(classDecl " + stmt.name.lexeme);
         if (stmt.superClass != null) {
             builder.append(" " + stmt.superClass.name.lexeme);
         }
