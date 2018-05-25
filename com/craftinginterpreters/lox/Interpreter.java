@@ -6,7 +6,7 @@ import java.util.Stack;
 import java.util.List;
 import java.util.Map;
 
-class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
+public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeBreak extends RuntimeException {}
     private static class RuntimeContinue extends RuntimeException {}
     private static class RuntimeThrow extends RuntimeException {
@@ -35,19 +35,57 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private LoxClass currentClass = null; // current class being visited
     private Map<String, LoxClass> classMap = new HashMap<>();
 
-    public Stack<StackFrame> stack = new Stack<>();
+    public HashMap<String, Object> options = null;
+    public StringBuffer printBuf = null;
+    public StringBuffer errorBuf = null;
 
-    Interpreter() {
+    public Stack<StackFrame> stack = new Stack<>();
+    public RuntimeException runtimeError = null;
+    private Resolver resolver = null;
+    public Parser parser = null;
+    private String filename;
+
+    public Interpreter() {
+        HashMap<String, Object> opts = new HashMap<>();
+        opts.put("usePrintBuf", (Boolean)false);
+        opts.put("useErrorBuf", (Boolean)false);
+        opts.put("filename", null);
+        this.options = opts;
+        this.resolver = new Resolver(this);
         this.runtime = new Runtime(globals, classMap);
         runtime.init();
     }
 
-    public void interpret(List<Stmt> statements) {
+    public Interpreter(HashMap<String, Object> options) {
+        this.options = options;
+        if (this.options.get("usePrintBuf") == (Boolean)true) {
+            this.printBuf = new StringBuffer();
+        }
+        // TODO: use
+        if (this.options.get("useErrorBuf") == (Boolean)true) {
+            this.errorBuf = new StringBuffer();
+        }
+        if (this.options.get("filename") != null) {
+            this.filename = (String)this.options.get("filename");
+        }
+        this.resolver = new Resolver(this);
+        this.runtime = new Runtime(globals, classMap);
+        runtime.init();
+    }
+
+
+    public boolean interpret(List<Stmt> statements) {
+        this.resolver.resolve(statements);
+        if (this.resolver.hasErrors()) {
+            return false;
+        }
         try {
             for (Stmt statement : statements) {
                 execute(statement);
             }
+            return true;
         } catch (RuntimeError error) {
+            this.runtimeError = error;
             System.err.println("==============");
             System.err.print("RuntimeError: ");
             Lox.runtimeError(error);
@@ -55,6 +93,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             System.err.println(stacktrace());
             System.err.println("==============");
         } catch (RuntimeThrow error) {
+            this.runtimeError = error;
             System.err.println("==============");
             System.err.println("Uncaught error: " + stringify(error.value));
             System.err.println("Stacktrace:");
@@ -62,6 +101,17 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             System.err.println("==============");
             Lox.hadRuntimeError = true;
         }
+        return false;
+    }
+
+    public boolean interpret(String src) {
+        this.parser = Parser.newFromSource(src);
+        this.parser.setNativeClassNames(this.runtime.nativeClassNames());
+        List<Stmt> stmts = this.parser.parse();
+        if (this.parser.getError() != null) {
+            return false;
+        }
+        return interpret(stmts);
     }
 
     @Override
@@ -438,8 +488,16 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitPrintStmt(Stmt.Print stmt) {
         Object value = evaluate(stmt.expression);
-        System.out.println(stringify(value));
+        println(stringify(value));
         return null;
+    }
+
+    private void println(String val) {
+        if (this.printBuf != null) {
+            this.printBuf.append(val + "\n");
+        } else {
+            System.out.println(val);
+        }
     }
 
     @Override
@@ -768,7 +826,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             LoxInstance instance = (LoxInstance)object;
             Object methodOrProp = instance.getProperty("length", this);
             if (methodOrProp == null) {
-                throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with the length property or method");
+                throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with a 'length' method, getter or property");
             }
             if (methodOrProp instanceof Double) {
                 return (double)methodOrProp;
@@ -777,7 +835,7 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return ((LoxCallable)methodOrProp).call(this, new ArrayList<Object>(), tok);
             }
         }
-        throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with the length property or method");
+        throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with a 'length' method, getter or property");
     }
 
     private void execute(Stmt stmt) {
@@ -842,12 +900,30 @@ class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public String stacktrace() {
         StringBuilder builder = new StringBuilder();
-        while (!stack.empty()) {
-            StackFrame frame = stack.pop();
+        int sz = stack.size();
+        int i = sz-1;
+        while (i >= 0) {
+            StackFrame frame = stack.get(i);
             builder.append(frame.toString() + "\n");
+            i--;
         }
         builder.append("<main>");
         return builder.toString();
+    }
+
+    public boolean hasUncaughtException() {
+        return this.runtimeError != null &&
+            (this.runtimeError instanceof RuntimeThrow);
+    }
+
+    public boolean hasRuntimeError() {
+        return this.runtimeError != null &&
+            (this.runtimeError instanceof RuntimeError);
+    }
+
+    public boolean hasParseError() {
+        return (this.parser != null && this.parser.getError() != null) ||
+            this.resolver.hasErrors();
     }
 
     private void unwindStack(int size) {

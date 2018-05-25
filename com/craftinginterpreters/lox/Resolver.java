@@ -1,6 +1,7 @@
 package com.craftinginterpreters.lox;
 
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Stack;
@@ -8,6 +9,7 @@ import java.util.Stack;
 class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack<>();
+    public List<String> errorBuf = new ArrayList<>();
 
     private Stmt.Class currentClass = null;
 
@@ -65,7 +67,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     @Override
     public Void visitThisExpr(Expr.This expr) {
         if (this.currentClass == null) {
-            Lox.error(expr.keyword, "keyword 'this' must only be used inside methods");
+            error(expr.keyword, "keyword 'this' must only be used inside methods");
         }
         resolveLocal(expr, expr.keyword);
         return null;
@@ -74,13 +76,13 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     @Override
     public Void visitSuperExpr(Expr.Super expr) {
         if (this.currentClass == null) {
-            Lox.error(expr.keyword, "keyword 'super' must only be used inside methods");
+            error(expr.keyword, "keyword 'super' must only be used inside methods");
             return null;
         }
         String methodOrGetterName = expr.property.lexeme;
         Stmt.Class superClass = this.currentClass.superClass;
         if (superClass == null) {
-            Lox.error(expr.keyword, "keyword 'super' can only be used in classes that inherit from a superclass!");
+            error(expr.keyword, "keyword 'super' can only be used in classes that inherit from a superclass!");
             return null;
         }
         boolean foundMethod = false;
@@ -93,14 +95,14 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
                         break;
                     }
                 } else {
-                    Lox.error(expr.keyword, "keyword 'super' BUG!");
+                    error(expr.keyword, "keyword 'super' BUG!");
                     return null;
                 }
             }
             superClass = superClass.superClass;
         }
         if (!foundMethod) {
-            Lox.error(expr.property, "Couldn't find method 'super." + expr.property.lexeme + "'.");
+            error(expr.property, "Couldn't find method 'super." + expr.property.lexeme + "'.");
         }
         return null;
     }
@@ -120,7 +122,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     @Override
     public Void visitVariableExpr(Expr.Variable expr) {
         if (!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
-            Lox.error(expr.name, "Cannot read local variable in its own initializer.");
+            error(expr.name, "Cannot read local variable in its own initializer.");
         }
         resolveLocal(expr, expr.name);
         return null;
@@ -315,6 +317,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         }
     }
 
+    public boolean hasErrors() {
+        return this.errorBuf.size() > 0;
+    }
+
     private void resolveExprs(List<Expr> exprs) {
         for (Expr expr : exprs) {
             resolve(expr);
@@ -350,7 +356,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private void declare(Token name) {
         if (scopes.isEmpty()) return;
         if (scopes.peek().containsKey(name.lexeme)) {
-            Lox.error(name, "cannot redeclare variable " + name.lexeme + ".");
+            error(name, "cannot redeclare variable " + name.lexeme + ".");
         }
         scopes.peek().put(name.lexeme, false);
     }
@@ -367,5 +373,10 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
                 return;
             }
         }
+    }
+
+    private void error(Token tok, String msg) {
+        Lox.error(tok, msg);
+        this.errorBuf.add(msg);
     }
 }

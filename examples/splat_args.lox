@@ -24,3 +24,23 @@ var ary = [1,2,3];
 print ary[0]; // expect: 1
 splats_copy(*ary);
 print ary[0]; // expect: 1
+
+__END__
+-- expect: --
+just me
+0
+DONE
+hi
+1
+why hello there
+DONE
+why hello again
+1
+HI!
+first
+3
+second
+why hello again
+HI!
+1
+1

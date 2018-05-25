@@ -5,4 +5,8 @@ class Foo {
 }
 
 var f = Foo();
-print f;
+print f._class;
+
+__END__
+-- expect: --
+<class Foo>

@@ -23,3 +23,20 @@ o.int = 1;
 for (; o.int < 10; o.int *= 2) {
   print o.int;
 }
+
+__END__
+-- expect: --
+1
+2
+1
+2
+3
+nil
+1
+2
+4
+8
+1
+2
+4
+8

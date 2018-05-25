@@ -28,6 +28,13 @@ public class AstPrinterTest {
     }
 
     @Test
+    public void testLogicalExpr() {
+        String code = "var i = true and false;";
+        String ast = AstPrinter.print(code);
+        assertEquals("(varDecl i (and true false))\n", ast);
+    }
+
+    @Test
     public void testErrorNoSemiColon() {
         String code = "1+1";
         String ast = AstPrinter.print(code);
@@ -62,7 +69,7 @@ public class AstPrinterTest {
     public void testSimpleForStmt() {
         String code = "for (var i = 0; i < 100; i = i + 1) { }";
         String ast = AstPrinter.print(code);
-        assertEquals("(for (varDecl (i) 0.0) (< (var i) 100.0) (assign i (+ (var i) 1.0))\n" +
+        assertEquals("(for (varDecl i 0.0) (< (var i) 100.0) (assign i (+ (var i) 1.0))\n" +
                      "  (block)\n" +
                      ")\n",
                      ast);
@@ -86,9 +93,9 @@ public class AstPrinterTest {
                      "  (block\n" +
                      "    (call (var someFunc))\n" +
                      "  )\n" +
-                     "  (catch Err (var err)\n" +
+                     "  (catch \"Err\" (var err)\n" +
                      "    (block\n" +
-                     "      (print hi)\n" +
+                     "      (print \"hi\")\n" +
                      "    )\n" +
                      "  )\n" +
                      ")\n",
@@ -99,7 +106,7 @@ public class AstPrinterTest {
     public void testThrowStringExpr() {
         String code = "throw \"Error\";";
         String ast = AstPrinter.print(code);
-        assertEquals("(throw Error)\n", ast);
+        assertEquals("(throw \"Error\")\n", ast);
     }
 
     @Test
@@ -134,14 +141,14 @@ public class AstPrinterTest {
     public void testVarDecl() {
         String code = "var i = 0.0;";
         String ast = AstPrinter.print(code);
-        assertEquals("(varDecl (i) 0.0)\n", ast);
+        assertEquals("(varDecl i 0.0)\n", ast);
     }
 
     @Test
     public void testVarAssign() {
         String code = "var i; i = 0.0;";
         String ast = AstPrinter.print(code);
-        assertEquals("(varDecl (i))\n(assign i 0.0)\n", ast);
+        assertEquals("(varDecl i)\n(assign i 0.0)\n", ast);
     }
 
     @Test
@@ -169,14 +176,14 @@ public class AstPrinterTest {
     public void testAnonFn() {
         String code = "var i = fun() { };";
         String ast = AstPrinter.print(code);
-        assertEquals("(varDecl (i) (fnAnon\n" +
+        assertEquals("(varDecl i (fnAnon\n" +
                      "  (block)\n" +
                      "))\n",
                      ast);
     }
 
     @Test
-    public void testEmptyFnDecl() {
+    public void testEmptyFunDecl() {
         String code = "fun myFunc() { }";
         String ast = AstPrinter.print(code);
         assertEquals("(fnDecl myFunc\n" +
@@ -186,7 +193,7 @@ public class AstPrinterTest {
     }
 
     @Test
-    public void testNonEmptyFnDecl() {
+    public void testNonEmptyFunDecl() {
         String code = "fun two() {\n" +
                       "  return 2;" +
                       "}";
@@ -200,7 +207,25 @@ public class AstPrinterTest {
     }
 
     @Test
-    public void testEmptyClassDefn() {
+    public void testFunDeclWithSplatParam() {
+        String code = "fun printArgs(*args) {\n" +
+                      "  for (var i = 0; i < args.size; i = i + 1) { print i; }" +
+                      "}";
+        String ast = AstPrinter.print(code);
+        assertEquals("(fnDecl printArgs *args\n" +
+                     "  (block\n" +
+                     "    (for (varDecl i 0.0) (< (var i) (prop (var args) size)) (assign i (+ (var i) 1.0))\n" +
+                     "      (block\n" +
+                     "        (print (var i))\n" +
+                     "      )\n" +
+                     "    )\n" +
+                     "  )\n" +
+                     ")\n",
+                     ast);
+    }
+
+    @Test
+    public void testEmptyClassDecl() {
         String code = "class Invoice { }";
         String ast = AstPrinter.print(code);
         assertEquals("(classDecl Invoice)\n",
@@ -210,8 +235,8 @@ public class AstPrinterTest {
     @Test
     public void testClassWithMethod() {
         String code = "class Invoice {\n" +
-        "  amount() { return 100.00; }" +
-        "}";
+                      "  amount() { return 100.00; }" +
+                      "}";
         String ast = AstPrinter.print(code);
         assertEquals("(classDecl Invoice\n" +
                      "  (fnDecl amount\n" +
@@ -226,8 +251,8 @@ public class AstPrinterTest {
     @Test
     public void testClassWithGetterMethod() {
         String code = "class Invoice {\n" +
-        "  amount { return 100.00; }" +
-        "}";
+                      "  amount { return 100.00; }" +
+                      "}";
         String ast = AstPrinter.print(code);
         assertEquals("(classDecl Invoice\n" +
                      "  (getter amount\n" +
@@ -242,8 +267,8 @@ public class AstPrinterTest {
     @Test
     public void testClassWithSetterMethod() {
         String code = "class Invoice {\n" +
-        "  amount=(amt) { this.amt = amt; }\n" +
-        "}";
+                      "  amount=(amt) { this.amt = amt; }\n" +
+                      "}";
         String ast = AstPrinter.print(code);
         assertEquals("(classDecl Invoice\n" +
                      "  (setter amount amt\n" +
@@ -253,6 +278,65 @@ public class AstPrinterTest {
                      "  )\n" +
                      ")\n",
                      ast);
+    }
+
+    @Test
+    public void testNil() {
+        String code = "var i = nil;";
+        String ast = AstPrinter.print(code);
+        assertEquals("(varDecl i nil)\n", ast);
+    }
+
+    @Test
+    public void testArrayLiterals() {
+        String code1 = "var a = [1,2,3];";
+        String code2 = "var a = [1,2,3,];";
+        String code3 = "var a = [];";
+        String code4 = "var a = [,];";
+        String ast1 = AstPrinter.print(code1);
+        String ast2 = AstPrinter.print(code2);
+        String ast3 = AstPrinter.print(code3);
+        String ast4 = AstPrinter.print(code4);
+        assertEquals("(varDecl a (array 1.0 2.0 3.0))\n", ast1);
+        assertEquals("(varDecl a (array 1.0 2.0 3.0))\n", ast2);
+        assertEquals("(varDecl a (array))\n", ast3);
+        assertEquals("(varDecl a (array))\n", ast4);
+    }
+
+    @Test
+    public void testIndexGetExpr() {
+        String code = "identifier[expr()];";
+        String ast = AstPrinter.print(code);
+        assertEquals("(indexedget (var identifier) (call (var expr)))\n", ast);
+
+    }
+
+    @Test
+    public void testIndexSetExpr() {
+        String code = "identifier[expr()] = nil;";
+        String ast = AstPrinter.print(code);
+        assertEquals("(indexedset (var identifier) (call (var expr)) nil)\n", ast);
+    }
+
+    @Test
+    public void testUnaryMinus() {
+        String code = "var i = -1.0;";
+        String ast = AstPrinter.print(code);
+        assertEquals("(varDecl i (- 1.0))\n", ast);
+    }
+
+    @Test
+    public void testUnaryNot() {
+        String code = "var i = !0.0;";
+        String ast = AstPrinter.print(code);
+        assertEquals("(varDecl i (! 0.0))\n", ast);
+    }
+
+    @Test
+    public void testGroupingExpr() {
+        String code = "var i = (0.0);";
+        String ast = AstPrinter.print(code);
+        assertEquals("(varDecl i (group 0.0))\n", ast);
     }
 
 

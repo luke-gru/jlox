@@ -13,3 +13,8 @@ class B < A {
 
 var b = B();
 b.color = "red";
+
+__END__
+-- noexpect: --
+A color set: red
+B color set: red

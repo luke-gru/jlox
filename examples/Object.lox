@@ -1,7 +1,5 @@
 var o = Object();
 var o2 = Object();
-print o;
-print o2;
 print Object;
 print o.equals(o);
 print o2.equals(o2);
@@ -19,3 +17,15 @@ var newobj = SetterObj();
 newobj[klass+"_"] = Object;
 print newobj[klass+"_"];
 newobj.freeze();
+
+__END__
+-- expect: --
+<class Object>
+true
+true
+false
+false
+<class Object>
+<class Object>
+nil
+<class Object>

@@ -25,3 +25,10 @@ try {
 }
 
 throw "error";
+
+__END__
+-- noexpect: --
+throwing
+caught hi
+caught Error: msg: uh oh
+-- expect UncaughtThrow: error --

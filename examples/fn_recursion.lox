@@ -4,3 +4,8 @@ fun count(n) {
 }
 
 count(3);
+__END__
+-- expect: --
+1
+2
+3

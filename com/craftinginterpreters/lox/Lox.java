@@ -91,11 +91,6 @@ public class Lox {
     }
 
     private static void runStmts(List<Stmt> statements) {
-        Resolver resolver = new Resolver(interpreter);
-        resolver.resolve(statements);
-        if (hadError) {
-            return;
-        }
         interpreter.interpret(statements);
     }
 

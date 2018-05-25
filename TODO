@@ -1,17 +1,19 @@
 TODO:
 * multiple var declaration [DONE], multiple assignment [], return multiple values []
 * splat parameters + splat arguments [DONE]
-* dicts and dict literals
-* iterators, with returning iterator with instance iter() method like python
+* object literals
+* iterators, with returning iterator with instance iter() method like python,
+along with 'for elem in obj' syntax []
 * private fields for classes
 * all classes inherit from Object automatically [DONE]
 * ["propName"] and ["propName"]= for dynamic property get and set; [DONE]
-* add Dict and Array classes, and instead of using LoxArray, use LoxInstance
+* add builtin Array class instead of using LoxArray, use LoxInstance with
+class of Array
 * add standard Error classes
 * throw Interrupt errors on interrupts
 * signal handling
 * keyword arguments
 * frozen objects, can't use setProperty on the instance [DONE]
 * better library
-* add test suite
+* add test suite [DONE]
 * add '+=, -=,' etc binary operators [DONE]

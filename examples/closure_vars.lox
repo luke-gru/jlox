@@ -11,7 +11,15 @@ var a = "global";
 }
 
 
-fun bad() {
-  var a = "first";
-  var a = "second";
+fun local() {
+  var a = "local";
+  return a;
 }
+print local();
+
+__END__
+-- expect: --
+global
+global
+block
+local

@@ -8,9 +8,7 @@ class Breakfast {
   }
 }
 
-print Breakfast;
 var b =  Breakfast();
-print b;
 print b.someProperty;
 b.someProperty = "myprop";
 print b.someProperty;
@@ -37,4 +35,13 @@ class Cake {
 
 var chocCake = Cake("German chocolate");
 print chocCake.flavor;
-//chocCake.taste(); // Prints "The German chocolate cake is delicious!".
+chocCake.taste(); // Prints "The German chocolate cake is delicious!".
+
+__END__
+-- expect: --
+nil
+myprop
+Enjoy your breakfast, Luke.
+Crunch crunch crunch!
+German chocolate
+The German chocolate cake is delicious!

@@ -75,7 +75,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
  * anonFn         : "fun" "(" parameterList? ")" blockStmt ;
  */
 
-class Parser {
+public class Parser {
     public static class ParseError extends RuntimeException {}
 
     private final List<Token> tokens;
@@ -666,10 +666,11 @@ class Parser {
             List<Expr> list = new ArrayList<>();
             Expr.Array ary = new Expr.Array(prevTok(), list);
             while (!checkTok(RIGHT_BRACKET)) {
-                list.add(expression());
                 if (checkTok(COMMA) && peekTokN(1).type == RIGHT_BRACKET) {
+                    advance();
                     break;
                 }
+                list.add(expression());
                 if (checkTok(RIGHT_BRACKET)) {
                     break;
                 }

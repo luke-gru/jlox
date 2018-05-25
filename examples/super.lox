@@ -20,7 +20,6 @@ class Snake < Animal {
 var s = Snake("Jake", "red");
 var s2 = Snake("Leo", "blue");
 print s.color;
-print s;
 print s.computedcolor;
 print s == s2;
 print s == s;
@@ -44,3 +43,11 @@ class B < A {
 class C < B {}
 
 C().test(); // "A method"
+
+__END__
+-- noexpect: --
+red
+my color: red
+false
+true
+A method

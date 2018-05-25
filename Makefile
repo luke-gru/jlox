@@ -6,7 +6,7 @@ LOXSOURCEPATH=${BASEDIR}/com/craftinginterpreters/lox
 TOOLSOURCEPATH=${BASEDIR}/com/craftinginterpreters/tool
 TESTSOURCEPATH=${BASEDIR}/com/craftinginterpreters/test
 
-TEST_FILES = AstPrinterTest.java
+TEST_FILES = AstPrinterTest.java InterpreterTest.java
 
 .PHONY: lox
 lox: gen_ast
@@ -38,6 +38,7 @@ tool:
 gen_ast: tool
 	java -cp ${CLASSPATH} com.craftinginterpreters.tool.GenerateAst ${LOXSOURCEPATH}
 
+.PHONY: test
 test: lox
 	cd ${TESTSOURCEPATH} && javac -sourcepath ${TESTSOURCEPATH}:${BASEDIR} -cp ${VENDOR_JARPATHS} MyRunner.java $(TEST_FILES) && \
 	java -cp ${BASEDIR}:${VENDOR_JARPATHS} com.craftinginterpreters.test.MyRunner

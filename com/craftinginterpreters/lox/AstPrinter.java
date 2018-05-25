@@ -118,7 +118,7 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         StringBuilder builder = new StringBuilder();
         builder.append(indent() + "(varDecl");
         for (Token varTok : stmt.names) {
-            builder.append(" (" + varTok.lexeme + ")");
+            builder.append(" " + varTok.lexeme);
         }
         for (Expr init : stmt.initializers) {
             builder.append(" " + init.accept(this));
@@ -378,7 +378,7 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     @Override
     public String visitLiteralExpr(Expr.Literal expr) {
         if (expr.value == null) return "nil";
-        if (expr.value instanceof String) {
+        if (expr.value instanceof StringBuffer) {
             return "\"" + expr.value.toString() + "\"";
         } else {
             return expr.value.toString();

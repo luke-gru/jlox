@@ -15,6 +15,7 @@ class Scanner {
     private int current = 0;
     private int line = 1;
     public int inBlock = 0;
+    private boolean scriptEnded = false; // ended with __END__ keyword
 
     private static final Map<String, TokenType> keywords;
 
@@ -41,6 +42,7 @@ class Scanner {
         keywords.put("try",    TRY);
         keywords.put("catch",  CATCH);
         keywords.put("throw",  THROW);
+        keywords.put("__END__",  END_SCRIPT);
     }
 
     Scanner(String source) {
@@ -79,7 +81,7 @@ class Scanner {
     }
 
     private boolean isAtEnd() {
-        return current >= source.length();
+        return this.scriptEnded || current >= source.length();
     }
 
     private void scanToken() {
@@ -177,7 +179,13 @@ class Scanner {
         String text = source.substring(start, current);
 
         TokenType ttype = keywords.get(text);
-        if (ttype == null) ttype = IDENTIFIER;
+        if (ttype == null) {
+            ttype = IDENTIFIER;
+        } else if (ttype == END_SCRIPT) {
+            this.scriptEnded = true;
+            addToken(EOF);
+            return;
+        }
         addToken(ttype);
     }
 
