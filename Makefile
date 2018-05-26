@@ -12,7 +12,7 @@ TEST_FILES = AstPrinterTest.java InterpreterTest.java
 lox: gen_ast
 	cd ${LOXSOURCEPATH} && javac -sourcepath ${LOXSOURCEPATH} Lox.java Scanner.java TokenType.java Token.java \
 		Parser.java AstPrinter.java Expr.java Stmt.java Interpreter.java RuntimeError.java Environment.java \
-		LoxCallable.java LoxFunction.java Resolver.java LoxClass.java LoxInstance.java StackFrame.java LoxArray.java \
+		LoxCallable.java LoxFunction.java Resolver.java LoxClass.java LoxInstance.java StackFrame.java \
 		Runtime.java LoxNativeClass.java LoxNativeCallable.java Param.java
 
 .PHONY: clean

@@ -22,7 +22,7 @@ public class GenerateAst {
         "IndexedSet : Token lbracket, Expr left, Expr indexExpr, Expr value",
         "Unary    : Token operator, Expr right",
         "Variable : Token name",
-        "Assign   : Token name, Expr value",
+        "Assign   : Token name, Expr value", // TODO: allow multiple assignment
         "Call     : Expr left, List<Expr> args",
         "AnonFn   : Token fun, List<Param> formals, Stmt body",
         "PropAccess : Expr left, Token property",
@@ -39,8 +39,9 @@ public class GenerateAst {
         "If         : Expr condition, Stmt ifBranch, Stmt elseBranch",
         "While      : Expr condition, Stmt body",
         "For        : Stmt initializer, Expr test, Expr increment, Stmt body",
-        "Continue   : Token token, Stmt loopStmt", // while or for stmt
-        "Break      : Token token, Stmt loopStmt", // while or for stmt
+        "Foreach    : List<Token> variables, Expr obj, Block body",
+        "Continue   : Token token, Stmt loopStmt", // in while or for stmt
+        "Break      : Token token, Stmt loopStmt", // in while or for stmt
         "Function   : Token name, List<Param> formals, Stmt body, Parser.FunctionType type, Class klass",
         "Return     : Token token, Expr expression",
         "Class      : Token name, Stmt.Class superClass, List<Stmt> body",

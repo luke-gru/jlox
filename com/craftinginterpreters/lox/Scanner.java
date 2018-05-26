@@ -26,6 +26,8 @@ class Scanner {
         keywords.put("else",   ELSE);
         keywords.put("false",  FALSE);
         keywords.put("for",    FOR);
+        keywords.put("foreach", FOREACH);
+        keywords.put("in",     FOREACH_IN);
         keywords.put("fun",    FUN);
         keywords.put("if",     IF);
         keywords.put("nil",    NIL);

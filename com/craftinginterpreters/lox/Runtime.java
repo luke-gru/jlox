@@ -20,14 +20,16 @@ class Runtime {
         return (Boolean)val;
     }
 
-    static Object array(List<Object> list) {
-        return new LoxArray(list);
+    static Object array(List<Object> list, Interpreter interp) {
+        LoxClass arrayClass = classMap.get("Array");
+        Object instance = arrayClass.call(interp, list, null);
+        return instance;
     }
 
-    static Object arrayCopy(List<Object> list) {
+    static Object arrayCopy(List<Object> list, Interpreter interp) {
         List<Object> copy = new ArrayList<>();
         copy.addAll(list);
-        return new LoxArray(copy);
+        return array(copy, interp);
     }
 
     static boolean acceptsNArgs(LoxCallable callable, int n) {
@@ -57,6 +59,36 @@ class Runtime {
         if (klass == null) return null;
         if (!(klass instanceof LoxNativeClass)) return null;
         return (LoxNativeClass)klass;
+    }
+
+    static boolean isArray(Object obj) {
+        if (!(obj instanceof LoxInstance)) { return false; }
+        LoxInstance instance = (LoxInstance)obj;
+        return classOf(instance).getName() == "Array";
+    }
+
+    static boolean isString(Object obj) {
+        return (obj instanceof StringBuffer);
+    }
+
+    static boolean isNumber(Object obj) {
+        return (obj instanceof Double);
+    }
+
+    static LoxInstance toInstance(Object obj) {
+        if (obj instanceof LoxInstance) {
+            return (LoxInstance)obj;
+        } else {
+            return null;
+        }
+    }
+
+    static StringBuffer toString(Object obj) {
+        if (obj instanceof StringBuffer) {
+            return (StringBuffer)obj;
+        } else {
+            return null;
+        }
     }
 
     public void init() {
@@ -89,9 +121,16 @@ class Runtime {
                 return interpreter.nativeLen(tok, arguments.get(0));
             }
         });
+        globalEnv.define("String", new LoxNativeCallable("String", 1) {
+            @Override
+            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                return new StringBuffer(interpreter.stringify(arguments.get(0)));
+            }
+        });
     }
 
     public void defineBuiltinClasses() {
+        // class Object
         LoxNativeClass objClass = new LoxNativeClass("Object", null);
         objClass.defineMethod(new LoxNativeCallable("equals", 1) {
             @Override
@@ -118,6 +157,39 @@ class Runtime {
         });
         globalEnv.define("Object", objClass);
         classMap.put("Object", objClass);
+
+        // class Array
+        LoxNativeClass arrayClass = new LoxNativeClass("Array", objClass);
+        arrayClass.defineMethod(new LoxNativeCallable("init", -1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                List<Object> ary = new ArrayList<>();
+                for (Object arg : args) {
+                    ary.add(arg);
+                }
+                instance.setHiddenProp("ary", ary);
+                return instance;
+            }
+        });
+        arrayClass.defineGetter(new LoxNativeCallable("length", 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                return (double)((List<Object>)instance.getHiddenProp("ary")).size();
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("push", 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                ary.add(args.get(0));
+                return instance;
+            }
+        });
+        globalEnv.define("Array", arrayClass);
+        classMap.put("Array", arrayClass);
     }
 
     public List<String> nativeClassNames() {

@@ -1,0 +1,30 @@
+class Student {
+  init(name) {
+    this.name = name;
+  }
+}
+class ClassRoom {
+  init(num) {
+    this.roomNo = num;
+    this.students = [];
+  }
+  addStudent(student) {
+    this.students.push(student);
+  }
+  iter() { return this.students; }
+}
+var c = ClassRoom(101);
+for (var i = 1; i <= 3; i++) {
+  var s = Student("Student #" + String(i));
+  c.addStudent(s);
+}
+
+foreach (s in c) {
+  print s.name;
+}
+
+__END__
+-- noexpect: --
+Student #1
+Student #2
+Student #3

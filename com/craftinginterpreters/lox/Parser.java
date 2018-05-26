@@ -192,7 +192,7 @@ public class Parser {
         if (this.currentFn != null) {
             for (Param param : this.currentFn.formals) {
                 if (nameStrs.contains(param.varName())) {
-                    int index = names.indexOf(param.varName());
+                    int index = nameStrs.indexOf(param.varName());
                     Token nameTok = names.get(index);
                     throw error(
                         nameTok,
@@ -363,7 +363,7 @@ public class Parser {
             }
             return (Stmt)whileStmt;
         }
-        if (matchAny(FOR)) {
+        if (matchAny(FOR)) { // for (..;.. ;..) or (for var in obj)
             consumeTok(LEFT_PAREN, "expected '(' after keyword 'for'");
             Stmt initializer = null;
             if (peekTok().type != SEMICOLON) {
@@ -396,6 +396,24 @@ public class Parser {
             this.inLoopStmt = oldInLoopStmt;
             forStmt.body = body;
             return forStmt;
+        }
+        if (matchAny(FOREACH)) {
+            consumeTok(LEFT_PAREN, "expected '(' after keyword 'foreach'");
+            List<Token> variables = new ArrayList<>();
+            while (matchAny(IDENTIFIER)) {
+                Token ident = prevTok();
+                variables.add(ident);
+                if (matchAny(COMMA)) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            consumeTok(FOREACH_IN, "expected keyword 'in' after keyword 'foreach'");
+            Expr expr = expression();
+            consumeTok(RIGHT_PAREN, "expected ')' to end 'foreach' statement");
+            Stmt.Block body = (Stmt.Block)statement();
+            return new Stmt.Foreach(variables, expr, body);
         }
         if (matchAny(TRY)) {
             consumeTok(LEFT_BRACE, "Expected '{' after keyword 'try'");

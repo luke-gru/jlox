@@ -9,6 +9,7 @@ class LoxInstance {
     public LoxClass klass;
     public String klassName;
     private final Map<String, Object> properties = new HashMap<>();
+    private final Map<String, Object> hiddenProps = new HashMap<>();
     public boolean isFrozen = false;
 
     LoxInstance(LoxClass klass, String className) {
@@ -92,5 +93,17 @@ class LoxInstance {
 
     public void freeze() {
         this.isFrozen = true;
+    }
+
+    public Object getHiddenProp(String name) {
+        if (this.hiddenProps.containsKey(name)) {
+            return this.hiddenProps.get(name);
+        } else {
+            return null;
+        }
+    }
+
+    public void setHiddenProp(String name, Object val) {
+        this.hiddenProps.put(name, val);
     }
 }

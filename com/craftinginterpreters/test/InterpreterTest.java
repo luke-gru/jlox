@@ -234,6 +234,11 @@ public class InterpreterTest {
                             inExpected = true;
                             line = br.readLine();
                             continue;
+                        } else if (inEnd && line.matches("-- expect UncaughtThrow: --")) {
+                            expectUncaughtThrow = true;
+                            inExpected = true;
+                            line = br.readLine();
+                            continue;
                         } else if (inEnd && line.matches("-- expect ParseError: --")) {
                             expectParseError = true;
                             break;
@@ -260,7 +265,12 @@ public class InterpreterTest {
                     if (expectRuntimeError) {
                         assertRuntimeError();
                         if (expected.length() != 0) {
-                            assertEquals(expected, output);
+                            assertEquals(expected, this.interp.printBuf.toString());
+                        }
+                    } else if (expectUncaughtThrow) {
+                        assertUncaughtError();
+                        if (expected.length() != 0) {
+                            assertEquals(expected, this.interp.printBuf.toString());
                         }
                     } else if (expectParseError) {
                         assertParseError();

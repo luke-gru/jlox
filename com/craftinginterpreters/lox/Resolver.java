@@ -311,6 +311,19 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitForeachStmt(Stmt.Foreach stmt) {
+        resolve(stmt.obj);
+        beginScope();
+        for (Token var : stmt.variables) {
+            declare(var);
+            define(var);
+        }
+        resolve(stmt.body);
+        endScope();
+        return null;
+    }
+
     public void resolve(List<Stmt> stmts) {
         for (Stmt stmt : stmts) {
             resolve(stmt);

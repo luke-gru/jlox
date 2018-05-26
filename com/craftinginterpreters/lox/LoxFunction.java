@@ -30,9 +30,9 @@ class LoxFunction implements LoxCallable {
             if (isLastParam && param.isSplatted) {
                 Object splatAry;
                 if (i == numArgs-1) { // single splat argument
-                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs));
+                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs), interpreter);
                 } else {
-                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs-1));
+                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs-1), interpreter);
                 }
                 environment.define(param.varName(), splatAry);
                 addedSplat = true;
@@ -44,7 +44,7 @@ class LoxFunction implements LoxCallable {
 
         if (hasSplat && !addedSplat) { // add empty splat array argument
             Param param = declaration.formals.get(numParams-1);
-            environment.define(param.varName(), Runtime.array(new ArrayList<Object>()));
+            environment.define(param.varName(), Runtime.array(new ArrayList<Object>(), interpreter));
         }
 
         Environment fnEnv = new Environment(environment);
@@ -101,9 +101,9 @@ class LoxFunction implements LoxCallable {
 
     @Override
     public LoxCallable bind(LoxInstance instance, Environment env) {
-        if (env != closure) {
-            throw new RuntimeException("BUG! closure should == env passed to bind()");
-        }
+        //if (env != closure) {
+            //throw new RuntimeException("BUG! closure should == env passed to bind()");
+        //}
         Environment environment = new Environment(env);
         environment.define("this", instance);
         return new LoxFunction(declaration, environment, isInitializer);

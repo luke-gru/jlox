@@ -6,5 +6,4 @@ fun scope(a) {
 scope("outer");
 
 __END__
--- noexpect: --
-local
+-- expect ParseError: --

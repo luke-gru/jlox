@@ -125,30 +125,36 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         for (Expr el : expr.expressions) {
             objs.add(evaluate(el));
         }
-        return new LoxArray(objs);
+        LoxClass arrayClass = classMap.get("Array");
+        Token tok = tokenFromExpr(expr);
+        // Construct the array instance and return it
+        Object instance = arrayClass.call(this, objs, tok);
+        return instance;
     }
 
     @Override
     public Object visitIndexedGetExpr(Expr.IndexedGet expr) {
         Object obj = evaluate(expr.left);
-        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer) &&
+        if (!(Runtime.isArray(obj)) && !(Runtime.isString(obj)) &&
            (!(obj instanceof LoxInstance))) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "index access expr (expr[]), LHS must be array, string or object.");
+            throw new RuntimeError(tokenFromExpr(expr.left), "index access expr (expr[]), LHS must be array object, string or object.");
         }
         Object index = evaluate(expr.indexExpr);
-        boolean needsNumberIndex = (obj instanceof LoxArray) || (obj instanceof StringBuffer);
-        boolean needsStringIndex = (obj instanceof LoxInstance);
-        if (needsNumberIndex && !(index instanceof Double)) {
+        boolean needsNumberIndex = Runtime.isArray(obj) || Runtime.isString(obj);
+        boolean needsStringIndex = (obj instanceof LoxInstance) && !needsNumberIndex;
+        if (needsNumberIndex && !(Runtime.isNumber(index))) {
             throw new RuntimeError(tokenFromExpr(expr.indexExpr), "index access accessor (expr[accessor]) must be number for arrays and strings.");
-        } else if (needsStringIndex && !(index instanceof StringBuffer)) {
+        } else if (needsStringIndex && !Runtime.isString(index)) {
             throw new RuntimeError(tokenFromExpr(expr.indexExpr), "index access accessor (expr[accessor]) must be string for objects.");
         }
-        if (obj instanceof LoxArray) {
-            LoxArray ary = (LoxArray)obj;
+        if (Runtime.isArray(obj)) {
+            LoxInstance ary = Runtime.toInstance(obj);
             Token tok = tokenFromExpr(expr.left);
-            return ary.get(((Double)index).intValue(), tok);
-        } else if (obj instanceof StringBuffer) {
-            StringBuffer strBuf = (StringBuffer)obj;
+            List<Object> elements = (List<Object>)ary.getHiddenProp("ary");
+            // TODO: check array OOB access
+            return elements.get(((Double)index).intValue());
+        } else if (Runtime.isString(obj)) {
+            StringBuffer strBuf = Runtime.toString(obj);
             int start = ((Double)index).intValue();
             return new StringBuffer(strBuf.substring(start, start+1));
         } else if (obj instanceof LoxInstance) {
@@ -163,25 +169,27 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitIndexedSetExpr(Expr.IndexedSet expr) {
         Object obj = evaluate(expr.left);
-        if (!(obj instanceof LoxArray) && !(obj instanceof StringBuffer) &&
+        if (!(obj instanceof StringBuffer) &&
             !(obj instanceof LoxInstance)) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "indexed set expr (expr[index] = rval), LHS must be an array, string or object.");
+            throw new RuntimeError(tokenFromExpr(expr.left), "indexed set expr (expr[index] = rval), LHS must be a string or object.");
         }
-        boolean needsNumberIndex = (obj instanceof LoxArray) || (obj instanceof StringBuffer);
-        boolean needsStringIndex = (obj instanceof LoxInstance);
+        boolean needsNumberIndex = (Runtime.isArray(obj)) || (Runtime.isString(obj));
+        boolean needsStringIndex = (obj instanceof LoxInstance) && !needsNumberIndex;
         Object index = evaluate(expr.indexExpr);
         if (needsNumberIndex && !(index instanceof Double)) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a number when expr evaluates to a string or array.");
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a number when expr evaluates to a string or array object.");
         } else if (needsStringIndex && !(index instanceof StringBuffer)) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a string when expr evaluates to an object.");
+            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a string when expr evaluates to a non-array object.");
         }
         Object val = evaluate(expr.value);
-        if (obj instanceof LoxArray) {
-            LoxArray ary = (LoxArray)obj;
+        if (Runtime.isArray(obj)) {
+            LoxInstance ary = (LoxInstance)obj;
             Token tok = tokenFromExpr(expr.left);
-            ary.set(((Double)index).intValue(), val, tok);
+            List<Object> elements = (List<Object>)ary.getHiddenProp("ary");
+            // TODO: check array OOB access
+            elements.set(((Double)index).intValue(), val);
             return val;
-        } else if (obj instanceof StringBuffer) {
+        } else if (Runtime.isString(obj)) {
             StringBuffer strBuf = (StringBuffer)obj;
             if (!(val instanceof StringBuffer)) {
                 throw new RuntimeError(tokenFromExpr(expr.indexExpr), "string[]=value, value must be a string!");
@@ -371,10 +379,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             for (Expr expr : callExpr.args) {
                 if (expr instanceof Expr.SplatCall) {
                     Object ary = evaluate(((Expr.SplatCall)expr).expression);
-                    if (!(ary instanceof LoxArray)) {
-                        throw new RuntimeError(tokenFromExpr(callExpr), "Splat arg expression must evaluate to an array");
+                    if (!Runtime.isArray(ary)) {
+                        throw new RuntimeError(tokenFromExpr(callExpr), "Splat arg expression must evaluate to an array object");
                     }
-                    args.addAll(((LoxArray)ary).elements);
+                    LoxInstance aryInstance = (LoxInstance)ary;
+                    List<Object> elements = (List<Object>)aryInstance.getHiddenProp("ary");
+                    args.addAll(elements);
                 } else {
                     args.add(evaluate(expr));
                 }
@@ -385,7 +395,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 int expectedN = arity;
                 String expectedNStr;
                 if (expectedN < 0) {
-                    expectedNStr = "at least " + String.valueOf(-expectedN);
+                    expectedNStr = "at least " + String.valueOf(-(expectedN+1));
                 } else {
                     expectedNStr = String.valueOf(expectedN);
                 }
@@ -406,6 +416,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
+    // see visitCallExpr
     @Override
     public Object visitSplatCallExpr(Expr.SplatCall expr) {
         return null;
@@ -523,11 +534,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (!useArrayElements && canUseArray) {
                     value = evaluate(init);
                     initEvaled = true;
-                    useArrayElements = (value instanceof LoxArray);
+                    useArrayElements = Runtime.isArray(value);
                 }
                 if (useArrayElements) {
-                    LoxArray ary = (LoxArray)value;
-                    Object val = ary.get(useArrayElementsIdx, varTok);
+                    LoxInstance aryValue = (LoxInstance)value;
+                    List<Object> aryElements = (List<Object>)aryValue.getHiddenProp("ary");
+                    // TODO: check OOB array access
+                    Object val = aryElements.get(useArrayElementsIdx);
                     environment.define(varTok.lexeme, val);
                     useArrayElementsIdx++;
                 } else {
@@ -618,6 +631,46 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                         evaluate(stmt.increment);
                     }
                 }
+            }
+        } finally {
+            this.environment = oldEnv;
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitForeachStmt(Stmt.Foreach stmt) {
+        Environment oldEnv = this.environment;
+        Object evalObj = evaluate(stmt.obj);
+        if (!Runtime.isArray(evalObj)) {
+            throw new RuntimeException("foreach expr must be an array object");
+        }
+        LoxInstance aryObj = (LoxInstance)evalObj;
+        List<Object> elements = (List<Object>)aryObj.getHiddenProp("ary");
+        int len = elements.size();
+        // so that (foreach i, j in expr()), variables are not leaked to outer scope
+        this.environment = new Environment(oldEnv);
+        int numVars = stmt.variables.size();
+        try {
+            for (int i = 0; i < len; i++) {
+                // TODO: check OOB array access
+                Object val = elements.get(i);
+                if (numVars > 1 && (!Runtime.isArray(val))) {
+                    throw new RuntimeException("foreach element must be array object when given more than 1 variable in foreach loop (" +
+                        String.valueOf(numVars) + " variables given). Element class: " + this.nativeTypeof(null, val));
+                }
+                if (numVars > 1) {
+                    LoxInstance valObj = (LoxInstance)val;
+                    List<Object> valElements = (List<Object>)valObj.getHiddenProp("ary");
+                    for (int j = 0; j < numVars; j++) {
+                        Token elemVar = stmt.variables.get(j);
+                        // TODO: check OOB array access
+                        environment.define(elemVar.lexeme, valElements.get(j));
+                    }
+                } else {
+                    environment.define(stmt.variables.get(0).lexeme, val);
+                }
+                execute(stmt.body);
             }
         } finally {
             this.environment = oldEnv;
@@ -791,7 +844,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         throw new RuntimeError(operator, "Operands must be numbers.");
     }
 
-    private String stringify(Object object) {
+    public String stringify(Object object) {
         if (object == null) return "nil";
 
         // Hack. Work around Java adding ".0" to integer-valued doubles.
@@ -809,18 +862,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object nativeTypeof(Token tok, Object object) {
         if (object == null) { return "nil"; }
         if (object instanceof Boolean) { return "bool"; }
-        if (object instanceof Double) { return "number"; }
-        if (object instanceof StringBuffer) { return "string"; }
+        if (Runtime.isNumber(object)) { return "number"; }
+        if (Runtime.isString(object)) { return "string"; }
         if (object instanceof LoxClass) { return "class"; }
+        if (Runtime.isArray(object)) { return "array"; }
         if (object instanceof LoxInstance) { return "instance"; }
         if (object instanceof LoxCallable) { return "function"; }
-        if (object instanceof LoxArray) { return "array"; }
         throw new RuntimeException("typeof() BUG, unknown type (" + object.getClass().getName() + ")!");
     }
 
     public Object nativeLen(Token tok, Object object) {
         if (object instanceof StringBuffer) { return (double)((StringBuffer)object).length(); }
-        if (object instanceof LoxArray) { return ((LoxArray)object).length(); }
         if (object instanceof LoxCallable) { return (double)((LoxCallable)object).arity(); }
         if (object instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)object;

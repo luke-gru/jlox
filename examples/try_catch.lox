@@ -27,8 +27,9 @@ try {
 throw "error";
 
 __END__
--- noexpect: --
+-- expect: --
 throwing
 caught hi
+throwing
 caught Error: msg: uh oh
--- expect UncaughtThrow: error --
+-- expect UncaughtThrow: --

@@ -13,7 +13,7 @@ class LoxNativeCallable implements LoxCallable {
 
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Token tok) {
-        if (args.size() != arity) {
+        if (!Runtime.acceptsNArgs(this, args.size())) {
             throw arityError(tok, args.size());
         }
         try {
@@ -30,13 +30,14 @@ class LoxNativeCallable implements LoxCallable {
         return this;
     }
 
+    // to override
     protected Object _call(Interpreter interp, List<Object> args, Token tok) {
         throw new RuntimeError(tok, name + "() unimplemented!");
     }
 
     private RuntimeError arityError(Token tok, int got) {
         return new RuntimeError(tok,
-            name + "() takes " + String.valueOf(arity) + " arguments, got " +
+            name + "() takes " + arityString() + " arguments, got " +
             String.valueOf(got)
         );
     }
@@ -59,6 +60,14 @@ class LoxNativeCallable implements LoxCallable {
     @Override
     public int arity() {
         return this.arity;
+    }
+
+    private String arityString() {
+        if (this.arity >= 0) {
+            return String.valueOf(this.arity);
+        } else {
+            return "at least " + String.valueOf(-(this.arity+1));
+        }
     }
 
 }

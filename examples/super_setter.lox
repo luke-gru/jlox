@@ -15,6 +15,6 @@ var b = B();
 b.color = "red";
 
 __END__
--- noexpect: --
+-- expect: --
 A color set: red
 B color set: red

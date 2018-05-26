@@ -1,0 +1,20 @@
+var a = [1,2,3];
+foreach (el in a) {
+  print el;
+}
+
+print "";
+
+var a2 = [[1,2], [3,4]];
+foreach (num1, num2 in a2) {
+  print num1+num2;
+}
+
+__END__
+-- expect: --
+1
+2
+3
+
+3
+7

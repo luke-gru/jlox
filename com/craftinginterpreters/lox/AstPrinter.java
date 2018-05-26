@@ -193,6 +193,11 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     @Override
+    public String visitForeachStmt(Stmt.Foreach stmt) {
+        return ""; // TODO
+    }
+
+    @Override
     public String visitTryStmt(Stmt.Try stmt) {
         StringBuilder builder = new StringBuilder();
         builder.append(indent() + "(try\n");
