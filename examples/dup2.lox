@@ -1,11 +1,14 @@
 class Dupped {
   init(prop) {
     this.prop = prop;
-    print "init: " + prop;
+    print "init: " + String(prop);
+  }
+  initDup(other) {
+    this.prop += 1;
   }
 }
 
-var d = Dupped("1");
+var d = Dupped(1);
 var d2 = d.dup();
 print d.prop;
 print d2.prop;
@@ -14,4 +17,4 @@ __END__
 -- expect: --
 init: 1
 1
-1
+2

@@ -15,9 +15,11 @@ class Square < Shape {
 
 var sq = Square("red");
 print sq.toString();
+print sq;
 print sq.computedColor;
 
 __END__
 -- expect: --
+Square (red)
 Square (red)
 color: red

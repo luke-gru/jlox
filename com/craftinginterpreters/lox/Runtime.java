@@ -109,14 +109,14 @@ class Runtime {
 
     // dup either Lox object or Lox internal representation of the object
     // (StringBuffer, ArrayList, etc.)
-    static Object dupObject(Object obj) {
+    static Object dupObject(Object obj, Interpreter interp) {
         if (obj == null) { return null; }
         if (isNumber(obj) || isBool(obj)) { return obj; }
         if (isClass(obj)) {
             throw new RuntimeError(null, "Can't dup a class");
         }
-        if (isArray(obj) || isString(obj))  { return ((LoxInstance)obj).dup(); }
-        if (isInstance(obj))  { return ((LoxInstance)obj).dup(); }
+        if (isArray(obj) || isString(obj))  { return ((LoxInstance)obj).dup(interp); }
+        if (isInstance(obj))  { return ((LoxInstance)obj).dup(interp); }
         if (obj instanceof ArrayList) {
             List newList = new ArrayList<Object>((ArrayList<Object>)obj);
             return newList;
@@ -195,9 +195,9 @@ class Runtime {
         });
         objClass.defineMethod(new LoxNativeCallable("dup", 0) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                LoxInstance instance = interpreter.environment.getThis();
-                return instance.dup();
+            protected Object _call(Interpreter interp, List<Object> arguments, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                return instance.dup(interp);
             }
         });
         globalEnv.define("Object", objClass);

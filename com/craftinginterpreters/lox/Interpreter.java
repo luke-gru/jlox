@@ -511,7 +511,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    private Object evaluateCall(LoxCallable callable, List<Object> args, Token callToken) {
+    public Object evaluateCall(LoxCallable callable, List<Object> args, Token callToken) {
         LoxCallable oldFnCall = this.fnCall;
         try {
             this.fnCall = callable;

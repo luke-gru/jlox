@@ -50,22 +50,27 @@ class LoxInstance {
         }
     }
 
-    public LoxInstance dup() {
-        // FIXME: instance should go through initialization function
-        // (Interpreter#createInstance)
+    public LoxInstance dup(Interpreter interp) {
         LoxInstance newInstance = new LoxInstance(this.klass, this.klassName);
         Iterator iter = properties.entrySet().iterator();
         while (iter.hasNext()) {
             Map.Entry pair = (Map.Entry)iter.next();
-            newInstance.setProperty((String)pair.getKey(), (Object)Runtime.dupObject(pair.getValue()), null, null);
+            newInstance.setProperty((String)pair.getKey(), Runtime.dupObject(pair.getValue(), interp), null, null);
         }
         Iterator iter2 = hiddenProps.entrySet().iterator();
         while (iter2.hasNext()) {
             Map.Entry pair = (Map.Entry)iter2.next();
-            newInstance.setHiddenProp((String)pair.getKey(), Runtime.dupObject(pair.getValue()));
+            newInstance.setHiddenProp((String)pair.getKey(), Runtime.dupObject(pair.getValue(), interp));
         }
         if (isFrozen) {
             newInstance.freeze();
+        }
+        Object initDup = newInstance.getMethod("initDup", newInstance.klass, interp);
+        if (initDup != null) {
+            LoxCallable initDupMeth = (LoxCallable)initDup;
+            List<Object> args = new ArrayList<>();
+            args.add(this);
+            interp.evaluateCall(initDupMeth, args, null);
         }
         return newInstance;
     }
