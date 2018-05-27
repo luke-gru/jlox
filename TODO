@@ -22,6 +22,8 @@ the interpreter is running. []
 * add '+=, -=,' etc binary operators [DONE]
 * class (static) methods and properties [DONE]
 * add Object#dup method, which shallow copies an object and its properties [DONE]
+* add Object#initDup hook for duplicated objects
+* Figure out what it means to dup a class. Should this be possible?
 * Add builtin class Class, like Ruby. Class constructor creates new anon class. []
 * Add constants, all caps maybe, or start with caps. []
 * Allow re-opening classes? []

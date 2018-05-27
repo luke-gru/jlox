@@ -107,6 +107,8 @@ class Runtime {
         }
     }
 
+    // dup either Lox object or Lox internal representation of the object
+    // (StringBuffer, ArrayList, etc.)
     static Object dupObject(Object obj) {
         if (obj == null) { return null; }
         if (isNumber(obj) || isBool(obj)) { return obj; }
@@ -119,7 +121,11 @@ class Runtime {
             List newList = new ArrayList<Object>((ArrayList<Object>)obj);
             return newList;
         }
-        throw new RuntimeException("Unreachable (dupObject)");
+        if (obj instanceof StringBuffer) {
+            StringBuffer newBuf = new StringBuffer((StringBuffer)obj);
+            return newBuf;
+        }
+        throw new RuntimeException("Unreachable (dupObject) " + obj.getClass().getName());
     }
 
     public void init() {
