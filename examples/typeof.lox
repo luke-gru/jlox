@@ -1,7 +1,9 @@
 print typeof(123.0);
 print typeof(123);
 print typeof("mystring");
+print typeof([]);
 print typeof(nil);
+print typeof(false);
 print typeof(Object());
 print typeof(Object);
 fun func() { }
@@ -13,7 +15,9 @@ __END__
 number
 number
 string
+array
 nil
+bool
 instance
 class
 function

@@ -51,7 +51,7 @@ class LoxInstance {
     }
 
     public LoxInstance dup(Interpreter interp) {
-        LoxInstance newInstance = new LoxInstance(this.klass, this.klassName);
+        LoxInstance newInstance = new LoxInstance(getKlass(), this.klassName);
         Iterator iter = properties.entrySet().iterator();
         while (iter.hasNext()) {
             Map.Entry pair = (Map.Entry)iter.next();
@@ -65,7 +65,7 @@ class LoxInstance {
         if (isFrozen) {
             newInstance.freeze();
         }
-        Object initDup = newInstance.getMethod("initDup", newInstance.klass, interp);
+        Object initDup = newInstance.getMethod("initDup", newInstance.getKlass(), interp);
         if (initDup != null) {
             LoxCallable initDupMeth = (LoxCallable)initDup;
             List<Object> args = new ArrayList<>();
@@ -89,10 +89,10 @@ class LoxInstance {
     }
 
     public LoxClass getKlass() {
-        if (klass == null) {
-            klass = new LoxClass(klassName, null, new HashMap<String, LoxCallable>());
+        if (this.klass == null) {
+            this.klass = new LoxClass(klassName, null, new HashMap<String, LoxCallable>());
         }
-        return klass;
+        return this.klass;
     }
 
     public Object getMethodOrGetterProp(String name, LoxClass klassBeginSearch, Interpreter interp) {
@@ -115,7 +115,7 @@ class LoxInstance {
     }
 
     public boolean isA(LoxClass testKlass) {
-        LoxClass klass = this.klass;
+        LoxClass klass = this.getKlass();
         while (klass != null) {
             if (klass == testKlass) {
                 return true;

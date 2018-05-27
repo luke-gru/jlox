@@ -11,11 +11,15 @@ along with 'for elem in obj' syntax [DONE]
 class of Array [DONE]
 * add builtin String class instead of using java StringBuffer, use LoxInstance with
 class of String [DONE]
+* Add way to cast strings to numbers
+* Add string interpolation, maybe?
 * add standard Error classes []
 * throw Interrupt errors on interrupts, so the program can catch them when
 the interpreter is running. []
 * signal handling []
 * keyword arguments []
+* default arguments []
+* overridden methods with different number of arguments []
 * frozen objects, can't use setProperty on the instance [DONE]
 * better library []
 * add test suite [DONE]
@@ -26,4 +30,5 @@ the interpreter is running. []
 * Figure out what it means to dup a class. Should this be possible?
 * Add builtin class Class, like Ruby. Class constructor creates new anon class. []
 * Add constants, all caps maybe, or start with caps. []
-* Allow re-opening classes? []
+* Allow re-opening classes [DONE]
+* Add singleton classes? If so, would have to re-implement static functions []

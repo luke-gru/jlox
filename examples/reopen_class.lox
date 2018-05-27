@@ -1,0 +1,20 @@
+class Object {
+  toString() {
+    return "an object";
+  }
+}
+
+var o = Object();
+print o;
+
+class Object {
+  toString() {
+    return "different string!";
+  }
+}
+print o;
+
+__END__
+-- expect: --
+an object
+different string!

@@ -796,20 +796,25 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitClassStmt(Stmt.Class stmt) {
-        environment.define(stmt.name.lexeme, null);
+        LoxClass existingClass = classMap.get(stmt.name.lexeme);
         LoxClass enclosingClass = this.currentClass;
-        Map<String, LoxCallable> methods = new HashMap<>();
-        LoxClass superKlass = null;
-        if (stmt.superClass == null) {
-            superKlass = classMap.get("Object");
-        } else {
-            superKlass = classMap.get(stmt.superClass.name.lexeme);
-            if (superKlass == null) {
-                throw new RuntimeError(stmt.name, "Couldn't resolve superclass! BUG");
+        LoxClass klass = existingClass;
+        if (klass == null) {
+            environment.define(stmt.name.lexeme, null);
+            LoxClass superKlass = null;
+            if (stmt.superClass == null) {
+                superKlass = classMap.get("Object");
+            } else {
+                superKlass = classMap.get(stmt.superClass.name.lexeme);
+                if (superKlass == null) {
+                    throw new RuntimeError(stmt.name, "Couldn't resolve superclass! BUG");
+                }
             }
+            Map<String, LoxCallable> methods = new HashMap<>();
+            klass = new LoxClass(stmt.name.lexeme, superKlass, methods);
+            classMap.put(stmt.name.lexeme, klass);
+            environment.assign(stmt.name, klass, false);
         }
-        LoxClass klass = new LoxClass(stmt.name.lexeme, superKlass, methods);
-        classMap.put(stmt.name.lexeme, klass);
         this.currentClass = klass;
 
         for (Stmt statement : stmt.body) {
@@ -827,14 +832,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 } else if (isSetter) {
                     klass.setters.put(method.name.lexeme, func);
                 } else {
-                    methods.put(method.name.lexeme, func);
+                    klass.methods.put(method.name.lexeme, func);
                 }
             } else {
-                throw new RuntimeError(stmt.name, "Unexpected statement in class body: " + statement.getClass().getName());
+                // TODO: allow other statements in class body
+                throw new RuntimeError(stmt.name, "Unexpected statement in class body: " +
+                        statement.getClass().getName());
             }
         }
 
-        environment.assign(stmt.name, klass, false);
         this.currentClass = enclosingClass;
         return null;
     }
@@ -917,7 +923,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
         if (Runtime.isInstance(object) && !(Runtime.isString(object) || Runtime.isClass(object))) {
             LoxInstance instance = Runtime.toInstance(object);
-            Object toString = instance.getMethod("toString", instance.klass, this);
+            Object toString = instance.getMethod("toString", instance.getKlass(), this);
             if (toString != null) {
                 LoxCallable toStringMeth = (LoxCallable)toString;
                 object = evaluateCall(toStringMeth, new ArrayList<Object>(), null);

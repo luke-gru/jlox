@@ -43,7 +43,7 @@ class Runtime {
     }
 
     static LoxClass classOf(LoxInstance instance) {
-        return instance.klass;
+        return instance.getKlass();
     }
 
     // native or user-defined class
@@ -231,6 +231,15 @@ class Runtime {
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
                 ary.add(args.get(0));
                 return instance;
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("pop", 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                Object el = ary.remove(ary.size()-1);
+                return el;
             }
         });
         globalEnv.define("Array", arrayClass);

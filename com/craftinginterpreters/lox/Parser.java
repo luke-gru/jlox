@@ -140,13 +140,6 @@ public class Parser {
             }
             if (matchAny(CLASS)) {
                 Token name = consumeTok(IDENTIFIER, "Expected identifier after 'class' keyword");
-                if (classExists(name.lexeme)) {
-                    String msg = "";
-                    if (nativeClassExists(name.lexeme)) {
-                        msg = " (it's defined natively)";
-                    }
-                    throw error(name, "Class " + name.lexeme + " already exists" + msg + ".");
-                }
                 Token superName = null;
                 Stmt.Class superClassStmt = null;
 

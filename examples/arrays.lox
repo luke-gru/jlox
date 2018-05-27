@@ -7,6 +7,9 @@ print "len()";
 for (var i = 0; i < len(a); i += 1) {
   print a[i];
 }
+var el = a.pop();
+print el;
+print a.length;
 print "";
 
 class Object1 {
@@ -56,6 +59,8 @@ len()
 1
 2
 100
+100
+2
 
 object len:
 3
