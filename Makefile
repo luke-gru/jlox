@@ -5,12 +5,13 @@ CLASSPATH=${BASEDIR}
 LOXSOURCEPATH=${BASEDIR}/com/craftinginterpreters/lox
 TOOLSOURCEPATH=${BASEDIR}/com/craftinginterpreters/tool
 TESTSOURCEPATH=${BASEDIR}/com/craftinginterpreters/test
+JAVAC_OPTS=
 
 TEST_FILES = AstPrinterTest.java InterpreterTest.java
 
 .PHONY: lox
 lox: gen_ast
-	cd ${LOXSOURCEPATH} && javac -sourcepath ${LOXSOURCEPATH} Lox.java Scanner.java TokenType.java Token.java \
+	cd ${LOXSOURCEPATH} && javac ${JAVAC_OPTS} -sourcepath ${LOXSOURCEPATH} Lox.java Scanner.java TokenType.java Token.java \
 		Parser.java AstPrinter.java Expr.java Stmt.java Interpreter.java RuntimeError.java Environment.java \
 		LoxCallable.java LoxFunction.java Resolver.java LoxClass.java LoxInstance.java StackFrame.java \
 		Runtime.java LoxNativeClass.java LoxNativeCallable.java Param.java
@@ -32,7 +33,7 @@ ast_printer: lox
 
 .PHONY: tool
 tool:
-	javac -sourcepath ${TOOLSOURCEPATH} ${TOOLSOURCEPATH}/GenerateAst.java
+	javac ${JAVAC_OPTS} -sourcepath ${TOOLSOURCEPATH} ${TOOLSOURCEPATH}/GenerateAst.java
 
 .PHONY: gen_ast
 gen_ast: tool
@@ -40,6 +41,6 @@ gen_ast: tool
 
 .PHONY: test
 test: lox
-	cd ${TESTSOURCEPATH} && javac -sourcepath ${TESTSOURCEPATH}:${BASEDIR} -cp ${VENDOR_JARPATHS} MyRunner.java $(TEST_FILES) && \
+	cd ${TESTSOURCEPATH} && javac ${JAVAC_OPTS} -sourcepath ${TESTSOURCEPATH}:${BASEDIR} -cp ${VENDOR_JARPATHS} MyRunner.java $(TEST_FILES) && \
 	java -cp ${BASEDIR}:${VENDOR_JARPATHS} com.craftinginterpreters.test.MyRunner
 

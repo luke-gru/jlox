@@ -1,0 +1,14 @@
+var s = "hi";
+var slen = "hi".length;
+print s.length == slen;
+var s2 = String(s);
+print s2;
+print s == s2;
+print s.equals(s2);
+
+__END__
+-- expect: --
+true
+hi
+true
+false

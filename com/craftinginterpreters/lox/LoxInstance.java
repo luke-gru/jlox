@@ -27,6 +27,10 @@ class LoxInstance {
         return (double)System.identityHashCode(this);
     }
 
+    // Property access, 'instance.prop'. 'prop' here can be a regular
+    // property, a getter method, in which case it's called, or a regular
+    // method, in which case it's returned, uncalled but bound to the
+    // instance.
     public Object getProperty(String name, Interpreter interp) {
         LoxClass klass = getKlass();
         while (klass != null) {
@@ -47,6 +51,8 @@ class LoxInstance {
     }
 
     public LoxInstance dup() {
+        // FIXME: instance should go through initialization function
+        // (Interpreter#createInstance)
         LoxInstance newInstance = new LoxInstance(this.klass, this.klassName);
         Iterator iter = properties.entrySet().iterator();
         while (iter.hasNext()) {
@@ -94,6 +100,10 @@ class LoxInstance {
             }
             klass = klass.getSuper();
         }
+        return getMethod(name, klassBeginSearch, interp);
+    }
+
+    public Object getMethod(String name, LoxClass klassBeginSearch, Interpreter interp) {
         LoxCallable method = klassBeginSearch.boundMethod(this, interp.environment, name);
         if (method != null) return method;
         return null;

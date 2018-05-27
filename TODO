@@ -6,11 +6,11 @@ TODO:
 along with 'for elem in obj' syntax [DONE]
 * private methods, maybe? []
 * all classes inherit from Object automatically [DONE]
-* ["propName"] and ["propName"]= for dynamic property get and set; [DONE]
+* ["propName"] and ["propName"]= for dynamic property get and set [DONE]
 * add builtin Array class instead of using LoxArray, use LoxInstance with
 class of Array [DONE]
 * add builtin String class instead of using java StringBuffer, use LoxInstance with
-class of String []
+class of String [DONE]
 * add standard Error classes []
 * throw Interrupt errors on interrupts, so the program can catch them when
 the interpreter is running. []
@@ -22,3 +22,6 @@ the interpreter is running. []
 * add '+=, -=,' etc binary operators [DONE]
 * class (static) methods and properties [DONE]
 * add Object#dup method, which shallow copies an object and its properties [DONE]
+* Add builtin class Class, like Ruby. Class constructor creates new anon class. []
+* Add constants, all caps maybe, or start with caps. []
+* Allow re-opening classes? []

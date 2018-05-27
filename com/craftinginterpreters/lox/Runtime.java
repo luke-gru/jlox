@@ -61,18 +61,26 @@ class Runtime {
         return (LoxNativeClass)klass;
     }
 
-    static boolean isArray(Object obj) {
-        if (!(obj instanceof LoxInstance)) { return false; }
-        LoxInstance instance = (LoxInstance)obj;
-        return classOf(instance).getName() == "Array";
-    }
-
     static boolean isInstance(Object obj) {
         return (obj instanceof LoxInstance);
     }
 
+    static boolean isClass(Object obj) {
+        return (obj instanceof LoxClass);
+    }
+
+    static boolean isArray(Object obj) {
+        if (isClass(obj)) { return false; }
+        if (!isInstance(obj)) { return false; }
+        LoxInstance instance = (LoxInstance)obj;
+        return classOf(instance).getName().equals("Array");
+    }
+
     static boolean isString(Object obj) {
-        return (obj instanceof StringBuffer);
+        if (isClass(obj)) { return false; }
+        if (!isInstance(obj)) { return false; }
+        LoxInstance instance = (LoxInstance)obj;
+        return classOf(instance).getName().equals("String");
     }
 
     static boolean isNumber(Object obj) {
@@ -91,9 +99,9 @@ class Runtime {
         }
     }
 
-    static StringBuffer toString(Object obj) {
-        if (obj instanceof StringBuffer) {
-            return (StringBuffer)obj;
+    static LoxInstance toString(Object obj) {
+        if (isString(obj)) {
+            return (LoxInstance)obj;
         } else {
             return null;
         }
@@ -102,11 +110,13 @@ class Runtime {
     static Object dupObject(Object obj) {
         if (obj == null) { return null; }
         if (isNumber(obj) || isBool(obj)) { return obj; }
-        if (isString(obj)) { return new StringBuffer((StringBuffer)obj); }
-        if (isArray(obj))  { return ((LoxInstance)obj).dup(); }
+        if (isClass(obj)) {
+            throw new RuntimeError(null, "Can't dup a class");
+        }
+        if (isArray(obj) || isString(obj))  { return ((LoxInstance)obj).dup(); }
         if (isInstance(obj))  { return ((LoxInstance)obj).dup(); }
         if (obj instanceof ArrayList) {
-            List newList = new ArrayList<Object>((List)obj);
+            List newList = new ArrayList<Object>((ArrayList<Object>)obj);
             return newList;
         }
         throw new RuntimeException("Unreachable (dupObject)");
@@ -140,12 +150,6 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 return interpreter.nativeLen(tok, arguments.get(0));
-            }
-        });
-        globalEnv.define("String", new LoxNativeCallable("String", 1) {
-            @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                return new StringBuffer(interpreter.stringify(arguments.get(0)));
             }
         });
     }
@@ -225,6 +229,33 @@ class Runtime {
         });
         globalEnv.define("Array", arrayClass);
         classMap.put("Array", arrayClass);
+
+        // class String
+        LoxNativeClass stringClass = new LoxNativeClass("String", objClass);
+        stringClass.defineMethod(new LoxNativeCallable("init", -1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                StringBuffer buf = new StringBuffer();
+                for (int i = 0; i < args.size(); i++) {
+                    if (i > 0) {
+                        buf.append(" ");
+                    }
+                    buf.append(interp.stringify(args.get(i)));
+                }
+                instance.setHiddenProp("buf", buf);
+                return instance;
+            }
+        });
+        stringClass.defineGetter(new LoxNativeCallable("length", 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                return (double)((StringBuffer)instance.getHiddenProp("buf")).length();
+            }
+        });
+        globalEnv.define("String", stringClass);
+        classMap.put("String", stringClass);
     }
 
     public List<String> nativeClassNames() {

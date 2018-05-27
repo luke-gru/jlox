@@ -263,19 +263,47 @@ public class InterpreterTest {
                     String expected = sbExpected.toString();
                     String output = runCode(src);
                     if (expectRuntimeError) {
-                        assertRuntimeError();
+                        boolean gotErr = assertRuntimeError();
+                        if (!gotErr) {
+                            System.err.println("F");
+                            continue;
+                        }
                         if (expected.length() != 0) {
                             assertEquals(expected, this.interp.printBuf.toString());
+                            if (expected.equals(this.interp.printBuf.toString())) {
+                                System.err.println(".");
+                            } else {
+                                System.err.println("F");
+                            }
                         }
                     } else if (expectUncaughtThrow) {
-                        assertUncaughtError();
+                        boolean gotUncaughtThrow = assertUncaughtError();
+                        if (!gotUncaughtThrow) {
+                            System.err.println("F");
+                            continue;
+                        }
                         if (expected.length() != 0) {
                             assertEquals(expected, this.interp.printBuf.toString());
+                            if (expected.equals(this.interp.printBuf.toString())) {
+                                System.err.println(".");
+                            } else {
+                                System.err.println("F");
+                            }
                         }
                     } else if (expectParseError) {
-                        assertParseError();
+                        boolean gotParseError = assertParseError();
+                        if (gotParseError) {
+                            System.err.println(".");
+                        } else {
+                            System.err.println("F");
+                        }
                     } else {
                         assertEquals(expected, output);
+                        if (expected.equals(output)) {
+                            System.err.println(".");
+                        } else {
+                            System.err.println("F");
+                        }
                     }
                 } finally {
                     br.close();
@@ -299,25 +327,30 @@ public class InterpreterTest {
         }
     }
 
-    private void assertUncaughtError() {
+    private boolean assertUncaughtError() {
         assertTrue(this.interp.hasUncaughtException());
+        return this.interp.hasUncaughtException();
     }
 
-    private void assertRuntimeError() {
+    private boolean assertRuntimeError() {
         assertTrue(this.interp.hasRuntimeError());
+        return this.interp.hasRuntimeError();
     }
 
-    private void assertParseError() {
+    private boolean assertParseError() {
         assertTrue(this.interp.hasParseError());
+        return this.interp.hasParseError();
     }
 
-    private void assertMatches(String pattern, String output) {
+    private boolean assertMatches(String pattern, String output) {
         Pattern p = Pattern.compile(pattern);
         Matcher m = p.matcher(output);
         if (m.find()) {
             assertTrue(true);
+            return true;
         } else {
             assertEquals(pattern, output); // to show the pattern on failure
+            return false;
         }
     }
 
