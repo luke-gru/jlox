@@ -67,12 +67,20 @@ class Runtime {
         return classOf(instance).getName() == "Array";
     }
 
+    static boolean isInstance(Object obj) {
+        return (obj instanceof LoxInstance);
+    }
+
     static boolean isString(Object obj) {
         return (obj instanceof StringBuffer);
     }
 
     static boolean isNumber(Object obj) {
         return (obj instanceof Double);
+    }
+
+    static boolean isBool(Object obj) {
+        return (obj instanceof Boolean);
     }
 
     static LoxInstance toInstance(Object obj) {
@@ -89,6 +97,19 @@ class Runtime {
         } else {
             return null;
         }
+    }
+
+    static Object dupObject(Object obj) {
+        if (obj == null) { return null; }
+        if (isNumber(obj) || isBool(obj)) { return obj; }
+        if (isString(obj)) { return new StringBuffer((StringBuffer)obj); }
+        if (isArray(obj))  { return ((LoxInstance)obj).dup(); }
+        if (isInstance(obj))  { return ((LoxInstance)obj).dup(); }
+        if (obj instanceof ArrayList) {
+            List newList = new ArrayList<Object>((List)obj);
+            return newList;
+        }
+        throw new RuntimeException("Unreachable (dupObject)");
     }
 
     public void init() {
@@ -153,6 +174,20 @@ class Runtime {
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 interpreter.environment.getThis().freeze();
                 return null;
+            }
+        });
+        objClass.defineGetter(new LoxNativeCallable("objectId", 0) {
+            @Override
+            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                LoxInstance instance = interpreter.environment.getThis();
+                return instance.objectId();
+            }
+        });
+        objClass.defineMethod(new LoxNativeCallable("dup", 0) {
+            @Override
+            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                LoxInstance instance = interpreter.environment.getThis();
+                return instance.dup();
             }
         });
         globalEnv.define("Object", objClass);

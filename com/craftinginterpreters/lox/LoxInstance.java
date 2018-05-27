@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.List;
+import java.util.Iterator;
 
 class LoxInstance {
     public LoxClass klass;
@@ -20,6 +21,10 @@ class LoxInstance {
     @Override
     public String toString() {
         return "<instance " + klassName + " #" + hashCode() + ">";
+    }
+
+    public Object objectId() {
+        return (double)System.identityHashCode(this);
     }
 
     public Object getProperty(String name, Interpreter interp) {
@@ -39,6 +44,24 @@ class LoxInstance {
             if (method != null) return method;
             return null;
         }
+    }
+
+    public LoxInstance dup() {
+        LoxInstance newInstance = new LoxInstance(this.klass, this.klassName);
+        Iterator iter = properties.entrySet().iterator();
+        while (iter.hasNext()) {
+            Map.Entry pair = (Map.Entry)iter.next();
+            newInstance.setProperty((String)pair.getKey(), (Object)Runtime.dupObject(pair.getValue()), null, null);
+        }
+        Iterator iter2 = hiddenProps.entrySet().iterator();
+        while (iter2.hasNext()) {
+            Map.Entry pair = (Map.Entry)iter2.next();
+            newInstance.setHiddenProp((String)pair.getKey(), Runtime.dupObject(pair.getValue()));
+        }
+        if (isFrozen) {
+            newInstance.freeze();
+        }
+        return newInstance;
     }
 
     public void setProperty(String name, Object value, Interpreter interp, LoxCallable setterFunc) {

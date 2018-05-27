@@ -7,14 +7,23 @@ class ClassRoom {
   init(num) {
     this.roomNo = num;
     this.students = [];
+    this.iterIdx = 0;
   }
   addStudent(student) {
     this.students.push(student);
   }
-  iter() { return this.students; }
+  nextIter() {
+    if (this.iterIdx < this.students.length) {
+      this.iterIdx += 1;
+      return this.students[this.iterIdx-1];
+    } else {
+      return nil;
+    }
+  }
 }
+
 var c = ClassRoom(101);
-for (var i = 1; i <= 3; i = i + 1) {
+for (var i = 1; i <= 3; i+=1) {
   var s = Student("Student #" + String(i));
   c.addStudent(s);
 }

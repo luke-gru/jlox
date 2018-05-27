@@ -4,7 +4,7 @@ print a[2];
 a[2] = 100;
 print a[2];
 print "len()";
-for (var i = 0; i < len(a); i = i + 1) {
+for (var i = 0; i < len(a); i += 1) {
   print a[i];
 }
 print "";

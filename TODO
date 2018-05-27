@@ -1,19 +1,24 @@
 TODO:
-* multiple var declaration [DONE], multiple assignment [], return multiple values []
+* multiple var declaration [DONE], multiple assignment [], return multiple values [DONE]
 * splat parameters + splat arguments [DONE]
-* object literals
+* object literals, maybe? []
 * iterators, with returning iterator with instance iter() method like python,
-along with 'for elem in obj' syntax []
-* private fields for classes
+along with 'for elem in obj' syntax [DONE]
+* private methods, maybe? []
 * all classes inherit from Object automatically [DONE]
 * ["propName"] and ["propName"]= for dynamic property get and set; [DONE]
 * add builtin Array class instead of using LoxArray, use LoxInstance with
-class of Array
-* add standard Error classes
-* throw Interrupt errors on interrupts
-* signal handling
-* keyword arguments
+class of Array [DONE]
+* add builtin String class instead of using java StringBuffer, use LoxInstance with
+class of String []
+* add standard Error classes []
+* throw Interrupt errors on interrupts, so the program can catch them when
+the interpreter is running. []
+* signal handling []
+* keyword arguments []
 * frozen objects, can't use setProperty on the instance [DONE]
-* better library
+* better library []
 * add test suite [DONE]
 * add '+=, -=,' etc binary operators [DONE]
+* class (static) methods and properties [DONE]
+* add Object#dup method, which shallow copies an object and its properties [DONE]

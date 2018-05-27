@@ -1,0 +1,26 @@
+var o = Object();
+o.list = [1,2,3];
+var o2 = o.dup();
+o.list.push(4);
+
+foreach (el in o.list) {
+  print el;
+}
+foreach (el in o2.list) {
+  print el;
+}
+
+print o.objectId == o2.objectId;
+print o.equals(o2);
+
+__END__
+-- expect: --
+1
+2
+3
+4
+1
+2
+3
+false
+false

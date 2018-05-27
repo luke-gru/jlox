@@ -128,7 +128,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         LoxClass arrayClass = classMap.get("Array");
         Token tok = tokenFromExpr(expr);
         // Construct the array instance and return it
-        Object instance = arrayClass.call(this, objs, tok);
+        Object instance = evaluateCall(arrayClass, objs, tok);
         return instance;
     }
 
@@ -438,7 +438,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
             return value;
         } else {
-            throw new RuntimeError(expr.property, "Attempt to access property of non-instance");
+            throw new RuntimeError(expr.property, "Attempt to access property of non-instance, is: " + this.nativeTypeof(tokenFromExpr(expr.left), obj));
         }
     }
 
@@ -642,21 +642,53 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Void visitForeachStmt(Stmt.Foreach stmt) {
         Environment oldEnv = this.environment;
         Object evalObj = evaluate(stmt.obj);
-        if (!Runtime.isArray(evalObj)) {
-            throw new RuntimeException("foreach expr must be an array object");
+        boolean useNextIter = false;
+        Object iterMethod = null;
+        Object nextIterMethod = null;
+        if (!Runtime.isArray(evalObj) && (evalObj instanceof LoxInstance)) {
+            LoxInstance instance = (LoxInstance)evalObj;
+            iterMethod = instance.getMethodOrGetterProp("iter", instance.getKlass(), this);
+            nextIterMethod = instance.getMethodOrGetterProp("nextIter", instance.getKlass(), this);
+            if (iterMethod == null && nextIterMethod == null) {
+                throw new RuntimeException("foreach expr must be an Array object or object that responds to iter() or next_iter()");
+            }
+            if (iterMethod != null) {
+                LoxCallable iterCallable = (LoxCallable)iterMethod;
+                evalObj =  evaluateCall(iterCallable, new ArrayList<Object>(), tokenFromExpr(stmt.obj));
+                if (!Runtime.isArray(evalObj)) {
+                    throw new RuntimeException("foreach expr returned from iter() must be an Array");
+                }
+            } else {
+                useNextIter = true;
+            }
         }
-        LoxInstance aryObj = (LoxInstance)evalObj;
-        List<Object> elements = (List<Object>)aryObj.getHiddenProp("ary");
-        int len = elements.size();
+        LoxInstance instance = (LoxInstance)evalObj;
+        int len = 0;
+        List<Object> elements = new ArrayList<Object>();
+        if (!useNextIter) {
+            elements = (List<Object>)instance.getHiddenProp("ary");
+            len = elements.size();
+        }
         // so that (foreach i, j in expr()), variables are not leaked to outer scope
         this.environment = new Environment(oldEnv);
         int numVars = stmt.variables.size();
+        int i = 0;
         try {
-            for (int i = 0; i < len; i++) {
+            while (true) {
+                if (!useNextIter && i >= len) {
+                    break;
+                }
                 // TODO: check OOB array access
-                Object val = elements.get(i);
+                Object val;
+                if (useNextIter) {
+                    val = evaluateCall((LoxCallable)nextIterMethod, elements, null);
+                    if (val == null) { break; }
+                } else {
+                    val = elements.get(i);
+                    i++;
+                }
                 if (numVars > 1 && (!Runtime.isArray(val))) {
-                    throw new RuntimeException("foreach element must be array object when given more than 1 variable in foreach loop (" +
+                    throw new RuntimeException("'foreach' element must be Array object when given more than 1 variable in foreach loop (" +
                         String.valueOf(numVars) + " variables given). Element class: " + this.nativeTypeof(null, val));
                 }
                 if (numVars > 1) {
@@ -884,7 +916,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return (double)methodOrProp;
             }
             if (methodOrProp instanceof LoxCallable) {
-                return ((LoxCallable)methodOrProp).call(this, new ArrayList<Object>(), tok);
+                return evaluateCall((LoxCallable)methodOrProp, new ArrayList<Object>(), tok);
             }
         }
         throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with a 'length' method, getter or property");
