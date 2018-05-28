@@ -312,6 +312,21 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitInStmt(Stmt.In stmt) {
+        resolve(stmt.object);
+        //Stmt.Class enclosingClass = this.currentClass;
+        //this.currentClass = stmt;
+
+        beginScope();
+        scopes.peek().put("this", true);
+        resolve(stmt.body);
+        endScope();
+
+        //this.currentClass = enclosingClass;
+        return null;
+    }
+
+    @Override
     public Void visitForeachStmt(Stmt.Foreach stmt) {
         resolve(stmt.obj);
         beginScope();

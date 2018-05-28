@@ -1,0 +1,21 @@
+in(Object) {
+  greet() {
+    print "hi";
+  }
+}
+var o = Object();
+o.greet();
+
+var o2 = Object();
+
+// singleton class method definition
+in(o2) {
+  greet() { print "why hello there, stranger"; }
+}
+o2.greet();
+
+
+__END__
+-- expect: --
+hi
+why hello there, stranger

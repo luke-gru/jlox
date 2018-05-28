@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Stack;
 import java.util.List;
 import java.util.Map;
+import java.io.*;
 
 class Runtime {
     final Environment globalEnv;
@@ -117,6 +118,10 @@ class Runtime {
         return createString(obj.toString(), interp);
     }
 
+    static String toJavaString(LoxInstance loxStr) {
+        return ((StringBuffer)loxStr.getHiddenProp("buf")).toString();
+    }
+
     // dup either Lox object or Lox internal representation of the object
     // (StringBuffer, ArrayList, etc.)
     static Object dupObject(Object obj, Interpreter interp) {
@@ -166,6 +171,39 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 return interpreter.nativeLen(tok, arguments.get(0));
+            }
+        });
+        globalEnv.define("system", new LoxNativeCallable("system", 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance loxStr = Runtime.toInstance(args.get(0));
+                String javaStr = Runtime.toJavaString(loxStr);
+                LoxInstance loxAry = interp.createInstance("Array");
+                List<Object> javaAry = (List<Object>)loxAry.getHiddenProp("ary");
+                try {
+                    Process p = java.lang.Runtime.getRuntime().exec(javaStr);
+                    String s;
+
+                    StringBuffer outBuf = new StringBuffer();
+                    StringBuffer errBuf = new StringBuffer();
+                    BufferedReader stdOut = new BufferedReader(new
+                            InputStreamReader(p.getInputStream()));
+                    BufferedReader stdError = new BufferedReader(new
+                            InputStreamReader(p.getErrorStream()));
+                    while ((s = stdOut.readLine()) != null) {
+                        outBuf.append(s).append("\n");
+                    }
+                    while ((s = stdError.readLine()) != null) {
+                        errBuf.append(s).append("\n");
+                    }
+                    javaAry.add(Runtime.createString(outBuf, interp));
+                    javaAry.add(Runtime.createString(errBuf, interp));
+                } catch (IOException err) {
+                    javaAry.add(Runtime.createString("", interp));
+                    javaAry.add(Runtime.createString(err.getMessage(), interp));
+                }
+                return loxAry;
+
             }
         });
     }

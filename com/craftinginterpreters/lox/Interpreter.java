@@ -44,6 +44,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private Resolver resolver = null;
     public Parser parser = null;
     private String filename;
+    public LoxInstance _this = null;
 
     public Interpreter() {
         HashMap<String, Object> opts = new HashMap<>();
@@ -118,7 +119,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitLiteralExpr(Expr.Literal expr) {
         if (expr.value instanceof StringBuffer) {
             LoxInstance string = createInstance("String", new ArrayList<Object>());
-            string.setHiddenProp("buf", expr.value);
+            ((StringBuffer)string.getHiddenProp("buf")).append(expr.value.toString());
             return string;
         } else {
             return expr.value;
@@ -736,6 +737,57 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public Void visitInStmt(Stmt.In stmt) {
+        Object obj = evaluate(stmt.object);
+        if (!Runtime.isInstance(obj)) {
+            Token tok = tokenFromExpr(stmt.object);
+            throw new RuntimeError(tok,
+                    "Expression given to 'in' must evaluate to an instance or class, is: " +
+                    nativeTypeof(tok, obj));
+        }
+        LoxInstance objInst = Runtime.toInstance(obj);
+        LoxInstance oldThis = this._this;
+        LoxClass oldCurClass = this.currentClass;
+
+        this._this = objInst;
+        LoxClass thisKlass = null;
+        if (Runtime.isClass(objInst)) {
+            thisKlass = (LoxClass)objInst;
+        } else {
+            thisKlass = objInst.getSingletonKlass();
+        }
+        this.currentClass = thisKlass;
+
+        for (Stmt statement : stmt.body) {
+            if (statement instanceof Stmt.Function) {
+                Stmt.Function method = (Stmt.Function)statement;
+                boolean isInitializer = method.type == Parser.FunctionType.INITIALIZER;
+                boolean isStaticMethod = method.type == Parser.FunctionType.CLASS_METHOD;
+                boolean isGetter = method.type == Parser.FunctionType.GETTER;
+                boolean isSetter = method.type == Parser.FunctionType.SETTER;
+                LoxCallable func = new LoxFunction(method, environment, isInitializer);
+                if (isStaticMethod) {
+                    thisKlass.getSingletonKlass().methods.put(method.name.lexeme, func);
+                } else if (isGetter) {
+                    thisKlass.getters.put(method.name.lexeme, func);
+                } else if (isSetter) {
+                    thisKlass.setters.put(method.name.lexeme, func);
+                } else {
+                    thisKlass.methods.put(method.name.lexeme, func);
+                }
+            } else {
+                // TODO: allow other statements in class body
+                throw new RuntimeError(null, "Unexpected statement in class body: " +
+                        statement.getClass().getName());
+            }
+        }
+
+        this._this = oldThis;
+        this.currentClass = oldCurClass;
+        return null;
+    }
+
+    @Override
     public Void visitTryStmt(Stmt.Try stmt) {
         int oldStackSz = stack.size();
         try {
@@ -826,7 +878,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 boolean isSetter = method.type == Parser.FunctionType.SETTER;
                 LoxCallable func = new LoxFunction(method, environment, isInitializer);
                 if (isStaticMethod) {
-                    klass.getKlass().methods.put(method.name.lexeme, func);
+                    klass.getSingletonKlass().methods.put(method.name.lexeme, func);
                 } else if (isGetter) {
                     klass.getters.put(method.name.lexeme, func);
                 } else if (isSetter) {

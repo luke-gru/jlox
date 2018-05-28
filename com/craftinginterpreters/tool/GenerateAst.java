@@ -47,7 +47,8 @@ public class GenerateAst {
         "Class      : Token name, Stmt.Class superClass, List<Stmt> body",
         "Try        : Block tryBlock, List<Catch> catchStmts",
         "Catch      : Expr catchExpr, Expr.Variable catchVar, Block block",
-        "Throw      : Token keyword, Expr throwExpr"
+        "Throw      : Token keyword, Expr throwExpr",
+        "In         : Expr object, List<Stmt> body"
     ));
   }
 

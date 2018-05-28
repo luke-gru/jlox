@@ -8,6 +8,7 @@ import java.util.Iterator;
 
 class LoxInstance {
     public LoxClass klass;
+    public LoxClass singletonKlass;
     public String klassName;
     private final Map<String, Object> properties = new HashMap<>();
     private final Map<String, Object> hiddenProps = new HashMap<>();
@@ -16,6 +17,7 @@ class LoxInstance {
     LoxInstance(LoxClass klass, String className) {
         this.klass = klass;
         this.klassName = className;
+        this.singletonKlass = null;
     }
 
     @Override
@@ -31,8 +33,37 @@ class LoxInstance {
     // property, a getter method, in which case it's called, or a regular
     // method, in which case it's returned, uncalled but bound to the
     // instance.
+    //
+    // XXX: Stopped here. make getProperty get methods and getters (maybe
+    // properties, too?) from singletonClass, if there is a singleton class
+    // for this instance.
     public Object getProperty(String name, Interpreter interp) {
-        LoxClass klass = getKlass();
+        if (singletonKlass != null) {
+            Object singletonProp = getProperty(name, interp, singletonKlass);
+            if (singletonProp != null) {
+                return singletonProp;
+            }
+        }
+        return getProperty(name, interp, getKlass());
+        //while (klass != null) {
+            //if (klass.getters.containsKey(name)) {
+                //LoxCallable getter = klass.getters.get(name);
+                //List<Object> objs = new ArrayList<>();
+                //return getter.bind(this, interp.environment).call(interp, objs, null);
+            //}
+            //klass = klass.getSuper();
+        //}
+        //if (properties.containsKey(name)) {
+            //return properties.get(name);
+        //} else {
+            //LoxCallable method = getKlass().boundMethod(this, interp.environment, name);
+            //if (method != null) return method;
+            //return null;
+        //}
+    }
+
+    public Object getProperty(String name, Interpreter interp, LoxClass lookupKlass) {
+        LoxClass klass = lookupKlass;
         while (klass != null) {
             if (klass.getters.containsKey(name)) {
                 LoxCallable getter = klass.getters.get(name);
@@ -44,7 +75,8 @@ class LoxInstance {
         if (properties.containsKey(name)) {
             return properties.get(name);
         } else {
-            LoxCallable method = getKlass().boundMethod(this, interp.environment, name);
+            // `boundMethod` looks in super classes as well
+            LoxCallable method = lookupKlass.boundMethod(this, interp.environment, name);
             if (method != null) return method;
             return null;
         }
@@ -89,13 +121,24 @@ class LoxInstance {
     }
 
     public LoxClass getKlass() {
-        if (this.klass == null) {
-            this.klass = new LoxClass(klassName, null, new HashMap<String, LoxCallable>());
-        }
         return this.klass;
     }
 
+    public LoxClass getSingletonKlass() {
+        if (this.singletonKlass == null) {
+            this.singletonKlass = new LoxClass(klassName + " (meta)", null, new HashMap<String, LoxCallable>());
+            this.singletonKlass.isSingletonKlass = true;
+        }
+        return this.singletonKlass;
+    }
+
     public Object getMethodOrGetterProp(String name, LoxClass klassBeginSearch, Interpreter interp) {
+        if (singletonKlass != null) {
+            Object ret = getMethodOrGetterProp(name, singletonKlass, interp);
+            if (ret != null) {
+                return ret;
+            }
+        }
         LoxClass klass = klassBeginSearch;
         while (klass != null) {
             if (klass.getters.containsKey(name)) {

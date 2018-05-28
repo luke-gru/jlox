@@ -10,17 +10,25 @@ class LoxClass extends LoxInstance implements LoxCallable {
     final Map<String, LoxCallable> methods;
     final Map<String, LoxCallable> getters;
     final Map<String, LoxCallable> setters;
+    boolean isSingletonKlass = false;
 
     LoxClass(String name, LoxClass superClass, Map<String, LoxCallable> methods) {
-        super(null, "metaclass " + name);
+        super(null, "Class");
         this.name = name;
+        LoxClass klass = null;
+        if (this.name != null && this.name.equals("Class")) {
+            klass = this;
+        } else {
+            klass = Runtime.getClass("Class");
+        }
+        this.klass = klass;
+        if (superClass == null && this.name != null && !this.name.equals("Object")) {
+            superClass = Runtime.getClass("Object");
+        }
         this.superClass = superClass;
         this.methods = methods;
         this.getters = new HashMap<>();
         this.setters = new HashMap<>();
-        if (this.name == null || !this.name.equals("Class")) {
-            this.klass = Runtime.getClass("Class");
-        }
     }
 
     @Override

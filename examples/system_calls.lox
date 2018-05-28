@@ -1,0 +1,12 @@
+var s = system("ls");
+print "out:";
+print s[0];
+
+print "err:";
+print s[1];
+
+var out, err = system("rofdisfjdls");
+print err;
+
+__END__
+-- noexpect: --

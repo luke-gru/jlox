@@ -402,11 +402,19 @@ public class Parser {
                     break;
                 }
             }
-            consumeTok(FOREACH_IN, "expected keyword 'in' after keyword 'foreach'");
+            consumeTok(IN, "expected keyword 'in' after keyword 'foreach'");
             Expr expr = expression();
             consumeTok(RIGHT_PAREN, "expected ')' to end 'foreach' statement");
             Stmt.Block body = (Stmt.Block)statement();
             return new Stmt.Foreach(variables, expr, body);
+        }
+        if (matchAny(IN)) {
+            consumeTok(LEFT_PAREN, "expected '(' after keyword 'in'");
+            Expr objectExpr = expression();
+            consumeTok(RIGHT_PAREN, "Expected ')' to end 'in' expression");
+            consumeTok(LEFT_BRACE, "Expected '{' to start 'in' block");
+            List<Stmt> inBody = classBody();
+            return new Stmt.In(objectExpr, inBody);
         }
         if (matchAny(TRY)) {
             consumeTok(LEFT_BRACE, "Expected '{' after keyword 'try'");
