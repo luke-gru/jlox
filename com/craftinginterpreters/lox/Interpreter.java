@@ -417,13 +417,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
             LoxCallable callable = (LoxCallable)obj;
             if (!Runtime.acceptsNArgs(callable, args.size())) {
-                int arity = callable.arity();
-                int expectedN = arity;
+                int arityMin = callable.arityMin();
+                int arityMax = callable.arityMax();
                 String expectedNStr;
-                if (expectedN < 0) {
-                    expectedNStr = "at least " + String.valueOf(-(expectedN+1));
+                if (arityMax < 0) {
+                    expectedNStr = String.valueOf(arityMin) + " to n";
+                } else if (arityMin == arityMax) {
+                    expectedNStr = "exactly " + arityMin;
                 } else {
-                    expectedNStr = String.valueOf(expectedN);
+                    expectedNStr = String.valueOf(arityMin) + " to " + String.valueOf(arityMax);
                 }
                 int actualN = args.size();
                 String actualNStr = String.valueOf(actualN);
@@ -916,7 +918,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         throw new RuntimeReturn(value);
     }
 
-    private Object evaluate(Expr expr) {
+    public Object evaluate(Expr expr) {
         return expr.accept(this);
     }
 
@@ -930,6 +932,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         // nil is only equal to nil.
         if (a == null && b == null) return true;
         if (a == null) return false;
+        if (b == null) return false;
         if (Runtime.isString(a) && Runtime.isString(b)) {
             LoxInstance aObj = Runtime.toString(a);
             StringBuffer aBuf = (StringBuffer)aObj.getHiddenProp("buf");
@@ -937,7 +940,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             StringBuffer bBuf = (StringBuffer)bObj.getHiddenProp("buf");
             return aBuf.toString().equals(bBuf.toString());
         }
-
         return a.equals(b);
     }
 
@@ -990,7 +992,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return object.toString();
     }
 
-    public Object nativeTypeof(Token tok, Object object) {
+    public String nativeTypeof(Token tok, Object object) {
         if (object == null) { return "nil"; }
         if (object instanceof Boolean) { return "bool"; }
         if (Runtime.isNumber(object)) { return "number"; }
@@ -1003,7 +1005,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public Object nativeLen(Token tok, Object object) {
-        if (object instanceof LoxCallable) { return (double)((LoxCallable)object).arity(); }
+        if (object instanceof LoxCallable) { return (double)((LoxCallable)object).arityMin(); }
         if (object instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)object;
             Object methodOrProp = instance.getProperty("length", this);

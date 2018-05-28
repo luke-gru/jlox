@@ -15,15 +15,15 @@ class LoxNativeClass extends LoxClass implements LoxCallable {
     }
 
     public void defineGetter(LoxNativeCallable callable) {
-        if (callable.arity() != 0) {
-            throw new RuntimeException("defineGetter() callable must have arity of 0: " + name + "#" + callable.getName());
+        if (callable.arityMin() != 0 || callable.arityMax() != 0) {
+            throw new RuntimeException("defineGetter() callable must have arity of exactly 0: " + name + "#" + callable.getName());
         }
         getters.put(callable.getName(), callable);
     }
 
     public void defineSetter(LoxNativeCallable callable) {
-        if (callable.arity() != 1) {
-            throw new RuntimeException("defineSetter() callable must have arity of 1: " + name + "#" + callable.getName());
+        if (callable.arityMin() != 1 || callable.arityMax() != 1) {
+            throw new RuntimeException("defineSetter() callable must have arity of exactly 1: " + name + "#" + callable.getName());
         }
         setters.put(callable.getName(), callable);
     }

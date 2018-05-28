@@ -45,14 +45,25 @@ class LoxClass extends LoxInstance implements LoxCallable {
         }
     }
 
-    // constructor arity
+    // constructor arity min
     @Override
-    public int arity() {
+    public int arityMin() {
         LoxCallable constructor = getMethod("init");
         if (constructor == null) {
             return 0;
         } else {
-            return constructor.arity();
+            return constructor.arityMin();
+        }
+    }
+
+    // constructor arity max
+    @Override
+    public int arityMax() {
+        LoxCallable constructor = getMethod("init");
+        if (constructor == null) {
+            return 0;
+        } else {
+            return constructor.arityMax();
         }
     }
 

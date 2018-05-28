@@ -4,11 +4,13 @@ import java.util.List;
 
 class LoxNativeCallable implements LoxCallable {
     final String name;
-    final int arity;
+    final int arityMin;
+    final int arityMax;
 
-    LoxNativeCallable(String name, int arity) {
+    LoxNativeCallable(String name, int arityMin, int arityMax) {
         this.name = name;
-        this.arity = arity;
+        this.arityMin = arityMin;
+        this.arityMax = arityMax;
     }
 
     @Override
@@ -58,15 +60,24 @@ class LoxNativeCallable implements LoxCallable {
     }
 
     @Override
-    public int arity() {
-        return this.arity;
+    public int arityMin() {
+        return this.arityMin;
+    }
+
+    @Override
+    public int arityMax() {
+        return this.arityMax;
     }
 
     private String arityString() {
-        if (this.arity >= 0) {
-            return String.valueOf(this.arity);
+        if (this.arityMax >= 0) {
+            if (this.arityMin == this.arityMax) {
+                return String.valueOf(this.arityMin);
+            } else {
+                return String.valueOf(this.arityMin) + " to " + String.valueOf(this.arityMax);
+            }
         } else {
-            return "at least " + String.valueOf(-(this.arity+1));
+            return String.valueOf(this.arityMin) + " to n";
         }
     }
 

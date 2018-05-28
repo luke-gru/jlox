@@ -1,5 +1,6 @@
 package com.craftinginterpreters.lox;
 
+// function parameter
 class Param {
     final Token token;
     final Expr defaultVal;
@@ -13,6 +14,14 @@ class Param {
 
     String varName() {
         return token.lexeme;
+    }
+
+    boolean hasDefaultValue() {
+        return defaultVal != null;
+    }
+
+    boolean mustReceiveArgument() {
+        return !isSplatted && !hasDefaultValue();
     }
 
 

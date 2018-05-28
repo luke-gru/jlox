@@ -226,13 +226,17 @@ public class Parser {
             Token tok = prevTok();
             Token paramTok;
             boolean isSplat = false;
+            Expr defaultVal = null;
             if (tok.type == STAR) {
                 paramTok = consumeTok(IDENTIFIER, "Expected parameter name in function parameter list after '*'.");
                 isSplat = true;
             } else {
                 paramTok = tok;
+                if (matchAny(EQUAL)) {
+                    defaultVal = expression();
+                }
             }
-            Param paramObj = new Param(paramTok, null, isSplat);
+            Param paramObj = new Param(paramTok, defaultVal, isSplat);
             formals.add(paramObj);
             if (peekTok().type == RIGHT_PAREN) {
                 break;
@@ -711,13 +715,17 @@ public class Parser {
                 Token tok = prevTok();
                 Token paramTok;
                 boolean isSplat = false;
+                Expr defaultVal = null;
                 if (tok.type == STAR) {
                     paramTok = consumeTok(IDENTIFIER, "Expected parameter name after '*' in parameter list");
                     isSplat = true;
                 } else {
                     paramTok = tok;
+                    if (matchAny(EQUAL)) {
+                        defaultVal = expression();
+                    }
                 }
-                params.add(new Param(paramTok, null, isSplat));
+                params.add(new Param(paramTok, defaultVal, isSplat));
                 if (peekTok().type == RIGHT_PAREN) {
                     break;
                 } else {

@@ -1,0 +1,14 @@
+fun greet(msg = "HI THERE") { print msg; return msg; }
+var defaultMsg = greet();
+greet("Sorry, caps lock was on");
+var defaultMsgAgain = greet();
+print defaultMsg.objectId != defaultMsgAgain.objectId;
+print typeof(defaultMsg.objectId) == "number";
+
+__END__
+-- expect: --
+HI THERE
+Sorry, caps lock was on
+HI THERE
+true
+true
