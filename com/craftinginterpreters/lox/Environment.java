@@ -109,6 +109,16 @@ class Environment {
       }
   }
 
+  public LoxClass getThisClass() {
+      Object instance = getAt(0, "this");
+      if (instance == null) { return null; }
+      if (instance instanceof LoxClass) {
+          return (LoxClass)instance;
+      } else {
+          return null;
+      }
+  }
+
   public void assignAt(int distance, Token name, Object value) {
       Environment env = this;
       while (distance > 0) {

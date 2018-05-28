@@ -33,7 +33,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Environment environment = globals;
     private LoxCallable fnCall = null; // current function being executed
     private LoxClass currentClass = null; // current class being visited
-    private Map<String, LoxClass> classMap = new HashMap<>();
+    public Map<String, LoxClass> classMap = new HashMap<>();
 
     public HashMap<String, Object> options = null;
     public StringBuffer printBuf = null;
@@ -1062,13 +1062,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    private LoxInstance createInstance(String className, List<Object> initArgs) {
+    public LoxInstance createInstance(String className, List<Object> initArgs) {
         LoxClass klass = classMap.get(className);
         if (klass == null) {
             throw new RuntimeException("class " + className + " doesn't exist!");
         }
         Object instance = evaluateCall(klass, initArgs, null);
         return (LoxInstance)instance;
+    }
+
+    public LoxInstance createInstance(String className) {
+        return createInstance(className, new ArrayList<Object>());
     }
 
     private void unreachable(String msg) {

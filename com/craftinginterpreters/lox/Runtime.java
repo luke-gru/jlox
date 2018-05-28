@@ -107,6 +107,16 @@ class Runtime {
         }
     }
 
+    static LoxInstance createString(String obj, Interpreter interp) {
+        LoxInstance loxStr = interp.createInstance("String");
+        ((StringBuffer)loxStr.getHiddenProp("buf")).append(obj);
+        return loxStr;
+    }
+
+    static LoxInstance createString(StringBuffer obj, Interpreter interp) {
+        return createString(obj.toString(), interp);
+    }
+
     // dup either Lox object or Lox internal representation of the object
     // (StringBuffer, ArrayList, etc.)
     static Object dupObject(Object obj, Interpreter interp) {
@@ -203,8 +213,31 @@ class Runtime {
         globalEnv.define("Object", objClass);
         classMap.put("Object", objClass);
 
+        // class Class
+        LoxNativeClass classClass = new LoxNativeClass("Class", objClass);
+        objClass.klass = classClass;
+        classClass.defineMethod(new LoxNativeCallable("init", -1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                // TODO: register class with classmap if given a name.
+                return instance;
+            }
+        });
+        classClass.defineGetter(new LoxNativeCallable("name", 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxClass klass = interp.environment.getThisClass();
+                // TODO: register class with classmap if given a name.
+                return Runtime.createString(klass.getName(), interp);
+            }
+        });
+        globalEnv.define("Class", classClass);
+        classMap.put("Class", classClass);
+
         // class Array
         LoxNativeClass arrayClass = new LoxNativeClass("Array", objClass);
+        arrayClass.klass = classClass;
         arrayClass.defineMethod(new LoxNativeCallable("init", -1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -247,6 +280,7 @@ class Runtime {
 
         // class String
         LoxNativeClass stringClass = new LoxNativeClass("String", objClass);
+        stringClass.klass = classClass;
         stringClass.defineMethod(new LoxNativeCallable("init", -1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {

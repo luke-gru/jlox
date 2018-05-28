@@ -1,0 +1,15 @@
+var c = Class();
+print c;
+
+var cInstance = c();
+print cInstance._class;
+
+print Object.name;
+print c.name;
+
+__END__
+-- expect: --
+<class (anon)>
+<class (anon)>
+Object
+(anon)

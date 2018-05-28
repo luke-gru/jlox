@@ -18,16 +18,23 @@ class LoxClass extends LoxInstance implements LoxCallable {
         this.methods = methods;
         this.getters = new HashMap<>();
         this.setters = new HashMap<>();
+        if (this.name == null || !this.name.equals("Class")) {
+            this.klass = Runtime.getClass("Class");
+        }
     }
 
     @Override
     public String toString() {
-        return "<class " + name + ">";
+        return "<class " + getName() + ">";
     }
 
     @Override
     public String getName() {
-        return name;
+        if (name == null) {
+            return "(anon)";
+        } else {
+            return name;
+        }
     }
 
     // constructor arity
@@ -44,7 +51,13 @@ class LoxClass extends LoxInstance implements LoxCallable {
     // constructor call
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
-        LoxInstance instance = new LoxInstance(this, this.name);
+        LoxInstance instance = null;
+        if (getName().equals("Class")) { // var myClass = Class(Object); // creates anonymous class
+            Map<String, LoxCallable> methods = new HashMap<>();
+            instance = new LoxClass(null, this, methods);
+        } else {
+            instance = new LoxInstance(this, this.name);
+        }
         LoxCallable constructor = getMethod("init");
         if (constructor != null) {
             if (!Runtime.acceptsNArgs(constructor, args.size())) {

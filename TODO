@@ -28,7 +28,9 @@ the interpreter is running. []
 * add Object#dup method, which shallow copies an object and its properties [DONE]
 * add Object#initDup hook for duplicated objects [DONE]
 * Figure out what it means to dup a class. Should this be possible?
-* Add builtin class Class, like Ruby. Class constructor creates new anon class. []
+* Add builtin class Class, like Ruby. Class constructor creates new anon class. [IN PROGRESS]
 * Add constants, all caps maybe, or start with caps. []
 * Allow re-opening classes [DONE]
 * Add singleton classes? If so, would have to re-implement static functions []
+* Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval.
+* Add eval(String) for evaling code.
