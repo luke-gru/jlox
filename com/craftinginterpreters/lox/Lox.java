@@ -211,8 +211,11 @@ public class Lox {
 
     static void runtimeError(RuntimeError error) {
         if (!silenceRuntimeErrors) {
-            System.err.println(error.getMessage() +
-                    "\n[line " + error.token.line + "]");
+            String lineStr = "";
+            if (error.token != null) {
+                lineStr = "\n[line " + error.token.line + "]";
+            }
+            System.err.println(error.getMessage() + lineStr);
         }
         hadRuntimeError = true;
     }

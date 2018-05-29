@@ -12,6 +12,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public List<String> errorBuf = new ArrayList<>();
 
     private Stmt.Class currentClass = null;
+    private Stmt.In currentIn = null;
 
     Resolver(Interpreter interpreter) {
         this.interpreter = interpreter;
@@ -66,8 +67,8 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitThisExpr(Expr.This expr) {
-        if (this.currentClass == null) {
-            error(expr.keyword, "keyword 'this' must only be used inside methods");
+        if (this.currentClass == null && this.currentIn == null) {
+            error(expr.keyword, "keyword 'this' must only be used inside methods, class bodies or `in(object) {}` statements");
         }
         resolveLocal(expr, expr.keyword);
         return null;
@@ -314,15 +315,15 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     @Override
     public Void visitInStmt(Stmt.In stmt) {
         resolve(stmt.object);
-        //Stmt.Class enclosingClass = this.currentClass;
-        //this.currentClass = stmt;
+        Stmt.In enclosingIn = this.currentIn;
+        this.currentIn = stmt;
 
         beginScope();
         scopes.peek().put("this", true);
         resolve(stmt.body);
         endScope();
+        this.currentIn = enclosingIn;
 
-        //this.currentClass = enclosingClass;
         return null;
     }
 

@@ -780,6 +780,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         LoxInstance objInst = Runtime.toInstance(obj);
         LoxInstance oldThis = this._this;
         LoxClass oldCurClass = this.currentClass;
+        Environment outerEnv = this.environment;
 
         this._this = objInst;
         LoxClass thisKlass = null;
@@ -790,32 +791,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
         this.currentClass = thisKlass;
 
+        this.environment = new Environment(outerEnv);
+        environment.define("this", objInst);
         for (Stmt statement : stmt.body) {
-            if (statement instanceof Stmt.Function) {
-                Stmt.Function method = (Stmt.Function)statement;
-                boolean isInitializer = method.type == Parser.FunctionType.INITIALIZER;
-                boolean isStaticMethod = method.type == Parser.FunctionType.CLASS_METHOD;
-                boolean isGetter = method.type == Parser.FunctionType.GETTER;
-                boolean isSetter = method.type == Parser.FunctionType.SETTER;
-                LoxCallable func = new LoxFunction(method, environment, isInitializer);
-                if (isStaticMethod) {
-                    thisKlass.getSingletonKlass().methods.put(method.name.lexeme, func);
-                } else if (isGetter) {
-                    thisKlass.getters.put(method.name.lexeme, func);
-                } else if (isSetter) {
-                    thisKlass.setters.put(method.name.lexeme, func);
-                } else {
-                    thisKlass.methods.put(method.name.lexeme, func);
-                }
-            } else {
-                // TODO: allow other statements in class body
-                throw new RuntimeError(null, "Unexpected statement in class body: " +
-                        statement.getClass().getName());
-            }
+            execute(statement);
         }
 
         this._this = oldThis;
         this.currentClass = oldCurClass;
+        this.environment = outerEnv;
         return null;
     }
 
@@ -868,13 +852,26 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitFunctionStmt(Stmt.Function stmt) {
-        boolean isInitializer = false;
-        if (stmt.type == Parser.FunctionType.METHOD && stmt.name.lexeme.equals("init")) {
-            isInitializer = true;
+        Stmt.Function func = (Stmt.Function)stmt;
+        boolean isInitializer = func.type == Parser.FunctionType.INITIALIZER;
+        boolean isStaticMethod = func.type == Parser.FunctionType.CLASS_METHOD;
+        boolean isGetter = func.type == Parser.FunctionType.GETTER;
+        boolean isSetter = func.type == Parser.FunctionType.SETTER;
+        boolean isInstanceMethod = func.type == Parser.FunctionType.METHOD;
+        LoxClass klass = this.currentClass;
+        LoxCallable callable = new LoxFunction(func, this.environment, isInitializer);
+        if (isStaticMethod) {
+            klass.getSingletonKlass().methods.put(func.name.lexeme, callable);
+        } else if (isGetter) {
+            klass.getters.put(func.name.lexeme, callable);
+        } else if (isSetter) {
+            klass.setters.put(func.name.lexeme, callable);
+        } else  if (isInstanceMethod){
+            klass.methods.put(func.name.lexeme, callable);
+        } else {
+            environment.defineFunction(stmt.name, stmt);
+            environment.define(stmt.name.lexeme, callable);
         }
-        LoxCallable callable = new LoxFunction(stmt, this.environment, isInitializer);
-        environment.defineFunction(stmt.name, stmt);
-        environment.define(stmt.name.lexeme, callable);
         return null;
     }
 
@@ -900,32 +897,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             environment.assign(stmt.name, klass, false);
         }
         this.currentClass = klass;
+        Environment outerEnv = environment;
+        this.environment = new Environment(outerEnv);
+        this.environment.define("this", klass);
 
         for (Stmt statement : stmt.body) {
-            if (statement instanceof Stmt.Function) {
-                Stmt.Function method = (Stmt.Function)statement;
-                boolean isInitializer = method.type == Parser.FunctionType.INITIALIZER;
-                boolean isStaticMethod = method.type == Parser.FunctionType.CLASS_METHOD;
-                boolean isGetter = method.type == Parser.FunctionType.GETTER;
-                boolean isSetter = method.type == Parser.FunctionType.SETTER;
-                LoxCallable func = new LoxFunction(method, environment, isInitializer);
-                if (isStaticMethod) {
-                    klass.getSingletonKlass().methods.put(method.name.lexeme, func);
-                } else if (isGetter) {
-                    klass.getters.put(method.name.lexeme, func);
-                } else if (isSetter) {
-                    klass.setters.put(method.name.lexeme, func);
-                } else {
-                    klass.methods.put(method.name.lexeme, func);
-                }
-            } else {
-                // TODO: allow other statements in class body
-                throw new RuntimeError(stmt.name, "Unexpected statement in class body: " +
-                        statement.getClass().getName());
-            }
+            execute(statement);
         }
 
         this.currentClass = enclosingClass;
+        this.environment = outerEnv;
         return null;
     }
 

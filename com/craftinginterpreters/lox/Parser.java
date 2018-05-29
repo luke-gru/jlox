@@ -315,14 +315,21 @@ public class Parser {
                 }
                 Stmt stmt = funDeclaration(FunctionType.CLASS_METHOD);
                 body.add(stmt);
+            // getter
             } else if (checkTok(IDENTIFIER) && peekTokN(1).type == LEFT_BRACE) {
                 Stmt stmt = getterDeclaration();
                 body.add(stmt);
-            } else if (checkTok(IDENTIFIER) && peekTokN(1).type == EQUAL) {
+            // setter
+            } else if (checkTok(IDENTIFIER) && peekTokN(1).type == EQUAL && peekTokN(2).type == LEFT_PAREN) {
                 Stmt stmt = setterDeclaration();
                 body.add(stmt);
-            } else {
+            // end of class declaration
+            } else if (checkTok(RIGHT_BRACE)) {
                 break;
+            // other statement
+            } else {
+                Stmt decl = declaration();
+                body.add(decl);
             }
         }
         consumeTok(RIGHT_BRACE, "Expected '}' after class declaration");

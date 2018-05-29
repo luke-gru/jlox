@@ -41,6 +41,6 @@ Ruby, for example.
 * Add way to nest classes within classes and refer to nested classes by scoped
 names. []
 * Allow arbitrary expressions and statements within class { } and in { }
-blocks which get evaluated once upon being visited.
+blocks which get evaluated once upon being visited. [DONE]
 * Fix \" within double-quoted strings [DONE]
 * Allow single-quoted strings []

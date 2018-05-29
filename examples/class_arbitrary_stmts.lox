@@ -1,0 +1,30 @@
+class NewClass {
+  print this;
+  var omg;
+  if (this.name == "NewClass") {
+    omg = fun() { print "OMG"; };
+  } else {
+    omg = fun() { print "WOW"; };
+  }
+  this.omg = omg;
+  yell() { this._class.omg(); }
+}
+
+var n = NewClass();
+print n.omg;
+n.yell();
+
+in(n) { print this._class; }
+in(n) { yell() { print "it's n"; } } // defines singleton method on `n`
+n.yell();
+var n2 = NewClass();
+n2.yell();
+
+__END__
+-- expect: --
+<class NewClass>
+nil
+OMG
+<class NewClass>
+it's n
+OMG
