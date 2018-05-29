@@ -1,0 +1,7 @@
+fun call(func) { func(); }
+var throwing = fun() { throw "HEY"; };
+
+call(throwing);
+
+__END__
+-- noexpect: --
