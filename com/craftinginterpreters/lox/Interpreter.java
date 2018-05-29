@@ -10,7 +10,6 @@ import java.io.File;
 import java.lang.reflect.*;
 import java.lang.ReflectiveOperationException;
 
-
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeBreak extends RuntimeException {}
     private static class RuntimeContinue extends RuntimeException {}
@@ -32,15 +31,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
     public static class LoadScriptError extends RuntimeException {
-        LoadScriptError(String msg) {
+        public LoadScriptError(String msg) {
             super(msg);
         }
     }
-    public static class AssertionError extends RuntimeError {
-        AssertionError(Token tok, String msg) {
+    public static class LoxAssertionError extends RuntimeError {
+        public LoxAssertionError(Token tok, String msg) {
             super(tok, msg);
         }
     }
+
     public String runningFile = null;
 
     public final Map<Expr, Integer> locals = new HashMap<>();
@@ -1230,7 +1230,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             Constructor con = klass.getConstructor(Token.class, String.class);
             err = con.newInstance(tok, msg);
         } catch (ReflectiveOperationException e) {
-            System.err.println(e.getMessage());
+            System.err.println("Internal lox bug - reflection error: (" +
+                    e.getClass().getName() + ") " + e.getMessage());
         }
         if (err != null) {
             throw (RuntimeError)err;

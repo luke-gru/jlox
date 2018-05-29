@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.io.*;
 import static com.craftinginterpreters.lox.Interpreter.LoadScriptError;
-import static com.craftinginterpreters.lox.Interpreter.AssertionError;
+import static com.craftinginterpreters.lox.Interpreter.LoxAssertionError;
 
 class Runtime {
     final Environment globalEnv;
@@ -203,7 +203,7 @@ class Runtime {
                         LoxInstance loxMsg = Runtime.toString(arguments.get(1));
                         strBuf.append(": ").append(Runtime.toJavaString(loxMsg));
                     }
-                    interp.throwLoxError(AssertionError.class, tok, strBuf.toString());
+                    interp.throwLoxError(LoxAssertionError.class, tok, strBuf.toString());
                     return null;
                 }
             }

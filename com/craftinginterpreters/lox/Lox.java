@@ -29,19 +29,30 @@ public class Lox {
 
     public static void main(String[] args) throws IOException {
         String fname = null;
+        String loadPathStr = null;
+        List<String> loadPathExtra = new ArrayList<>();
         int i = 0;
 
         while (i < args.length) {
             if (args[i].equals("-f")) {
                 fname = args[i+1];
-                i = i+2;
+                i += 2;
+            } else if (args[i].equals("-L")) {
+                loadPathStr = args[i+1];
+                i += 2;
             } else {
                 System.err.println("Usage: Lox [-f FILENAME]");
                 System.exit(1);
             }
         }
 
-        initLoadPath();
+        if (loadPathStr != null) {
+            String[] splitAry = loadPathStr.split(":");
+            for (String path : splitAry) {
+                loadPathExtra.add(path);
+            }
+        }
+        initLoadPath(loadPathExtra);
         if (fname == null) {
             runPrompt();
         } else {
@@ -49,16 +60,32 @@ public class Lox {
         }
     }
 
-    public static void initLoadPath() {
+    public static void initLoadPath(List<String> extraPaths) {
         String curDir = null;
         try {
-            curDir = new java.io.File(".").getCanonicalPath();
+            curDir = new File(".").getCanonicalPath();
         } catch (IOException e) {
         }
         if (curDir != null) {
             //System.err.println("curDir: " + curDir);
             initialLoadPath.add(curDir);
         }
+        for (String path : extraPaths) {
+            File f = new File(path);
+            if (f.exists() && f.isDirectory()) {
+                try {
+                    initialLoadPath.add(f.getCanonicalPath());
+                } catch (IOException e) {
+                    System.err.println("Load path directory '" + path + "' not found. Ignoring...");
+                }
+            } else {
+                System.err.println("Load path directory '" + path + "' not found. Ignoring...");
+            }
+        }
+    }
+
+    public static void initLoadPath() {
+        initLoadPath(new ArrayList<String>());
     }
 
     // fname is relative or absolute, and the path may or may not exist on the
