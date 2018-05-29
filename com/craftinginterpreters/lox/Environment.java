@@ -20,6 +20,7 @@ class Environment {
       values.put(name, value);
   }
 
+  // assign an already defined name
   public void assign(Token name, Object value, boolean assignOuter) {
       if (values.containsKey(name.lexeme)) {
           values.put(name.lexeme, value);
@@ -31,7 +32,7 @@ class Environment {
           return;
       }
 
-      throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.");
+      throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "' (assignment).");
   }
 
   public void defineFunction(Token name, Stmt.Function fnStmt) {
@@ -126,6 +127,14 @@ class Environment {
           distance--;
       }
       env.assign(name, value, false);
+  }
+
+  public Object getGlobal(String name) {
+      Environment env = this;
+      while (env.enclosing != null) {
+          env = env.enclosing;
+      }
+      return env.getAt(0, name);
   }
 
 }

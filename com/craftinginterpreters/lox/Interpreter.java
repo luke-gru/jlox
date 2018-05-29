@@ -5,6 +5,11 @@ import java.util.HashMap;
 import java.util.Stack;
 import java.util.List;
 import java.util.Map;
+import java.io.IOException;
+import java.io.File;
+import java.lang.reflect.*;
+import java.lang.ReflectiveOperationException;
+
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeBreak extends RuntimeException {}
@@ -26,6 +31,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             this.value = value;
         }
     }
+    public static class LoadScriptError extends RuntimeException {
+        LoadScriptError(String msg) {
+            super(msg);
+        }
+    }
+    public static class AssertionError extends RuntimeError {
+        AssertionError(Token tok, String msg) {
+            super(tok, msg);
+        }
+    }
+    public String runningFile = null;
 
     public final Map<Expr, Integer> locals = new HashMap<>();
     final Environment globals = new Environment();
@@ -45,6 +61,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Parser parser = null;
     private String filename;
     public LoxInstance _this = null;
+    private boolean inited = false;
 
     public Interpreter() {
         HashMap<String, Object> opts = new HashMap<>();
@@ -53,8 +70,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         opts.put("filename", null);
         this.options = opts;
         this.resolver = new Resolver(this);
-        this.runtime = new Runtime(globals, classMap);
-        runtime.init();
+        this.runtime = Runtime.create(globals, classMap);
     }
 
     public Interpreter(HashMap<String, Object> options) {
@@ -70,12 +86,18 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             this.filename = (String)this.options.get("filename");
         }
         this.resolver = new Resolver(this);
-        this.runtime = new Runtime(globals, classMap);
-        runtime.init();
+        this.runtime = Runtime.create(globals, classMap);
     }
 
 
     public boolean interpret(List<Stmt> statements) {
+        if (!inited) {
+            runtime.init(this);
+            if (this.runningFile == null && Lox.initialScriptAbsolute != null) {
+                setRunningFile(Lox.initialScriptAbsolute);
+            }
+            this.inited = true;
+        }
         this.resolver.resolve(statements);
         if (this.resolver.hasErrors()) {
             return false;
@@ -106,6 +128,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public boolean interpret(String src) {
+        if (!inited) {
+            runtime.init(this);
+            if (this.runningFile == null && Lox.initialScriptAbsolute != null) {
+                setRunningFile(Lox.initialScriptAbsolute);
+            }
+            this.inited = true;
+        }
         this.parser = Parser.newFromSource(src);
         this.parser.setNativeClassNames(this.runtime.nativeClassNames());
         List<Stmt> stmts = this.parser.parse();
@@ -922,13 +951,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return expr.accept(this);
     }
 
-    private boolean isTruthy(Object obj) {
+    public boolean isTruthy(Object obj) {
         if (obj == null) return false;
         if (obj instanceof Boolean) return (boolean)obj;
         return true;
     }
 
-    private boolean isEqual(Object a, Object b) {
+    public boolean isEqual(Object a, Object b) {
         // nil is only equal to nil.
         if (a == null && b == null) return true;
         if (a == null) return false;
@@ -977,9 +1006,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
         if (Runtime.isInstance(object) && !(Runtime.isString(object) || Runtime.isClass(object))) {
             LoxInstance instance = Runtime.toInstance(object);
-            Object toString = instance.getMethod("toString", instance.getKlass(), this);
-            if (toString != null) {
-                LoxCallable toStringMeth = (LoxCallable)toString;
+            LoxCallable toStringMeth = instance.getMethod("toString", instance.getKlass(), this);
+            if (toStringMeth != null) {
                 object = evaluateCall(toStringMeth, new ArrayList<Object>(), null);
             }
         }
@@ -1122,14 +1150,108 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             throw new RuntimeException("class " + className + " doesn't exist!");
         }
         Object instance = evaluateCall(klass, initArgs, null);
-        return (LoxInstance)instance;
+        return Runtime.toInstance(instance);
     }
 
     public LoxInstance createInstance(String className) {
         return createInstance(className, new ArrayList<Object>());
     }
 
+    public Object callMethod(String methodName, LoxInstance instance, List<Object> args) {
+        LoxCallable method = instance.getMethod(methodName, instance.getKlass(), this); // FIXME: doesn't look in singleton class
+        // TODO: raise error
+        if (method == null) {
+            System.err.println("Error: method not found: " + methodName);
+            return null;
+        }
+        return evaluateCall(method, args, null);
+    }
+
+    private List<String> loadPathJavaStrings() {
+        List<String> ret = new ArrayList<String>();
+        LoxInstance loxInst = Runtime.toInstance(globals.getGlobal("LOAD_PATH"));
+        List<Object> loxAry = (List<Object>)loxInst.getHiddenProp("ary");
+        for (Object obj : loxAry) {
+            if (Runtime.isString(obj)) {
+                ret.add(Runtime.toJavaString(Runtime.toString(obj)));
+            }
+        }
+        return ret;
+    }
+
+    public boolean loadScriptOnce(String fname) {
+        String fullPath = null;
+        if ((fullPath = Lox.fullPathToScript(fname, loadPathJavaStrings())) != null) {
+            if (Lox.hasLoadedScriptOnce(fullPath)) {
+                return false;
+            }
+            String oldFile = this.runningFile;
+            try {
+                setRunningFile(fullPath);
+                Lox.loadScriptOnceAdd(fname, fullPath);
+                evalFile(fullPath);
+            } finally {
+                setRunningFile(oldFile);
+            }
+            return true;
+        } else {
+            throw new LoadScriptError("cannot load file '" + fname + "' (it's not in the load path).");
+        }
+    }
+
+    public boolean loadScript(String fname) {
+        String fullPath = null;
+        if ((fullPath = Lox.fullPathToScript(fname, loadPathJavaStrings())) != null) {
+            String oldFile = this.runningFile;
+            try {
+                setRunningFile(fullPath);
+                Lox.loadScriptAdd(fname, fullPath);
+                evalFile(fullPath);
+            } finally {
+                setRunningFile(oldFile);
+            }
+            return true;
+        } else {
+            throw new LoadScriptError("cannot load file '" + fname + "' (it's not in the load path).");
+        }
+    }
+
+    public void setRunningFile(String absPath) {
+        File f = new File(absPath);
+        String dirPath = f.getAbsoluteFile().getParentFile().getAbsolutePath();
+        globals.define("__DIR__", Runtime.createString(dirPath, this));
+        globals.define("__FILE__", Runtime.createString(absPath, this));
+        this.runningFile = absPath;
+    }
+
+    public void throwLoxError(Class klass, Token tok, String msg) throws RuntimeException {
+        Object err = null;
+        try {
+            Constructor con = klass.getConstructor(Token.class, String.class);
+            err = con.newInstance(tok, msg);
+        } catch (ReflectiveOperationException e) {
+            System.err.println(e.getMessage());
+        }
+        if (err != null) {
+            throw (RuntimeError)err;
+        }
+    }
+
+    private void evalFile(String fullPath) {
+        Environment oldEnv = this.environment;
+        try {
+            String src = LoxUtil.readFile(fullPath);
+            this.environment = globals;
+            interpret(src);
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+        } finally {
+            this.environment = oldEnv;
+        }
+    }
+
     private void unreachable(String msg) {
         throw new RuntimeException("unreachable: " + msg);
     }
+
 }

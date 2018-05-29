@@ -6,6 +6,7 @@ class LoxNativeCallable implements LoxCallable {
     final String name;
     final int arityMin;
     final int arityMax;
+    LoxInstance boundInstance = null;
 
     LoxNativeCallable(String name, int arityMin, int arityMax) {
         this.name = name;
@@ -18,17 +19,25 @@ class LoxNativeCallable implements LoxCallable {
         if (!Runtime.acceptsNArgs(this, args.size())) {
             throw arityError(tok, args.size());
         }
+        Environment oldEnv = interpreter.environment;
+        LoxInstance oldBoundInstance = boundInstance;
         try {
             interpreter.stack.add(new StackFrame(this, tok));
+            interpreter.environment = new Environment(oldEnv);
+            if (boundInstance != null) {
+                interpreter.environment.define("this", boundInstance);
+            }
             return _call(interpreter, args, tok);
         } finally {
             interpreter.stack.pop();
+            interpreter.environment = oldEnv;
+            this.boundInstance = oldBoundInstance;
         }
     }
 
     @Override
     public LoxCallable bind(LoxInstance instance, Environment env) {
-        env.define("this", instance);
+        this.boundInstance = instance;
         return this;
     }
 

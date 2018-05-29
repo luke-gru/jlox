@@ -1,0 +1,7 @@
+class Greeter {
+  init() { print "WHY HELLO THERE"; }
+}
+
+var g = Greeter();
+
+__END__

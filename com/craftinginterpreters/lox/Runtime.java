@@ -6,15 +6,21 @@ import java.util.Stack;
 import java.util.List;
 import java.util.Map;
 import java.io.*;
+import static com.craftinginterpreters.lox.Interpreter.LoadScriptError;
+import static com.craftinginterpreters.lox.Interpreter.AssertionError;
 
 class Runtime {
     final Environment globalEnv;
     static Map<String, LoxClass> classMap;
     boolean inited = false;
 
-    Runtime(Environment globalEnv, Map<String, LoxClass> classMap) {
+    private Runtime(Environment globalEnv, Map<String, LoxClass> classMap) {
         this.globalEnv = globalEnv;
         this.classMap = classMap;
+    }
+
+    public static Runtime create(Environment globalEnv, Map<String, LoxClass> classMap) {
+        return new Runtime(globalEnv, classMap);
     }
 
     static Object bool(boolean val) {
@@ -140,13 +146,28 @@ class Runtime {
         throw new RuntimeException("Unreachable (dupObject) " + obj.getClass().getName());
     }
 
-    public void init() {
+    public void init(Interpreter interp) {
         if (inited) {
             return;
         }
         defineGlobalFunctions();
         defineBuiltinClasses();
+        defineGlobalVariables(interp);
         inited = true;
+    }
+
+    public void defineGlobalVariables(Interpreter interp) {
+       LoxInstance loxLoadPath = interp.createInstance("Array", new ArrayList<Object>());
+       for (String path : Lox.initialLoadPath) {
+           LoxInstance loxPath = Runtime.createString(path, interp);
+           List<Object> pushArgs = new ArrayList<Object>();
+           pushArgs.add(loxPath);
+           interp.callMethod("push", loxLoadPath, pushArgs);
+       }
+       globalEnv.define("LOAD_PATH", loxLoadPath);
+
+       globalEnv.define("__DIR__", Runtime.createString("", interp)); // see Interpreter#setRunningFile to see how this is populated
+       globalEnv.define("__FILE__", Runtime.createString("", interp)); // see Interpreter#setRunningFile to see how this is populated
     }
 
     public void defineGlobalFunctions() {
@@ -168,6 +189,77 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 return interpreter.nativeLen(tok, arguments.get(0));
+            }
+        });
+        globalEnv.define("assert", new LoxNativeCallable("assert", 1, 2) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> arguments, Token tok) {
+                Object expr = arguments.get(0);
+                if (interp.isTruthy(expr)) {
+                    return null;
+                } else {
+                    StringBuffer strBuf = new StringBuffer("Assertion failure");
+                    if (arguments.size() > 1) {
+                        LoxInstance loxMsg = Runtime.toString(arguments.get(1));
+                        strBuf.append(": ").append(Runtime.toJavaString(loxMsg));
+                    }
+                    interp.throwLoxError(AssertionError.class, tok, strBuf.toString());
+                    return null;
+                }
+            }
+        });
+        globalEnv.define("loadScript", new LoxNativeCallable("loadScript", 1, -1) {
+            @Override
+            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                List<String> fnames = new ArrayList<>();
+                boolean ret = true;
+                for (Object arg : arguments) {
+                    if (Runtime.isString(arg)) {
+                        String javaFname = Runtime.toJavaString(Runtime.toInstance(arg));
+                        boolean loaded = false;
+                        try {
+                            loaded = interpreter.loadScript(javaFname);
+                        } catch (LoadScriptError e) {
+                            System.err.println("Load script error: " + e.getMessage());
+                            loaded = false;
+                        }
+                        if (loaded && ret) {
+                            ret = true;
+                        } else {
+                            ret = false;
+                        }
+                    } else {
+                        // TODO: throw ArgumentError
+                    }
+                }
+                return (Boolean)ret;
+            }
+        });
+        globalEnv.define("loadScriptOnce", new LoxNativeCallable("loadScriptOnce", 1, -1) {
+            @Override
+            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+                List<String> fnames = new ArrayList<>();
+                boolean ret = true;
+                for (Object arg : arguments) {
+                    if (Runtime.isString(arg)) {
+                        String javaFname = Runtime.toJavaString(Runtime.toInstance(arg));
+                        boolean loaded = false;
+                        try {
+                            loaded = interpreter.loadScriptOnce(javaFname);
+                        } catch (LoadScriptError e) {
+                            System.err.println("Load script error: " + e.getMessage());
+                            loaded = false;
+                        }
+                        if (loaded && ret) {
+                            ret = true;
+                        } else {
+                            ret = false;
+                        }
+                    } else {
+                        // TODO: throw ArgumentError
+                    }
+                }
+                return (Boolean)ret;
             }
         });
         globalEnv.define("system", new LoxNativeCallable("system", 1, 1) {
@@ -296,7 +388,7 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
-                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                List<Object> ary = (List<Object>)(instance.getHiddenProp("ary"));
                 ary.add(args.get(0));
                 return instance;
             }

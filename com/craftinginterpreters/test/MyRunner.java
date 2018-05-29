@@ -9,6 +9,7 @@ import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 import com.craftinginterpreters.test.AstPrinterTest;
 import com.craftinginterpreters.test.InterpreterTest;
+import com.craftinginterpreters.lox.Lox;
 
 public class MyRunner {
   public static void main(String[] args) {
@@ -36,6 +37,8 @@ public class MyRunner {
     for (Class klass : klassesToRun) {
         System.err.println("Running test class: " + klass.getName());
     }
+
+    Lox.initLoadPath();
 
     Result result = JUnitCore.runClasses(klassesToRun.toArray(new Class[klassesToRun.size()]));
     int failures = 0;

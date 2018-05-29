@@ -32,9 +32,11 @@ Ruby, for example.
 * Add builtin class Class, like Ruby. Class constructor creates new anon class. [DONE]
 * Add constants, all caps maybe, or start with caps. []
 * Allow re-opening classes [DONE]
+* Allow undefining methods
+* Allow aliasing methods like Ruby, which creates a copy of the original method?
 * Add singleton classes. If so, would have to re-implement static functions [DONE]
 * Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval [DONE].
 * Add eval(String) for evaling code.
-* Add way to load other script files []
+* Add way to load other script files [IN PROGRESS]
 * Add way to nest classes within classes and refer to nested classes by scoped
 names. []

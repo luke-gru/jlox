@@ -67,7 +67,8 @@ class LoxClass extends LoxInstance implements LoxCallable {
         }
     }
 
-    // constructor call
+    // constructor call, creates new instance and binds the constructor, if
+    // any, to the instance and calls it.
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
         LoxInstance instance = null;
@@ -98,11 +99,14 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return null;
     }
 
+    // does nothing, as the `call` method does the binding to the constructor,
+    // if the class has an `init` method.
     @Override
     public LoxCallable bind(LoxInstance instance, Environment env) {
         return this;
     }
 
+    // returns a bound LoxCallable
     public LoxCallable boundMethod(LoxInstance instance, Environment env, String name) {
         LoxCallable method = getMethod(name);
         if (method != null) {
@@ -115,6 +119,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return superClass;
     }
 
+    // returns an unbound LoxCallable
     public LoxCallable getMethod(String name) {
         LoxClass klass = this;
         while (klass != null) {
@@ -127,6 +132,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return null;
     }
 
+    // returns an unbound LoxCallable
     public LoxCallable getGetter(String name) {
         LoxClass klass = this;
         while (klass != null) {
@@ -139,6 +145,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return null;
     }
 
+    // returns an unbound LoxCallable
     public LoxCallable getSetter(String name) {
         LoxClass klass = this;
         while (klass != null) {

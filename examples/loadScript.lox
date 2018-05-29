@@ -1,0 +1,18 @@
+print loadScriptOnce(__DIR__ + "/load_path/greeter.lox");
+print loadScriptOnce(__DIR__ + "/load_path/greeter.lox"); // doesn't work
+print loadScriptOnce(__DIR__ + "/load_path/greeter.lox"); // doesn't work
+print loadScript(__DIR__ + "/load_path/greeter.lox"); // works
+
+assert(!loadScript("greeter.lox"), "load_path dir should not be in load path!");
+LOAD_PATH.push(__DIR__ + "/load_path");
+assert(loadScript("greeter.lox"), "load_path dir should now be in load path!");
+
+__END__
+-- expect: --
+WHY HELLO THERE
+true
+false
+false
+WHY HELLO THERE
+true
+WHY HELLO THERE

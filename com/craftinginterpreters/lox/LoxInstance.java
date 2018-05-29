@@ -151,8 +151,20 @@ class LoxInstance {
         return getMethod(name, klassBeginSearch, interp);
     }
 
-    public Object getMethod(String name, LoxClass klassBeginSearch, Interpreter interp) {
+    public LoxCallable getMethod(String name, LoxClass klassBeginSearch, Interpreter interp) {
         LoxCallable method = klassBeginSearch.boundMethod(this, interp.environment, name);
+        if (method != null) return method;
+        return null;
+    }
+
+    // get method, checking singleton class, and then regular class hierarchy
+    public LoxCallable getMethod(String name, Interpreter interp) {
+        LoxCallable method = null;
+        if (singletonKlass != null) {
+            method = singletonKlass.boundMethod(this, interp.environment, name);
+        }
+        if (method != null) return method;
+        method = getKlass().boundMethod(this, interp.environment, name);
         if (method != null) return method;
         return null;
     }

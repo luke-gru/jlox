@@ -14,6 +14,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 //import org.junit.BeforeClass;
 import com.craftinginterpreters.lox.Interpreter;
+import com.craftinginterpreters.lox.Lox;
 
 public class InterpreterTest {
     private Interpreter interp = null;
@@ -205,8 +206,10 @@ public class InterpreterTest {
         for (int i = 0; i < listOfFiles.length; i++) {
             if (listOfFiles[i].isFile()) {
                 String fname = listOfFiles[i].getPath();
+                String fnameAbs = listOfFiles[i].getCanonicalPath();
                 BufferedReader br = new BufferedReader(new FileReader(fname));
                 System.err.println("Running example file " + fname);
+                Lox.registerInitialScript(fnameAbs);
                 try {
                     StringBuilder sbSrc = new StringBuilder();
                     StringBuilder sbExpected = new StringBuilder();
@@ -310,6 +313,8 @@ public class InterpreterTest {
                 }
             }
         }
+
+        Lox.initialScriptAbsolute = null;
 
     }
 
