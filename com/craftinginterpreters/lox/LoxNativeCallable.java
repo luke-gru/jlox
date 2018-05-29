@@ -16,23 +16,25 @@ class LoxNativeCallable implements LoxCallable {
 
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Token tok) {
+        Object ret = null;
         if (!Runtime.acceptsNArgs(this, args.size())) {
             throw arityError(tok, args.size());
         }
         Environment oldEnv = interpreter.environment;
         LoxInstance oldBoundInstance = boundInstance;
+        interpreter.stack.add(new StackFrame(this, tok));
         try {
-            interpreter.stack.add(new StackFrame(this, tok));
             interpreter.environment = new Environment(oldEnv);
             if (boundInstance != null) {
                 interpreter.environment.define("this", boundInstance);
             }
-            return _call(interpreter, args, tok);
+            ret = _call(interpreter, args, tok);
         } finally {
-            interpreter.stack.pop();
             interpreter.environment = oldEnv;
             this.boundInstance = oldBoundInstance;
         }
+        interpreter.stack.pop();
+        return ret;
     }
 
     @Override

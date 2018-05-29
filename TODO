@@ -36,7 +36,11 @@ Ruby, for example.
 * Allow aliasing methods like Ruby, which creates a copy of the original method?
 * Add singleton classes. If so, would have to re-implement static functions [DONE]
 * Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval [DONE].
-* Add eval(String) for evaling code.
-* Add way to load other script files [IN PROGRESS]
+* Add eval(String) for evaling code. [DONE]
+* Add way to load other script files [DONE]
 * Add way to nest classes within classes and refer to nested classes by scoped
 names. []
+* Allow arbitrary expressions and statements within class { } and in { }
+blocks which get evaluated once upon being visited.
+* Fix \" within double-quoted strings [DONE]
+* Allow single-quoted strings []

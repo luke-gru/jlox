@@ -1,0 +1,6 @@
+var s = "He shouted, \"Hey, that's mine!\"";
+print s;
+
+__END__
+-- expect: --
+He shouted, "Hey, that's mine!"

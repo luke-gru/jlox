@@ -59,9 +59,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public RuntimeException runtimeError = null;
     private Resolver resolver = null;
     public Parser parser = null;
-    private String filename;
-    public LoxInstance _this = null;
+    private String filename; // FIXME: unused
+    public LoxInstance _this = null; // FIXME: unused
     private boolean inited = false;
+    public Object lastValue;
 
     public Interpreter() {
         HashMap<String, Object> opts = new HashMap<>();
@@ -948,7 +949,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public Object evaluate(Expr expr) {
-        return expr.accept(this);
+        this.lastValue = expr.accept(this);
+        return lastValue;
     }
 
     public boolean isTruthy(Object obj) {
@@ -1123,6 +1125,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return builder.toString();
     }
 
+    // stacktrace lines, most recent call first in list
+    public List<String> stacktraceLines() {
+        List<String> ret = new ArrayList<>();
+        int sz = stack.size();
+        int i = sz-1;
+        while (i >= 0) {
+            StackFrame frame = stack.get(i);
+            ret.add(frame.toString());
+            i--;
+        }
+        ret.add("<main>");
+        return ret;
+    }
+
     public boolean hasUncaughtException() {
         return this.runtimeError != null &&
             (this.runtimeError instanceof RuntimeThrow);
@@ -1217,10 +1233,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public void setRunningFile(String absPath) {
-        File f = new File(absPath);
-        String dirPath = f.getAbsoluteFile().getParentFile().getAbsolutePath();
-        globals.define("__DIR__", Runtime.createString(dirPath, this));
-        globals.define("__FILE__", Runtime.createString(absPath, this));
+        if (absPath.charAt(0) == '(') { // Example: "(eval)" when in evaluated string
+            globals.define("__DIR__", Runtime.createString("", this));
+            globals.define("__FILE__", Runtime.createString(absPath, this));
+        } else {
+            File f = new File(absPath);
+            String dirPath = f.getAbsoluteFile().getParentFile().getAbsolutePath();
+            globals.define("__DIR__", Runtime.createString(dirPath, this));
+            globals.define("__FILE__", Runtime.createString(absPath, this));
+        }
         this.runningFile = absPath;
     }
 

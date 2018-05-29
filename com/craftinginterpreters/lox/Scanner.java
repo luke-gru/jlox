@@ -148,7 +148,7 @@ class Scanner {
             case '\n':
                 line++;
                 break;
-            case '"': string(); break;
+            case '"': doubleQuotedString(); break;
             default:
                 if (isDigit(c)) {
                     number();
@@ -191,8 +191,8 @@ class Scanner {
         addToken(ttype);
     }
 
-    private void string() {
-        while (peek() != '"' && !isAtEnd()) {
+    private void doubleQuotedString() {
+        while ((peek() != '"' || peekPrev() == '\\') && !isAtEnd()) {
             if (peek() == '\n') line++;
             advance();
         }
@@ -208,6 +208,7 @@ class Scanner {
 
         // Trim the surrounding quotes.
         String value = source.substring(start + 1, current - 1);
+        value = value.replaceAll("\\\\\"", "\""); // replace \" (escaped dquote) with " for the lox string
         addToken(STRING, value);
     }
 
@@ -251,6 +252,14 @@ class Scanner {
             return '\0';
         } else {
             return source.charAt(current+1);
+        }
+    }
+
+    private char peekPrev() {
+        if ((current-1) >= 0) {
+            return source.charAt(current-1);
+        } else {
+            return '\0';
         }
     }
 

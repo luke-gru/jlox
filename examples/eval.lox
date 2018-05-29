@@ -1,0 +1,11 @@
+var a = "outside";
+eval("print a;");
+eval("a = 2;");
+print a;
+print eval("a;");
+
+__END__
+-- expect: --
+outside
+2
+2

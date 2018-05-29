@@ -295,6 +295,28 @@ class Runtime {
 
             }
         });
+
+        globalEnv.define("eval", new LoxNativeCallable("eval", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance loxSrc = Runtime.toInstance(args.get(0));
+                String src = Runtime.toJavaString(loxSrc);
+                Parser oldParser = interp.parser;
+                Parser parser = Parser.newFromSource(src);
+                interp.parser = parser;
+                parser.setNativeClassNames(interp.runtime.nativeClassNames());
+                List<Stmt> stmts = parser.parse();
+                if (parser.getError() != null) {
+                    interp.parser = oldParser;
+                    return null;
+                }
+                interp.lastValue = null;
+                interp.interpret(stmts);
+                interp.parser = oldParser;
+                return interp.lastValue;
+            }
+        });
+
     }
 
     public void defineBuiltinClasses() {

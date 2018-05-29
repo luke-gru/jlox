@@ -1,7 +1,18 @@
-fun call(func) { func(); }
-var throwing = fun() { throw "HEY"; };
+//fun call(func) { func(); }
+//var throwing = fun() { throw "HEY"; };
+//
+//call(throwing);
 
-call(throwing);
+//class MyClass { init() { throw "INIT"; } }
+//MyClass();
+
+var o = Object;
+in(Object) {
+  init() { throw "OMG"; }
+}
+
+//Object();
+assert(false, "", false);
 
 __END__
 -- noexpect: --
