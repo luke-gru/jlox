@@ -95,4 +95,35 @@ class LoxUtil {
         interp.throwLoxError(errClass, errMsg);
     }
 
+    static boolean isValidIdentifier(String id) {
+        int sz = id.length();
+        if (sz == 0) {
+            return false;
+        }
+        char first = id.charAt(0);
+        if (!isAlpha(first)) {
+            return false;
+        }
+        for (int i = 1; i < sz; i++) {
+            if (!isAlphaNumeric(id.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static boolean isAlpha(char c) {
+        return (c >= 'a' && c <= 'z') ||
+            (c >= 'A' && c <= 'Z') ||
+            c == '_';
+    }
+
+    static boolean isDigit(char c) {
+        return c >= '0' && c <= '9';
+    }
+
+    static boolean isAlphaNumeric(char c) {
+        return isAlpha(c) || isDigit(c);
+    }
+
 }

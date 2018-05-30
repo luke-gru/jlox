@@ -1,0 +1,37 @@
+alias(typeof, "t");
+print t(1.2);
+fun typeof(obj) { return "STRING"; }
+print typeof(1.2);
+print t(1.2);
+
+fun launch() {
+  print "3..2..1\nLIFTOFF";
+}
+
+launch();
+
+alias(launch, "oldLaunch");
+fun launch() {
+  print "Prepare for takeoff...";
+  oldLaunch();
+  print "One small step for man...";
+}
+
+launch();
+
+alias(Object, "obj");
+var o = obj();
+print o._class;
+
+__END__
+-- expect: --
+number
+STRING
+number
+3..2..1
+LIFTOFF
+Prepare for takeoff...
+3..2..1
+LIFTOFF
+One small step for man...
+<class Object>

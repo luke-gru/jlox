@@ -13,7 +13,7 @@ class of Array [DONE]
 class of String [DONE]
 * Add way to cast strings to numbers [DONE]
 * Add string interpolation, maybe?
-* add standard Error classes [IN PROGRESS]
+* add standard Error classes [DONE]
 * throw Interrupt errors on interrupts, so the program can catch them when
 the interpreter is running. []
 * signal handling []
@@ -35,7 +35,8 @@ Ruby, for example. []
 * Add constants, all caps maybe, or start with caps. []
 * Allow re-opening classes [DONE]
 * Allow undefining methods []
-* Allow aliasing methods like Ruby, which creates a copy of the original method?
+* Allow aliasing methods like Ruby, which creates a copy of the original
+method? [IN PROGRESS]
 * Add singleton classes. If so, would have to re-implement static functions [DONE]
 * Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval [DONE].
 * Add eval(String) for evaling code. [DONE]
@@ -55,3 +56,8 @@ obj._singletonClass._singletonClass, returns wrong value)
 []=, maybe also '.' (propGet) and '.=', propSet. []
 * Make '::' lookup, also maybe nested classes get set on the enclosing class
 as a property, so lookup is performed with '.'? [DONE]
+* property lookup should look first for properties, then getters, then methods.
+Right now if we have a getter then set that same property, when we retrieve
+the property the getter is called.
+* getter/setter/ method lookup should respect singleton class lookup like
+Ruby's. Right now it acts weirdly for static functions.

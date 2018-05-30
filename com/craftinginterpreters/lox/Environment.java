@@ -36,9 +36,9 @@ class Environment {
   }
 
   public void defineFunction(Token name, Stmt.Function fnStmt) {
-      if (functions.containsKey(name.lexeme)) {
-          throw new RuntimeError(name, "Cannot redefine function '" + name.lexeme + "'.");
-      }
+      //if (functions.containsKey(name.lexeme)) {
+          //throw new RuntimeError(name, "Cannot redefine function '" + name.lexeme + "'.");
+      //}
       functions.put(name.lexeme, fnStmt);
   }
 

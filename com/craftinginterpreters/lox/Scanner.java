@@ -151,9 +151,9 @@ class Scanner {
             case '"': doubleQuotedString(); break;
             case '\'': singleQuotedString(); break;
             default:
-                if (isDigit(c)) {
+                if (LoxUtil.isDigit(c)) {
                     number();
-                } else if (isAlpha(c)) {
+                } else if (LoxUtil.isAlpha(c)) {
                     identifier();
                 } else {
                     Lox.error(line, "Unexpected character.");
@@ -167,18 +167,9 @@ class Scanner {
         return source.charAt(current-1);
     }
 
-    private boolean isAlpha(char c) {
-        return (c >= 'a' && c <= 'z') ||
-            (c >= 'A' && c <= 'Z') ||
-            c == '_';
-    }
-
-    private boolean isAlphaNumeric(char c) {
-        return isAlpha(c) || isDigit(c);
-    }
 
     private void identifier() {
-        while (isAlphaNumeric(peek())) advance();
+        while (LoxUtil.isAlphaNumeric(peek())) advance();
         String text = source.substring(start, current);
 
         TokenType ttype = keywords.get(text);
@@ -237,19 +228,15 @@ class Scanner {
         addToken(STRING, value);
     }
 
-    private boolean isDigit(char c) {
-        return c >= '0' && c <= '9';
-    }
-
     private void number() {
-        while (isDigit(peek())) advance();
+        while (LoxUtil.isDigit(peek())) advance();
 
         // Look for a fractional part.
-        if (peek() == '.' && isDigit(peekNext())) {
+        if (peek() == '.' && LoxUtil.isDigit(peekNext())) {
             // Consume the "."
             advance();
 
-            while (isDigit(peek())) advance();
+            while (LoxUtil.isDigit(peek())) advance();
         }
 
         addToken(NUMBER, Double.parseDouble(source.substring(start, current)));
