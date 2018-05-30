@@ -1,17 +1,26 @@
 class Math {
-  this.Complex = 1234;
-  class Complex {
+  this.Complex = 1234; // property overwritten by class declaration below
+  class Complex { // sets property Complex on object Math
+    init(real, imag) {
+      this.real = real;
+      this.imag = imag;
+    }
+    toString() {
+      return "<" + String(this.real) + " + " + String(this.imag) + "i>";
+    }
   }
-  this.instance = Complex();
+  this.instance = Complex(1, 2);
   print this.instance._class;
 }
 
-var c = Math.Complex();
+var c = Math.Complex(2, 2);
 print c._class;
 print Math.instance._class;
+print Math.instance;
 
 __END__
 -- expect: --
 <class Math.Complex>
 <class Math.Complex>
 <class Math.Complex>
+<1 + 2i>

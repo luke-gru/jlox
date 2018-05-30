@@ -7,19 +7,21 @@ import java.util.List;
 import java.util.Map;
 import java.io.IOException;
 import java.io.File;
-import java.lang.reflect.*;
-import java.lang.ReflectiveOperationException;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeBreak extends RuntimeException {}
     private static class RuntimeContinue extends RuntimeException {}
-    private static class RuntimeThrow extends RuntimeException {
+    public static class RuntimeThrow extends RuntimeException {
         final Object value;
         final Token keywordTok;
         RuntimeThrow(Object value, Token keywordTok) {
             super(null, null, false, false);
             this.value = value;
             this.keywordTok = keywordTok;
+        }
+
+        public String toString(Interpreter interp) {
+            return interp.stringify(this.value);
         }
     }
 
@@ -33,11 +35,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public static class LoadScriptError extends RuntimeException {
         public LoadScriptError(String msg) {
             super(msg);
-        }
-    }
-    public static class LoxAssertionError extends RuntimeError {
-        public LoxAssertionError(Token tok, String msg) {
-            super(tok, msg);
         }
     }
 
@@ -119,7 +116,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } catch (RuntimeThrow error) {
             this.runtimeError = error;
             System.err.println("==============");
-            System.err.println("Uncaught error: " + stringify(error.value));
+            System.err.println("Uncaught error: " + error.toString(this));
             System.err.println("Stacktrace:");
             System.err.println(stacktrace());
             System.err.println("==============");
@@ -431,7 +428,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitCallExpr(Expr.Call callExpr) {
         Object obj = evaluate(callExpr.left);
         if (obj instanceof LoxCallable) {
-            List<Object> args = new ArrayList<>();
+            List<Object> args = null;
+            if (callExpr.args.size() == 0) {
+                args = LoxUtil.EMPTY_ARGS; // small optimization
+            } else {
+                args = new ArrayList<>();
+            }
+
+            // need to evaluate args first before seeing if the function can
+            // accept that number of arguments because splat arguments `fnCall(*args)` can
+            // evaluate to multiple arguments at runtime. See below.
             for (Expr expr : callExpr.args) {
                 if (expr instanceof Expr.SplatCall) {
                     Object ary = evaluate(((Expr.SplatCall)expr).expression);
@@ -445,6 +451,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     args.add(evaluate(expr));
                 }
             }
+
             LoxCallable callable = (LoxCallable)obj;
             if (!Runtime.acceptsNArgs(callable, args.size())) {
                 int arityMin = callable.arityMin();
@@ -465,8 +472,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     expectedNStr + ", got " + actualNStr + "."
                 );
             }
-            //System.err.println("CALL(" + ((LoxCallable)obj).getName() + "): args size: ");
-            //System.err.println(args.size());
             return evaluateCall(callable, args, tokenFromExpr(callExpr.left));
         } else {
             Token tok = tokenFromExpr(callExpr);
@@ -1141,6 +1146,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return ret;
     }
 
+    public void clearStack() {
+        this.stack.clear();
+    }
+
     public boolean hasUncaughtException() {
         return this.runtimeError != null &&
             (this.runtimeError instanceof RuntimeThrow);
@@ -1248,18 +1257,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         this.runningFile = absPath;
     }
 
-    public void throwLoxError(Class klass, Token tok, String msg) throws RuntimeException {
-        Object err = null;
-        try {
-            Constructor con = klass.getConstructor(Token.class, String.class);
-            err = con.newInstance(tok, msg);
-        } catch (ReflectiveOperationException e) {
-            System.err.println("Internal lox bug - reflection error: (" +
-                    e.getClass().getName() + ") " + e.getMessage());
-        }
-        if (err != null) {
-            throw (RuntimeError)err;
-        }
+    public void throwLoxError(String errClass, String errMsg) throws RuntimeThrow {
+        LoxCallable errConstructor = classMap.get(errClass);
+        List<Object> args = new ArrayList<>();
+        args.add(Runtime.createString(errMsg, this));
+        Object objInstance = evaluateCall(errConstructor, args, null);
+        throw new RuntimeThrow(objInstance, null);
     }
 
     private void evalFile(String fullPath) {

@@ -1,8 +1,11 @@
+var classIdBeforeReopen = Object.objectId;
 class Object {
   toString() {
     return "an object";
   }
 }
+var classIdAfterReopen = Object.objectId;
+print typeof(classIdBeforeReopen) == "number" and classIdBeforeReopen == classIdAfterReopen;
 
 var o = Object();
 print o;
@@ -16,5 +19,6 @@ print o;
 
 __END__
 -- expect: --
+true
 an object
 different string!

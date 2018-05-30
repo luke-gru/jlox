@@ -136,6 +136,11 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         builder.append(indent() + "(block\n");
         indent++;
         for (Stmt stmt : blockStmt.statements) {
+            // can happen due to parse error synchronization
+            if (stmt == null) {
+                System.err.println("Warning: skipping empty statement in block (due to parse error)");
+                continue;
+            }
             builder.append(stmt.accept(this));
             builder.append("\n");
         }

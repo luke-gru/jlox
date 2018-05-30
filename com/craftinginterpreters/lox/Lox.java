@@ -202,6 +202,7 @@ public class Lox {
 
     private static void runStmts(List<Stmt> statements) {
         interpreter.interpret(statements);
+        interpreter.clearStack();
     }
 
     // parse error

@@ -7,9 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
 import java.io.*;
-//import java.lang.NumberFormatException;
 import static com.craftinginterpreters.lox.Interpreter.LoadScriptError;
-import static com.craftinginterpreters.lox.Interpreter.LoxAssertionError;
 
 class Runtime {
     final Environment globalEnv;
@@ -95,6 +93,10 @@ class Runtime {
 
     static boolean isBool(Object obj) {
         return (obj instanceof Boolean);
+    }
+
+    static boolean isFunction(Object obj) {
+        return !Runtime.isInstance(obj) && (obj instanceof LoxCallable);
     }
 
     static LoxInstance toInstance(Object obj) {
@@ -202,10 +204,12 @@ class Runtime {
                 } else {
                     StringBuffer strBuf = new StringBuffer("Assertion failure");
                     if (arguments.size() > 1) {
-                        LoxInstance loxMsg = Runtime.toString(arguments.get(1));
+                        Object msgObj = arguments.get(1);
+                        LoxUtil.checkString(msgObj, interp, "ArgumentError", null, 2);
+                        LoxInstance loxMsg = Runtime.toString(msgObj);
                         strBuf.append(": ").append(Runtime.toJavaString(loxMsg));
                     }
-                    interp.throwLoxError(LoxAssertionError.class, tok, strBuf.toString());
+                    interp.throwLoxError("AssertionError", strBuf.toString());
                     return null;
                 }
             }
@@ -215,24 +219,24 @@ class Runtime {
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 List<String> fnames = new ArrayList<>();
                 boolean ret = true;
+                int argNum = 1;
                 for (Object arg : arguments) {
-                    if (Runtime.isString(arg)) {
-                        String javaFname = Runtime.toJavaString(Runtime.toInstance(arg));
-                        boolean loaded = false;
-                        try {
-                            loaded = interpreter.loadScript(javaFname);
-                        } catch (LoadScriptError e) {
-                            System.err.println("Load script error: " + e.getMessage());
-                            loaded = false;
-                        }
-                        if (loaded && ret) {
-                            ret = true;
-                        } else {
-                            ret = false;
-                        }
-                    } else {
-                        // TODO: throw ArgumentError
+                    LoxUtil.checkString(arg, interpreter, "ArgumentError", null, argNum);
+                    LoxInstance loxStr = Runtime.toInstance(arg);
+                    String javaFname = Runtime.toJavaString(loxStr);
+                    boolean loaded = false;
+                    try {
+                        loaded = interpreter.loadScript(javaFname);
+                    } catch (LoadScriptError e) {
+                        System.err.println("Load script error: " + e.getMessage());
+                        loaded = false;
                     }
+                    if (loaded && ret) {
+                        ret = true;
+                    } else {
+                        ret = false;
+                    }
+                    argNum++;
                 }
                 return (Boolean)ret;
             }
@@ -242,24 +246,24 @@ class Runtime {
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
                 List<String> fnames = new ArrayList<>();
                 boolean ret = true;
+                int argNum = 1;
                 for (Object arg : arguments) {
-                    if (Runtime.isString(arg)) {
-                        String javaFname = Runtime.toJavaString(Runtime.toInstance(arg));
-                        boolean loaded = false;
-                        try {
-                            loaded = interpreter.loadScriptOnce(javaFname);
-                        } catch (LoadScriptError e) {
-                            System.err.println("Load script error: " + e.getMessage());
-                            loaded = false;
-                        }
-                        if (loaded && ret) {
-                            ret = true;
-                        } else {
-                            ret = false;
-                        }
-                    } else {
-                        // TODO: throw ArgumentError
+                    LoxUtil.checkString(arg, interpreter, "ArgumentError", null, argNum);
+                    LoxInstance loxStr = Runtime.toInstance(arg);
+                    String javaFname = Runtime.toJavaString(loxStr);
+                    boolean loaded = false;
+                    try {
+                        loaded = interpreter.loadScriptOnce(javaFname);
+                    } catch (LoadScriptError e) {
+                        System.err.println("Load script error: " + e.getMessage());
+                        loaded = false;
                     }
+                    if (loaded && ret) {
+                        ret = true;
+                    } else {
+                        ret = false;
+                    }
+                    argNum++;
                 }
                 return (Boolean)ret;
             }
@@ -267,6 +271,7 @@ class Runtime {
         globalEnv.define("system", new LoxNativeCallable("system", 1, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
                 LoxInstance loxStr = Runtime.toInstance(args.get(0));
                 String javaStr = Runtime.toJavaString(loxStr);
                 LoxInstance loxAry = interp.createInstance("Array");
@@ -301,6 +306,7 @@ class Runtime {
         globalEnv.define("eval", new LoxNativeCallable("eval", 1, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
                 LoxInstance loxSrc = Runtime.toInstance(args.get(0));
                 String src = Runtime.toJavaString(loxSrc);
                 Parser oldParser = interp.parser;
@@ -335,9 +341,7 @@ class Runtime {
         objClass.defineGetter(new LoxNativeCallable("_class", 0, 0) {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                return Runtime.classOf(
-                    interpreter.environment.getThis()
-                );
+                return Runtime.classOf(interpreter.environment.getThis());
             }
         });
         objClass.defineGetter(new LoxNativeCallable("_singletonClass", 0, 0) {
@@ -381,7 +385,7 @@ class Runtime {
                 return Runtime.createString(instance.toString(), interp);
             }
         });
-        registerClass("Object", objClass);
+        registerClass(objClass);
 
         // class Class
         LoxNativeClass classClass = new LoxNativeClass("Class", objClass);
@@ -407,9 +411,13 @@ class Runtime {
         classClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
-                LoxInstance instance = interp.environment.getThis();
-                // TODO: register class with classmap if given a name.
-                return instance;
+                LoxClass klass = interp.environment.getThisClass();
+                if (args.size() == 1) {
+                    LoxUtil.checkIsA("Class", args.get(0), interp, "ArgumentError", null, 1);
+                    LoxClass superClass = (LoxClass)args.get(0);
+                    klass.superClass = superClass;
+                }
+                return klass;
             }
         });
         classClass.defineGetter(new LoxNativeCallable("name", 0, 0) {
@@ -426,7 +434,7 @@ class Runtime {
                 return klass.getSuper();
             }
         });
-        registerClass("Class", classClass);
+        registerClass(classClass);
 
         // class Array
         LoxNativeClass arrayClass = new LoxNativeClass("Array", objClass);
@@ -513,7 +521,7 @@ class Runtime {
                 return Runtime.createString(buf, interp);
             }
         });
-        registerClass("Array", arrayClass);
+        registerClass(arrayClass);
 
         // class String
         LoxNativeClass stringClass = new LoxNativeClass("String", objClass);
@@ -540,17 +548,15 @@ class Runtime {
                 return (double)((StringBuffer)instance.getHiddenProp("buf")).length();
             }
         });
-        registerClass("String", stringClass);
+        registerClass(stringClass);
 
         // class Number
         LoxNativeClass numClass = new LoxNativeClass("Number", objClass);
         numClass.defineSingletonMethod(new LoxNativeCallable("parse", 1, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
                 LoxInstance loxStr = Runtime.toString(args.get(0));
-                if (loxStr == null) {
-                    // TODO: raise ArgumentError
-                }
                 String javaStr = ((StringBuffer)loxStr.getHiddenProp("buf")).toString();
                 try {
                     return Double.parseDouble(javaStr);
@@ -559,7 +565,7 @@ class Runtime {
                 }
             }
         });
-        registerClass("Number", numClass);
+        registerClass(numClass);
 
         // class Error
         LoxNativeClass errorClass = new LoxNativeClass("Error", objClass);
@@ -568,8 +574,9 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object msg = null;
-                if (args.size() > 0) {
-                    msg = args.get(0); // TODO: check it's a String
+                if (args.size() > 0 && args.get(0) != null) {
+                    msg = args.get(0);
+                    LoxUtil.checkString(msg, interp, "ArgumentError", null, 1);
                 }
                 instance.setProperty("message", msg, interp, null);
                 List<String> javaStacktrace = interp.stacktraceLines();
@@ -599,7 +606,12 @@ class Runtime {
                 return Runtime.createString(buf, interp);
             }
         });
-        registerClass("Error", errorClass);
+        registerClass(errorClass);
+
+        LoxNativeClass argErrorClass = new LoxNativeClass("ArgumentError", errorClass);
+        registerClass(argErrorClass);
+        LoxNativeClass assertErrorClass = new LoxNativeClass("AssertionError", errorClass);
+        registerClass(assertErrorClass);
 
     }
 
@@ -614,9 +626,9 @@ class Runtime {
         return classNames;
     }
 
-    private void registerClass(String className, LoxNativeClass klass) {
-        globalEnv.define(className, klass);
-        classMap.put(className, klass);
+    private void registerClass(LoxNativeClass klass) {
+        globalEnv.define(klass.getName(), klass);
+        classMap.put(klass.getName(), klass);
     }
 
 }
