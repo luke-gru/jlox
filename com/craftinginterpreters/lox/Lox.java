@@ -70,6 +70,8 @@ public class Lox {
             //System.err.println("curDir: " + curDir);
             initialLoadPath.add(curDir);
         }
+        String stdlibPath = LoxUtil.classPath(Lox.class) + "/stdlib";
+        extraPaths.add(stdlibPath);
         for (String path : extraPaths) {
             File f = new File(path);
             if (f.exists() && f.isDirectory()) {
@@ -97,12 +99,22 @@ public class Lox {
             f = new File(fname);
             if (f.exists() && !f.isDirectory()) {
                 return fname;
+            } else {
+                f = new File(fname + ".lox");
+                if (f.exists() && !f.isDirectory()) {
+                    return fname + ".lox";
+                }
             }
         } else {
             for (String path : actualLoadPath) {
                 f = new File(path + "/" + fname);
                 if (f.exists() && !f.isDirectory()) {
                     return path + "/" + fname;
+                } else {
+                    f = new File(path + "/" + fname + ".lox");
+                    if (f.exists() && !f.isDirectory()) {
+                        return path + "/" + fname + ".lox";
+                    }
                 }
             }
         }

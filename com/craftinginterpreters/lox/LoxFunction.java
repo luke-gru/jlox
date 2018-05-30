@@ -29,11 +29,7 @@ class LoxFunction implements LoxCallable {
             Param param = declaration.formals.get(i);
             if (isLastParam && param.isSplatted) {
                 Object splatAry;
-                if (i == numArgs-1) { // single splat argument
-                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs), interpreter);
-                } else {
-                    splatAry = Runtime.arrayCopy(args.subList(i, numArgs-1), interpreter);
-                }
+                splatAry = Runtime.arrayCopy(args.subList(i, numArgs), interpreter);
                 environment.define(param.varName(), splatAry);
                 addedSplat = true;
                 break;

@@ -290,8 +290,8 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         this.currentClass = stmt;
         StringBuilder builder = new StringBuilder();
         builder.append(indent() + "(classDecl " + stmt.name.lexeme);
-        if (stmt.superClass != null) {
-            builder.append(" " + stmt.superClass.name.lexeme);
+        if (stmt.superClassVar != null) {
+            builder.append(" " + stmt.superClassVar.name.lexeme);
         }
         if (stmt.body.size() == 0) {
             return builder.append(")").toString();

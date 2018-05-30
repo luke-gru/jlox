@@ -141,18 +141,18 @@ public class Parser {
             if (matchAny(CLASS)) {
                 Token name = consumeTok(IDENTIFIER, "Expected identifier after 'class' keyword");
                 Token superName = null;
-                Stmt.Class superClassStmt = null;
+                Expr.Variable superNameVar = null;
 
                 if (matchAny(LESS)) {
                     superName = consumeTok(IDENTIFIER, "Expected class name after '<'");
-                    if (!classExists(superName.lexeme)) {
-                        throw error(superName, "Class " + superName.lexeme + " must be defined before being inherited from");
-                    }
-                    superClassStmt = classMap.get(superName.lexeme);
+                    superNameVar = new Expr.Variable(superName);
+                    //if (!classExists(superName.lexeme)) {
+                        //throw error(superName, "Class " + superName.lexeme + " must be defined before being inherited from");
+                    //}
                 }
                 consumeTok(LEFT_BRACE, "Expected '{' after class name");
                 Stmt.Class enclosingClass = this.currentClass;
-                Stmt.Class classStmt = new Stmt.Class(name, superClassStmt, null);
+                Stmt.Class classStmt = new Stmt.Class(name, superNameVar, null, null); // body set below
                 this.currentClass = classStmt;
                 List<Stmt> classBody = classBody();
                 classStmt.body = classBody;

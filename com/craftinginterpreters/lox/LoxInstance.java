@@ -13,16 +13,18 @@ class LoxInstance {
     private final Map<String, Object> properties = new HashMap<>();
     private final Map<String, Object> hiddenProps = new HashMap<>();
     public boolean isFrozen = false;
+    public static int numInstances = 0;
 
     LoxInstance(LoxClass klass, String className) {
         this.klass = klass;
         this.klassName = className;
         this.singletonKlass = null;
+        numInstances++;
     }
 
     @Override
     public String toString() {
-        return "<instance " + klassName + " #" + hashCode() + ">";
+        return "<instance " + klassName + " #" + objectId() + ">";
     }
 
     public Object objectId() {
@@ -199,4 +201,9 @@ class LoxInstance {
     public void setHiddenProp(String name, Object val) {
         this.hiddenProps.put(name, val);
     }
+
+    public void finalize() {
+        numInstances--;
+    }
+
 }

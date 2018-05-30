@@ -508,11 +508,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (expr.object instanceof Expr.Super) {
             obj = environment.get("this", true, ((Expr.Super)expr.object).keyword);
             Stmt.Class classStmt = this.fnCall.getDecl().klass;
-            Stmt.Class superClassStmt = classStmt.superClass;
-            if (superClassStmt == null) {
+            Object superKlassObj = classStmt.superClass;
+            if (superKlassObj == null) {
                 throw new RuntimeError(expr.property, "Couldn't find superclass! BUG");
             }
-            LoxClass superKlass = classMap.get(superClassStmt.name.lexeme);
+            LoxClass superKlass = (LoxClass)superKlassObj;
             setterFunc = superKlass.getSetter(expr.property.lexeme);
             if (setterFunc == null) {
                 throw new RuntimeError(
@@ -877,29 +877,49 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitClassStmt(Stmt.Class stmt) {
-        LoxClass existingClass = classMap.get(stmt.name.lexeme);
         LoxClass enclosingClass = this.currentClass;
+        String namePrefix = "";
+        if (enclosingClass != null) {
+            namePrefix = enclosingClass.getName() + ".";
+        }
+        String newClassNameFull = namePrefix + stmt.name.lexeme;
+        LoxClass existingClass = classMap.get(newClassNameFull);
         LoxClass klass = existingClass;
-        if (klass == null) {
+        if (klass == null) { // new class definition
             environment.define(stmt.name.lexeme, null);
             LoxClass superKlass = null;
-            if (stmt.superClass == null) {
+            if (stmt.superClassVar == null) {
                 superKlass = classMap.get("Object");
+                LoxUtil.Assert(superKlass != null);
             } else {
-                superKlass = classMap.get(stmt.superClass.name.lexeme);
-                if (superKlass == null) {
-                    throw new RuntimeError(stmt.name, "Couldn't resolve superclass! BUG");
+                Object superKlassObj = evaluate(stmt.superClassVar);
+                if (superKlassObj == null || !Runtime.isClass(superKlassObj)) {
+                    throw new RuntimeError(stmt.name,
+                        "Couldn't resolve superclass " + stmt.superClassVar.name.lexeme + " for class '" + stmt.name.lexeme +
+                        "'! BUG");
                 }
+                superKlass = (LoxClass)superKlassObj;
             }
+            stmt.superClass = superKlass;
             Map<String, LoxCallable> methods = new HashMap<>();
-            klass = new LoxClass(stmt.name.lexeme, superKlass, methods);
-            classMap.put(stmt.name.lexeme, klass);
+            klass = new LoxClass(newClassNameFull, superKlass, methods);
+            classMap.put(newClassNameFull, klass);
             environment.assign(stmt.name, klass, false);
         }
         this.currentClass = klass;
         Environment outerEnv = environment;
         this.environment = new Environment(outerEnv);
         this.environment.define("this", klass);
+
+        if (enclosingClass != null) {
+            Object propVal = enclosingClass.getProperty(stmt.name.lexeme, this);
+            if (propVal != null) {
+                System.err.println("Warning: Overwriting property " + stmt.name.lexeme +
+                    " on class " + enclosingClass.getName() +
+                    " due to nested class declaration");
+            }
+            enclosingClass.setProperty(stmt.name.lexeme, klass, this, null);
+        }
 
         for (Stmt statement : stmt.body) {
             execute(statement);
@@ -940,6 +960,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return true;
     }
 
+    // used for '==', not Object#equals(), which is true only when they're the same instance (more strict)
     public boolean isEqual(Object a, Object b) {
         // nil is only equal to nil.
         if (a == null && b == null) return true;
@@ -991,7 +1012,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             LoxInstance instance = Runtime.toInstance(object);
             LoxCallable toStringMeth = instance.getMethod("toString", instance.getKlass(), this);
             if (toStringMeth != null) {
-                object = evaluateCall(toStringMeth, new ArrayList<Object>(), null);
+                object = evaluateCall(toStringMeth, LoxUtil.EMPTY_ARGS, null);
             }
         }
 
@@ -1214,6 +1235,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public void setRunningFile(String absPath) {
+        if (absPath == null) { return; }
         if (absPath.charAt(0) == '(') { // Example: "(eval)" when in evaluated string
             globals.define("__DIR__", Runtime.createString("", this));
             globals.define("__FILE__", Runtime.createString(absPath, this));

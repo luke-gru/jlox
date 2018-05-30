@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 class LoxClass extends LoxInstance implements LoxCallable {
-    final String name;
+    public String name;
     final LoxClass superClass;
     final Map<String, LoxCallable> methods;
     final Map<String, LoxCallable> getters;

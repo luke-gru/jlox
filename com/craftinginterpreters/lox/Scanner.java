@@ -149,6 +149,7 @@ class Scanner {
                 line++;
                 break;
             case '"': doubleQuotedString(); break;
+            case '\'': singleQuotedString(); break;
             default:
                 if (isDigit(c)) {
                     number();
@@ -209,6 +210,30 @@ class Scanner {
         // Trim the surrounding quotes.
         String value = source.substring(start + 1, current - 1);
         value = value.replaceAll("\\\\\"", "\""); // replace \" (escaped dquote) with " for the lox string
+        value = value.replaceAll("\\\\n", "\n"); // replace \n (escaped newline) with \n for the lox string
+        value = value.replaceAll("\\\\t", "\t"); // replace \t (escaped newline) with \t for the lox string
+        value = value.replaceAll("\\\\r", "\r"); // replace \r (escaped newline) with \r for the lox string
+        addToken(STRING, value);
+    }
+
+    private void singleQuotedString() {
+        while ((peek() != '\'' || peekPrev() == '\\') && !isAtEnd()) {
+            if (peek() == '\n') line++;
+            advance();
+        }
+
+        // Unterminated string.
+        if (isAtEnd()) {
+            Lox.error(line, "Unterminated string.");
+            return;
+        }
+
+        // The closing '.
+        advance();
+
+        // Trim the surrounding quotes.
+        String value = source.substring(start + 1, current - 1);
+        value = value.replaceAll("\\\\'", "'"); // replace \' (escaped squote) with ' for the lox string
         addToken(STRING, value);
     }
 

@@ -1,0 +1,29 @@
+fun throwErr(msg) {
+  var e = Error(msg);
+  throw e;
+}
+
+try {
+  throwErr("hey");
+} catch (Error e) {
+  print e.message;
+  print e.stacktrace.length;
+}
+
+class MyError < Error {
+  init(msg = nil) {
+    super.init(msg);
+  }
+}
+
+print MyError().toString;
+print MyError.superClass;
+print MyError("BAD!");
+
+__END__
+-- expect: --
+hey
+2
+<fn toString>
+<class Error>
+MyError: BAD!

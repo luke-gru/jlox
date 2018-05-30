@@ -19,28 +19,39 @@ the interpreter is running. []
 * signal handling []
 * add keyword arguments []
 * default arguments for functions [DONE]
-* allow overridden methods with different number of arguments []
+* allow overridden methods with different number of arguments, maybe? []
 * frozen objects, can't use setProperty on the instance [DONE]
-* better library []
+* Don't allow frozen objects to use push() and other methods that change the
+object's internals.
+* better stdlib []
 * add test suite [DONE]
 * add '+=, -=,' etc binary operators [DONE]
 * class (static) methods and properties [DONE]
 * add Object#dup method, which shallow copies an object and its properties [DONE]
 * add Object#initDup hook for duplicated objects [DONE]
 * Figure out what it means to dup a class. Should this be possible? It is in
-Ruby, for example.
+Ruby, for example. []
 * Add builtin class Class, like Ruby. Class constructor creates new anon class. [DONE]
 * Add constants, all caps maybe, or start with caps. []
 * Allow re-opening classes [DONE]
-* Allow undefining methods
+* Allow undefining methods []
 * Allow aliasing methods like Ruby, which creates a copy of the original method?
 * Add singleton classes. If so, would have to re-implement static functions [DONE]
 * Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval [DONE].
 * Add eval(String) for evaling code. [DONE]
 * Add way to load other script files [DONE]
 * Add way to nest classes within classes and refer to nested classes by scoped
-names. []
+names. [DONE]
 * Allow arbitrary expressions and statements within class { } and in { }
 blocks which get evaluated once upon being visited. [DONE]
 * Fix \" within double-quoted strings [DONE]
-* Allow single-quoted strings []
+* Allow single-quoted strings [DONE]
+* Add Object#_singletonClass [DONE] (but need to fix
+obj._singletonClass._singletonClass, returns wrong value)
+* Add more classes to stdlib []
+* Make functions LoxInstances, instead of treating them differently. []
+* implement some sort of methodMissing hook, like Ruby's. []
+* allow objects to overload methods for primitive operations: +, -, *, [],
+[]=, maybe also '.' (propGet) and '.=', propSet. []
+* Make '::' lookup, also maybe nested classes get set on the enclosing class
+as a property, so lookup is performed with '.'? [DONE]

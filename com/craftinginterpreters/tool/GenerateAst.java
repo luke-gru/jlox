@@ -44,7 +44,7 @@ public class GenerateAst {
         "Break      : Token token, Stmt loopStmt", // in while or for stmt
         "Function   : Token name, List<Param> formals, Stmt body, Parser.FunctionType type, Class klass",
         "Return     : Token token, Expr expression",
-        "Class      : Token name, Stmt.Class superClass, List<Stmt> body",
+        "Class      : Token name, Expr.Variable superClassVar, Object superClass, List<Stmt> body",
         "Try        : Block tryBlock, List<Catch> catchStmts",
         "Catch      : Expr catchExpr, Expr.Variable catchVar, Block block",
         "Throw      : Token keyword, Expr throwExpr",

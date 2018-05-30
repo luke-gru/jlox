@@ -14,6 +14,10 @@ class LoxNativeClass extends LoxClass implements LoxCallable {
         methods.put(callable.getName(), callable);
     }
 
+    public void defineSingletonMethod(LoxNativeCallable callable) {
+        getSingletonKlass().methods.put(callable.getName(), callable);
+    }
+
     public void defineGetter(LoxNativeCallable callable) {
         if (callable.arityMin() != 0 || callable.arityMax() != 0) {
             throw new RuntimeException("defineGetter() callable must have arity of exactly 0: " + name + "#" + callable.getName());

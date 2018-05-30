@@ -1,6 +1,12 @@
 var s = "He shouted, \"Hey, that's mine!\"";
 print s;
+print "HI\n\n";
+print 'single quoted \'STRING\'\n';
 
 __END__
 -- expect: --
 He shouted, "Hey, that's mine!"
+HI
+
+
+single quoted 'STRING'\n

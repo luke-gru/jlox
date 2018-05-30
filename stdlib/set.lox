@@ -1,0 +1,27 @@
+class Set {
+  init(*elements) {
+    this._ary = [];
+    this.add(*elements);
+  }
+
+  add(*elements) {
+    foreach (el in elements) {
+      if (!this._ary.contains(el)) {
+        this._ary.push(el);
+      }
+    }
+    return this;
+  }
+
+  toArray() {
+    return this._ary;
+  }
+
+  iter() {
+    return this._ary;
+  }
+
+  toString() {
+    return "Set<" + String(this._ary) + ">";
+  }
+}

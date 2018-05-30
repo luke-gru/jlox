@@ -10,6 +10,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public final Interpreter interpreter;
     private final Stack<Map<String, Boolean>> scopes = new Stack<>();
     public List<String> errorBuf = new ArrayList<>();
+    private List<String> nativeClassNames = null;
 
     private Stmt.Class currentClass = null;
     private Stmt.In currentIn = null;
@@ -80,31 +81,34 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             error(expr.keyword, "keyword 'super' must only be used inside methods");
             return null;
         }
-        String methodOrGetterName = expr.property.lexeme;
-        Stmt.Class superClass = this.currentClass.superClass;
-        if (superClass == null) {
-            error(expr.keyword, "keyword 'super' can only be used in classes that inherit from a superclass!");
-            return null;
-        }
-        boolean foundMethod = false;
-        while (!foundMethod && superClass != null) {
-            for (Stmt funcStmt : superClass.body) {
-                if (funcStmt instanceof Stmt.Function) {
-                    Stmt.Function method = (Stmt.Function)funcStmt;
-                    if (method.name.lexeme.equals(expr.property.lexeme)) {
-                        foundMethod = true;
-                        break;
-                    }
-                } else {
-                    error(expr.keyword, "keyword 'super' BUG!");
-                    return null;
-                }
-            }
-            superClass = superClass.superClass;
-        }
-        if (!foundMethod) {
-            error(expr.property, "Couldn't find method 'super." + expr.property.lexeme + "'.");
-        }
+        //String methodOrGetterName = expr.property.lexeme;
+        //Stmt.Class superClass = this.currentClass.superClass;
+        //if (superClass == null) { // FIXME: when inheriting from native classes, the code underneath this check bugs out.
+            //return null;
+        //}
+        //if (superClass == null) {
+            //error(expr.keyword, "keyword 'super' can only be used in classes that inherit from a superclass!");
+            //return null;
+        //}
+        //boolean foundMethod = false;
+        //while (!foundMethod && superClass != null) {
+            //for (Stmt funcStmt : superClass.body) {
+                //if (funcStmt instanceof Stmt.Function) {
+                    //Stmt.Function method = (Stmt.Function)funcStmt;
+                    //if (method.name.lexeme.equals(expr.property.lexeme)) {
+                        //foundMethod = true;
+                        //break;
+                    //}
+                //} else {
+                    //error(expr.keyword, "keyword 'super' BUG!");
+                    //return null;
+                //}
+            //}
+            //superClass = superClass.superClass;
+        //}
+        //if (!foundMethod) {
+            //error(expr.property, "Couldn't find method 'super." + expr.property.lexeme + "'.");
+        //}
         return null;
     }
 
@@ -298,6 +302,9 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     public Void visitClassStmt(Stmt.Class stmt) {
         declare(stmt.name);
         define(stmt.name);
+        if (stmt.superClassVar != null) {
+            resolve(stmt.superClassVar);
+        }
 
         Stmt.Class enclosingClass = this.currentClass;
         this.currentClass = stmt;
@@ -340,7 +347,11 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         return null;
     }
 
+    // API function
     public void resolve(List<Stmt> stmts) {
+        if (nativeClassNames == null) {
+            setNativeClassNames();
+        }
         for (Stmt stmt : stmts) {
             resolve(stmt);
         }
@@ -407,5 +418,9 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private void error(Token tok, String msg) {
         Lox.error(tok, msg);
         this.errorBuf.add(msg);
+    }
+
+    private void setNativeClassNames() {
+        this.nativeClassNames = interpreter.runtime.nativeClassNames();
     }
 }

@@ -1,0 +1,17 @@
+class Math {
+  this.Complex = 1234;
+  class Complex {
+  }
+  this.instance = Complex();
+  print this.instance._class;
+}
+
+var c = Math.Complex();
+print c._class;
+print Math.instance._class;
+
+__END__
+-- expect: --
+<class Math.Complex>
+<class Math.Complex>
+<class Math.Complex>
