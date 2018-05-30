@@ -5,4 +5,4 @@ fun add(a,b) {
 print add(1,2,3);
 
 __END__
--- expect RuntimeError: --
+-- expect UncaughtThrow: --

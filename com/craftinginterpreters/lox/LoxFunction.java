@@ -59,7 +59,7 @@ class LoxFunction implements LoxCallable {
             interpreter.executeBlock(
                 ((Stmt.Block)declaration.body).statements,
                 fnEnv
-            );
+            ); // could throw RuntimeThrow, and in that case we don't want to pop the stack frame
             interpreter.stack.pop();
             return null;
         } catch (Interpreter.RuntimeReturn ret) {
@@ -125,9 +125,6 @@ class LoxFunction implements LoxCallable {
 
     @Override
     public LoxCallable bind(LoxInstance instance, Environment env) {
-        //if (env != closure) {
-            //throw new RuntimeException("BUG! closure should == env passed to bind()");
-        //}
         Environment environment = new Environment(env);
         environment.define("this", instance);
         return new LoxFunction(declaration, environment, isInitializer);

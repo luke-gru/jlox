@@ -6,8 +6,8 @@ interface LoxCallable {
   public Object call(Interpreter interpreter, List<Object> arguments, Token callToken);
   public int arityMin();
   public int arityMax();
-  public String getName();
-  public String toString();
+  public String getName(); // ex: "typeof"
+  public String toString(); // ex: "<fn typeof>"
   public LoxCallable bind(LoxInstance instance, Environment env);
-  public Stmt.Function getDecl();
+  public Stmt.Function getDecl(); // NOTE: can be null, like for native (builtin) functions
 }

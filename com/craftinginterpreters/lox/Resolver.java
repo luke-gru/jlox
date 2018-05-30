@@ -68,47 +68,12 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitThisExpr(Expr.This expr) {
-        if (this.currentClass == null && this.currentIn == null) {
-            error(expr.keyword, "keyword 'this' must only be used inside methods, class bodies or `in(object) {}` statements");
-        }
         resolveLocal(expr, expr.keyword);
         return null;
     }
 
     @Override
     public Void visitSuperExpr(Expr.Super expr) {
-        if (this.currentClass == null) {
-            error(expr.keyword, "keyword 'super' must only be used inside methods");
-            return null;
-        }
-        //String methodOrGetterName = expr.property.lexeme;
-        //Stmt.Class superClass = this.currentClass.superClass;
-        //if (superClass == null) { // FIXME: when inheriting from native classes, the code underneath this check bugs out.
-            //return null;
-        //}
-        //if (superClass == null) {
-            //error(expr.keyword, "keyword 'super' can only be used in classes that inherit from a superclass!");
-            //return null;
-        //}
-        //boolean foundMethod = false;
-        //while (!foundMethod && superClass != null) {
-            //for (Stmt funcStmt : superClass.body) {
-                //if (funcStmt instanceof Stmt.Function) {
-                    //Stmt.Function method = (Stmt.Function)funcStmt;
-                    //if (method.name.lexeme.equals(expr.property.lexeme)) {
-                        //foundMethod = true;
-                        //break;
-                    //}
-                //} else {
-                    //error(expr.keyword, "keyword 'super' BUG!");
-                    //return null;
-                //}
-            //}
-            //superClass = superClass.superClass;
-        //}
-        //if (!foundMethod) {
-            //error(expr.property, "Couldn't find method 'super." + expr.property.lexeme + "'.");
-        //}
         return null;
     }
 

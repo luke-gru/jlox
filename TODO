@@ -12,7 +12,7 @@ class of Array [DONE]
 * add builtin String class instead of using java StringBuffer, use LoxInstance with
 class of String [DONE]
 * Add way to cast strings to numbers [DONE]
-* Add string interpolation, maybe?
+* Add string interpolation, maybe? []
 * add standard Error classes [DONE]
 * throw Interrupt errors on interrupts, so the program can catch them when
 the interpreter is running. []
@@ -22,7 +22,7 @@ the interpreter is running. []
 * allow overridden methods with different number of arguments, maybe? []
 * frozen objects, can't use setProperty on the instance [DONE]
 * Don't allow frozen objects to use push() and other methods that change the
-object's internals.
+object's internals. []
 * better stdlib []
 * add test suite [DONE]
 * add '+=, -=,' etc binary operators [DONE]
@@ -32,11 +32,12 @@ object's internals.
 * Figure out what it means to dup a class. Should this be possible? It is in
 Ruby, for example. []
 * Add builtin class Class, like Ruby. Class constructor creates new anon class. [DONE]
-* Add constants, all caps maybe, or start with caps. []
 * Allow re-opening classes [DONE]
-* Allow undefining methods []
+* Allow undefining methods and functions []
 * Allow aliasing methods like Ruby, which creates a copy of the original
-method? [IN PROGRESS]
+method? [DONE]
+* Fix alias() functions to actually clone() the callable for stack trace
+purposes.
 * Add singleton classes. If so, would have to re-implement static functions [DONE]
 * Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval [DONE].
 * Add eval(String) for evaling code. [DONE]

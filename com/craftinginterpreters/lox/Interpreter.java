@@ -32,6 +32,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             this.value = value;
         }
     }
+    // NOTE: should live in Lox land so users can catch it
     public static class LoadScriptError extends RuntimeException {
         public LoadScriptError(String msg) {
             super(msg);
@@ -397,14 +398,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             throw new RuntimeError(expr.keyword, "'super' keyword couldn't resolve 'this'! BUG");
         }
         Stmt.Class classStmt = this.fnCall.getDecl().klass;
+        // FIXME: there are no class stmts for singleton classes, so this blows up when calling
+        // super in a static method or other singleton method.
         LoxClass enclosingClass = classMap.get(classStmt.name.lexeme);
-        //System.err.println("fncall enclosing class: " + enclosingClass.getName());
         LoxClass superClass = enclosingClass.getSuper();
         if (superClass == null) {
             throw new RuntimeError(expr.keyword, "'super' keyword couldn't find superclass! BUG");
         }
-        //System.err.println("fncall enclosing class: " + enclosingClass.getName());
-        //System.err.println("fncall super class: " + superClass.getName());
         Object value = superClass.getMethodOrGetterProp(expr.property.lexeme, (LoxInstance)instance, this);
         if (value == null) {
             throw new RuntimeError(expr.keyword, "'super." + expr.property.lexeme + "' doesn't reference a valid method or getter!");
@@ -466,8 +466,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 }
                 int actualN = args.size();
                 String actualNStr = String.valueOf(actualN);
-                throw new RuntimeError(
-                    tokenFromExpr(callExpr.left), "Function <" +
+                // TODO: add token to thrown error, so it will appear in stacktraces
+                // tokenfromExpr(callExpr.left)
+                throwLoxError("ArgumentError",
+                    "Function <" +
                     callable.getName() + "> called with wrong number of arguments. Expected " +
                     expectedNStr + ", got " + actualNStr + "."
                 );

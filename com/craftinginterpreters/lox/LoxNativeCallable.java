@@ -17,9 +17,6 @@ class LoxNativeCallable implements LoxCallable {
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Token tok) {
         Object ret = null;
-        if (!Runtime.acceptsNArgs(this, args.size())) {
-            throw arityError(tok, args.size());
-        }
         Environment oldEnv = interpreter.environment;
         LoxInstance oldBoundInstance = boundInstance;
         interpreter.stack.add(new StackFrame(this, tok));
@@ -33,7 +30,7 @@ class LoxNativeCallable implements LoxCallable {
             interpreter.environment = oldEnv;
             this.boundInstance = oldBoundInstance;
         }
-        interpreter.stack.pop();
+        interpreter.stack.pop(); // must be outside of finally clause so we don't pop the frame if we throw a RuntimeThrow from inside the try { } block
         return ret;
     }
 
@@ -46,13 +43,6 @@ class LoxNativeCallable implements LoxCallable {
     // to override
     protected Object _call(Interpreter interp, List<Object> args, Token tok) {
         throw new RuntimeError(tok, name + "() unimplemented!");
-    }
-
-    private RuntimeError arityError(Token tok, int got) {
-        return new RuntimeError(tok,
-            name + "() takes " + arityString() + " arguments, got " +
-            String.valueOf(got)
-        );
     }
 
     @Override
@@ -78,18 +68,6 @@ class LoxNativeCallable implements LoxCallable {
     @Override
     public int arityMax() {
         return this.arityMax;
-    }
-
-    private String arityString() {
-        if (this.arityMax >= 0) {
-            if (this.arityMin == this.arityMax) {
-                return String.valueOf(this.arityMin);
-            } else {
-                return String.valueOf(this.arityMin) + " to " + String.valueOf(this.arityMax);
-            }
-        } else {
-            return String.valueOf(this.arityMin) + " to n";
-        }
     }
 
 }
