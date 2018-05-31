@@ -37,7 +37,7 @@ Ruby, for example. []
 * Allow aliasing methods like Ruby, which creates a copy of the original
 method? [DONE]
 * Fix alias() functions to actually clone() the callable for stack trace
-purposes.
+purposes. []
 * Add singleton classes. If so, would have to re-implement static functions [DONE]
 * Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval [DONE].
 * Add eval(String) for evaling code. [DONE]
@@ -59,7 +59,14 @@ obj._singletonClass._singletonClass, returns wrong value)
 as a property, so lookup is performed with '.'? [DONE]
 * property lookup should look first for properties, then getters, then methods.
 Right now if we have a getter then set that same property, when we retrieve
-the property the getter is called.
+the property the getter is called. [DONE]
 * getter/setter/ method lookup should respect singleton class lookup like
-Ruby's. Right now it acts weirdly for static functions.
+Ruby's. Right now it acts weirdly for static functions. [DONE]
 * Add c style multiline comments [DONE]
+* make REPL better by adding readline support (up key, down key, history
+support, etc.)
+* Add Class#methods(bool), Class#getters(bool) and Class#setters(bool) methods
+* Add Class#ancestors method
+* Add Hash class?
+* Add Object#properties(bool includeGetters), returns Hash of property names
+and values

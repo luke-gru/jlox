@@ -1,0 +1,68 @@
+var s = String("10");
+print s;
+print s+s;
+print s * 3;
+print s;
+
+var a = [1,2,4];
+print a;
+print a + a;
+print a * 3;
+print a;
+
+class BoxedNumber {
+  class toNum(boxedOrNum) {
+    if (typeof(boxedOrNum) == "number") {
+      return boxedOrNum;
+    } else if (typeof(boxedOrNum.num) == "number") {
+      return boxedOrNum.num;
+    } else {
+      throw ArgumentError("argument 1 must be BoxedNumber or number");
+    }
+  }
+  init(num) {
+    this.num = num;
+  }
+  opAdd(num) {
+    return BoxedNumber(this.num + BoxedNumber.toNum(num));
+  }
+  opDiff(num) {
+    return BoxedNumber(this.num - BoxedNumber.toNum(num));
+  }
+  opMul(num) {
+    return BoxedNumber(this.num * BoxedNumber.toNum(num));
+  }
+  opDiv(num) {
+    return BoxedNumber(this.num / BoxedNumber.toNum(num));
+  }
+  toString() {
+    return "<BoxedNumber " + String(this.num) + ">";
+  }
+}
+
+var ten = BoxedNumber(10);
+var five = BoxedNumber(5);
+print ten * ten;
+print five - ten;
+print ten * 10;
+print five - 10;
+
+print ten / 2;
+print five + ten;
+
+__END__
+-- expect: --
+10
+1010
+101010
+10
+[1,2,4]
+[1,2,4,1,2,4]
+[1,2,4,1,2,4,1,2,4]
+[1,2,4]
+<BoxedNumber 100>
+<BoxedNumber -5>
+<BoxedNumber 100>
+<BoxedNumber -5>
+<BoxedNumber 5>
+<BoxedNumber 15>

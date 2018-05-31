@@ -434,6 +434,21 @@ class Runtime {
                 return Runtime.array(klasses, interp);
             }
         });
+        classClass.defineSingletonMethod(new LoxNativeCallable("getByName", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                Object nameStr = args.get(0);
+                LoxUtil.checkString(nameStr, interp, "ArgumentError", null, 1);
+                LoxInstance name = Runtime.toString(nameStr);
+                String javaStr = Runtime.toJavaString(name);
+                LoxClass klass = classMap.get(javaStr);
+                if (klass != null) {
+                    return klass;
+                } else {
+                    return null;
+                }
+            }
+        });
         classClass.defineSingletonMethod(new LoxNativeCallable("numInstances", 0, 0) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -462,7 +477,6 @@ class Runtime {
         classClass.defineGetter(new LoxNativeCallable("superClass", 0, 0) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
-                System.err.println("Class#superClass called");
                 LoxClass klass = interp.environment.getThisClass();
                 return klass.getSuper();
             }
@@ -489,6 +503,43 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return (double)((List<Object>)instance.getHiddenProp("ary")).size();
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("opAdd", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Object otherObj = args.get(0);
+                LoxUtil.checkIsA("Array", otherObj, interp, "ArgumentError", null, 1);
+                LoxInstance otherAry = Runtime.toInstance(otherObj);
+                List<Object> list = ((List<Object>)instance.getHiddenProp("ary"));
+                LoxInstance newAry = interp.createInstance("Array", list);
+                List<Object> otherList = ((List<Object>)otherAry.getHiddenProp("ary"));
+                List<Object> newList = ((List<Object>)newAry.getHiddenProp("ary"));
+                for (Object el : otherList) {
+                    newList.add(el);
+                }
+                return newAry;
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("opMul", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Object otherObj = args.get(0);
+                LoxUtil.checkIsA("number", otherObj, interp, "ArgumentError", null, 1);
+                int otherInt = (int)(double)otherObj;
+                List<Object> list = ((List<Object>)instance.getHiddenProp("ary"));
+                int origSz = list.size();
+                LoxInstance newAry = interp.createInstance("Array", list);
+                List<Object> newList = ((List<Object>)newAry.getHiddenProp("ary"));
+                for (int i = 1; i < otherInt; i++) {
+                    for (int j = 0; j < origSz; j++) {
+                        Object el = newList.get(j);
+                        newList.add(el);
+                    }
+                }
+                return newAry;
             }
         });
         arrayClass.defineMethod(new LoxNativeCallable("push", 1, 1) {
@@ -579,6 +630,35 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return (double)((StringBuffer)instance.getHiddenProp("buf")).length();
+            }
+        });
+        // String#*
+        stringClass.defineMethod(new LoxNativeCallable("opMul", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Object arg = args.get(0);
+                LoxUtil.checkIsA("number", arg, interp, "ArgumentError", null, 1);
+                StringBuffer newBuf = new StringBuffer(((StringBuffer)instance.getHiddenProp("buf")));
+                String origString = newBuf.toString();
+                int argInt = (int)(double)arg;
+                for (int i = argInt-1; i > 0; i--) {
+                    newBuf.append(origString);
+                }
+                return Runtime.createString(newBuf, interp);
+            }
+        });
+        // String#+
+        stringClass.defineMethod(new LoxNativeCallable("opAdd", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Object arg = args.get(0);
+                LoxUtil.checkString(arg, interp, "ArgumentError", null, 1);
+                LoxInstance argStr = Runtime.toInstance(arg);
+                StringBuffer newBuf = new StringBuffer(((StringBuffer)instance.getHiddenProp("buf")));
+                newBuf.append(((StringBuffer)argStr.getHiddenProp("buf")).toString());
+                return Runtime.createString(newBuf, interp);
             }
         });
         stringClass.defineMethod(new LoxNativeCallable("push", 0, -1) {

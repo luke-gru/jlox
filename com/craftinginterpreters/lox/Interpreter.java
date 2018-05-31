@@ -299,32 +299,71 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object right = evaluate(expr.right);
 
         switch (expr.operator.type) {
-            case MINUS:
+            case MINUS: {
+                if (Runtime.isInstance(left)) {
+                    LoxInstance leftInst = Runtime.toInstance(left);
+                    LoxCallable diffMeth = leftInst.getMethod("opDiff", this);
+                    if (diffMeth != null) {
+                        List<Object> diffArgs = new ArrayList<>();
+                        diffArgs.add(right);
+                        return evaluateCall(diffMeth, diffArgs, tokenFromExpr(expr));
+                    } else {
+                        System.err.println("opDiff not found for class " + leftInst.getKlass().getName());
+                        // raise error: method opDiff not found
+                    }
+                }
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left - (double)right;
-            case SLASH:
+            }
+            case SLASH: {
+                if (Runtime.isInstance(left)) {
+                    LoxInstance leftInst = Runtime.toInstance(left);
+                    LoxCallable divMeth = leftInst.getMethod("opDiv", this);
+                    if (divMeth != null) {
+                        List<Object> divArgs = new ArrayList<>();
+                        divArgs.add(right);
+                        return evaluateCall(divMeth, divArgs, tokenFromExpr(expr));
+                    } else {
+                        System.err.println("opDiv not found for class " + leftInst.getKlass().getName());
+                        // raise error: method opDiv not found
+                    }
+                }
                 checkNumberOperands(expr.operator, left, right);
                 if ((double)right == 0.0) {
                     throw new RuntimeError(expr.operator, "division by 0");
                 }
                 return (double)left / (double)right;
-            case STAR:
+            }
+            case STAR: {
+                if (Runtime.isInstance(left)) {
+                    LoxInstance leftInst = Runtime.toInstance(left);
+                    LoxCallable mulMeth = leftInst.getMethod("opMul", this);
+                    if (mulMeth != null) {
+                        List<Object> mulArgs = new ArrayList<>();
+                        mulArgs.add(right);
+                        return evaluateCall(mulMeth, mulArgs, tokenFromExpr(expr));
+                    } else {
+                        System.err.println("opMul not found for class " + leftInst.getKlass().getName());
+                        // raise error: method opMul not found
+                    }
+                }
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left * (double)right;
+            }
             case PLUS:
                 if (left instanceof Double && right instanceof Double) {
                     return (double)left + (double)right;
-                }
-
-                if (Runtime.isString(left) && Runtime.isString(right)) {
-                    LoxInstance newString = createInstance("String", new ArrayList<Object>());
-                    StringBuffer newBuf = (StringBuffer)newString.getHiddenProp("buf");
-                    LoxInstance leftString = Runtime.toString(left);
-                    StringBuffer leftBuf = (StringBuffer)leftString.getHiddenProp("buf");
-                    LoxInstance rightString = Runtime.toString(right);
-                    StringBuffer rightBuf = (StringBuffer)rightString.getHiddenProp("buf");
-                    newBuf.append(leftBuf.toString()).append(rightBuf.toString());
-                    return newString;
+                } else if (Runtime.isInstance(left)) {
+                    LoxInstance leftInst = Runtime.toInstance(left);
+                    LoxCallable addMeth = leftInst.getMethod("opAdd", this);
+                    if (addMeth != null) {
+                        List<Object> addArgs = new ArrayList<>();
+                        addArgs.add(right);
+                        return evaluateCall(addMeth, addArgs, tokenFromExpr(expr));
+                    } else {
+                        System.err.println("opAdd not found for class " + leftInst.getKlass().getName());
+                        // raise error: method opAdd not found
+                    }
                 }
 
                 throw new RuntimeError(expr.operator, "operands for '+' must be two numbers or two Strings, LHS=" +
@@ -1183,7 +1222,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public LoxInstance createInstance(String className) {
-        return createInstance(className, new ArrayList<Object>());
+        return createInstance(className, LoxUtil.EMPTY_ARGS);
     }
 
     public Object callMethod(String methodName, LoxInstance instance, List<Object> args) {
