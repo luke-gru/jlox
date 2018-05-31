@@ -126,4 +126,10 @@ class LoxUtil {
         return isAlpha(c) || isDigit(c);
     }
 
+    static void debug(String key, String msg) {
+        if (Lox.debugKeys.get(key) == (Boolean)true) {
+            System.err.println("[DEBUG] (" + key + "): " + msg);
+        }
+    }
+
 }

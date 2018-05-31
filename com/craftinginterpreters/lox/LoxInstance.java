@@ -25,7 +25,12 @@ class LoxInstance {
 
     @Override
     public String toString() {
-        return "<instance " + klassName + " #" + objectId() + ">";
+        StringBuffer buf = null;
+        if (isA("String") && (buf = (StringBuffer)hiddenProps.get("buf")) != null) {
+            return buf.toString();
+        } else {
+            return "<instance " + klassName + " #" + objectId() + ">";
+        }
     }
 
     public Object objectId() {
@@ -37,16 +42,7 @@ class LoxInstance {
     // method, in which case it's returned, uncalled but bound to the
     // instance. The check is done in that order.
     public Object getProperty(String name, Interpreter interp) {
-        if (properties.containsKey(name)) {
-            return properties.get(name);
-        }
-        if (singletonKlass != null) {
-            Object singletonProp = getProperty(name, interp, singletonKlass);
-            if (singletonProp != null) {
-                return singletonProp;
-            }
-        }
-        return getProperty(name, interp, getKlass());
+        return getProperty(name, interp, getSingletonKlass());
     }
 
     public Object getProperty(String name, Interpreter interp, LoxClass lookupKlass) {
@@ -57,14 +53,26 @@ class LoxInstance {
         while (klass != null) {
             if (klass.getters.containsKey(name)) {
                 LoxCallable getter = klass.getters.get(name);
-                List<Object> objs = new ArrayList<>();
-                return getter.bind(this, interp.environment).call(interp, objs, null);
+                List<Object> objs = LoxUtil.EMPTY_ARGS;
+                LoxCallable func = getter.bind(this, interp.environment);
+                LoxCallable oldFunc = interp.fnCall;
+                interp.fnCall = func;
+                Object ret = func.call(interp, objs, null);
+                interp.fnCall = oldFunc;
+                return ret;
             }
             klass = klass.getSuper();
         }
         // `boundMethod` looks in super classes as well
         LoxCallable method = lookupKlass.boundMethod(this, interp.environment, name);
         if (method != null) return method;
+        if (lookupKlass.isSingletonKlass) {
+            LoxInstance singletonOf = lookupKlass.singletonOf;
+            if (Runtime.isClass(singletonOf)) {
+                Object val = getProperty(name, interp, ((LoxClass)singletonOf).getKlass());
+                if (val != null) return val;
+            }
+        }
         return null;
     }
 
@@ -113,8 +121,21 @@ class LoxInstance {
 
     public LoxClass getSingletonKlass() {
         if (this.singletonKlass == null) {
-            this.singletonKlass = new LoxClass(klassName + " (meta)", null, new HashMap<String, LoxCallable>());
+            String className = null;
+            LoxClass superClass = null;
+            if (isClass()) {
+                LoxClass superKlass = ((LoxClass)this).getSuper();
+                className = ((LoxClass)this).getName();
+                if (superKlass != null) {
+                    superClass = superKlass.getSingletonKlass();
+                }
+            } else {
+                superClass = getKlass();
+                className = klassName;
+            }
+            this.singletonKlass = new LoxClass(className + " (meta)", superClass, new HashMap<String, LoxCallable>());
             this.singletonKlass.isSingletonKlass = true;
+            this.singletonKlass.singletonOf = this;
         }
         return this.singletonKlass;
     }
@@ -122,15 +143,11 @@ class LoxInstance {
     // looks up getter prop first, then tries method if none found. If getter
     // prop found, calls it.
     public Object getMethodOrGetterProp(String name, LoxClass klassBeginSearch, Interpreter interp) {
-        if (singletonKlass != null) {
-            Object ret = getMethodOrGetterProp(name, singletonKlass, interp);
-            if (ret != null) {
-                return ret;
-            }
-        }
         LoxClass klass = klassBeginSearch;
         while (klass != null) {
+            LoxUtil.debug("plookup", "Looking up getter '" + name + "' in " + klass.toString());
             if (klass.getters.containsKey(name)) {
+                LoxUtil.debug("plookup", "  getter '" + name + "' found");
                 LoxCallable getter = klass.getters.get(name);
                 List<Object> args = LoxUtil.EMPTY_ARGS;
                 return getter.bind(this, interp.environment).call(interp, args, null);
@@ -140,14 +157,53 @@ class LoxInstance {
         return getMethod(name, klassBeginSearch, interp);
     }
 
-    // lookup method: checks given class hierarchy
+    // looks up getter prop first, then tries method if none found. If getter
+    // prop found, calls it. If method found, it's returned bound to the
+    // instance.
+    public Object getMethodOrGetterProp(String name, Interpreter interp) {
+        if (isClass()) { // lookup instance methods on the singleton classes in the class hierarchy
+            LoxClass klass = (LoxClass)this;
+            while (klass != null) {
+                LoxClass singletonKlass = klass.getSingletonKlass();
+                LoxUtil.debug("plookup", "Looking up getter " + name + " in " + singletonKlass.toString());
+                if (singletonKlass.getters.containsKey(name)) {
+                    LoxCallable getter = singletonKlass.getters.get(name);
+                    List<Object> args = LoxUtil.EMPTY_ARGS;
+                    return getter.bind(this, interp.environment).call(interp, args, null);
+                }
+                klass = klass.getSuper();
+            }
+            return getMethod(name, getSingletonKlass(), interp);
+        } else {
+            if (singletonKlass != null) {
+                if (singletonKlass.getters.containsKey(name)) {
+                    LoxCallable getter = singletonKlass.getters.get(name);
+                    List<Object> args = LoxUtil.EMPTY_ARGS;
+                    return getter.bind(this, interp.environment).call(interp, args, null);
+                }
+            }
+            LoxClass klass = getKlass();
+            while (klass != null) {
+                if (klass.getters.containsKey(name)) {
+                    LoxCallable getter = singletonKlass.getters.get(name);
+                    List<Object> args = LoxUtil.EMPTY_ARGS;
+                    return getter.bind(this, interp.environment).call(interp, args, null);
+                }
+                klass = klass.getSuper();
+            }
+            return getMethod(name, getSingletonKlass(), interp);
+        }
+    }
+
+    // lookup method: checks given class hierarchy. Returns bound method.
     public LoxCallable getMethod(String name, LoxClass klassBeginSearch, Interpreter interp) {
         LoxCallable method = klassBeginSearch.boundMethod(this, interp.environment, name);
         if (method != null) return method;
         return null;
     }
 
-    // lookup method: checks singleton class, and then regular class hierarchy
+    // lookup method: checks singleton class, and then regular class
+    // hierarchy. Returns bound method.
     public LoxCallable getMethod(String name, Interpreter interp) {
         LoxCallable method = null;
         if (singletonKlass != null) {
@@ -159,8 +215,7 @@ class LoxInstance {
         return null;
     }
 
-    // is an instance of given class, checking superclass hierarchy of the
-    // instance
+    // checks if instance is of given class, checking superclass hierarchy as well
     public boolean isA(LoxClass testKlass) {
         LoxClass klass = this.getKlass();
         while (klass != null) {
@@ -172,9 +227,24 @@ class LoxInstance {
         return false;
     }
 
+    public boolean isA(String testKlassName) {
+        LoxClass klass = this.getKlass();
+        while (klass != null) {
+            if (klass.getName().equals(testKlassName)) {
+                return true;
+            }
+            klass = klass.getSuper();
+        }
+        return false;
+    }
+
     // is an exact instance of given class, without checking superclass hierarchy
     public boolean isInstance(LoxClass testKlass) {
         return this.klass == testKlass;
+    }
+
+    public boolean isInstance(String klassName) {
+        return this.klass.getName().equals(klassName);
     }
 
     public void freeze() {
@@ -195,6 +265,10 @@ class LoxInstance {
 
     public void finalize() {
         numInstances--;
+    }
+
+    public boolean isClass() {
+        return Runtime.isClass(this);
     }
 
 }

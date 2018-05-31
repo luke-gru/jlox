@@ -130,6 +130,22 @@ class Scanner {
                 if (match('/')) {
                     // A comment goes until the end of the line.
                     while (peek() != '\n' && !isAtEnd()) advance();
+                } else if (match('*')) {
+                    char ch;
+                    boolean seenStar = false;
+                    while (!isAtEnd()) {
+                        ch = peek();
+                        if (seenStar && ch == '/') {
+                            advance();
+                            break;
+                        }
+                        if (ch == '\n') {
+                            line++;
+                        }
+                        seenStar = (ch == '*');
+                        advance();
+                    }
+                    break;
                 } else {
                     if (match('=')) {
                         addToken(SLASH_EQUAL);

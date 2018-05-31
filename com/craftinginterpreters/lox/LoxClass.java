@@ -11,6 +11,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
     final Map<String, LoxCallable> getters;
     final Map<String, LoxCallable> setters;
     boolean isSingletonKlass = false;
+    LoxInstance singletonOf = null;
 
     LoxClass(String name, LoxClass superClass, Map<String, LoxCallable> methods) {
         super(null, "Class");
@@ -119,20 +120,23 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return superClass;
     }
 
-    // returns an unbound LoxCallable
+    // returns an unbound LoxCallable instance method for the class
     public LoxCallable getMethod(String name) {
         LoxClass klass = this;
         while (klass != null) {
+            LoxUtil.debug("mlookup", "Looking up method " + name + " in " + klass.toString());
             LoxCallable func = klass.methods.get(name);
             if (func != null) {
+                LoxUtil.debug("mlookup", "  Method " + name + " found");
                 return func;
             }
             klass = klass.getSuper();
         }
+        LoxUtil.debug("mlookup", "Method " + name + " not found");
         return null;
     }
 
-    // returns an unbound LoxCallable
+    // returns an unbound LoxCallable instance getter method for the class
     public LoxCallable getGetter(String name) {
         LoxClass klass = this;
         while (klass != null) {
@@ -145,7 +149,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return null;
     }
 
-    // returns an unbound LoxCallable
+    // returns an unbound LoxCallable instance setter method for the class
     public LoxCallable getSetter(String name) {
         LoxClass klass = this;
         while (klass != null) {
@@ -158,7 +162,4 @@ class LoxClass extends LoxInstance implements LoxCallable {
         return null;
     }
 
-    public Object getMethodOrGetterProp(String name, LoxInstance instance, Interpreter interp) {
-        return instance.getMethodOrGetterProp(name, this, interp);
-    }
 }

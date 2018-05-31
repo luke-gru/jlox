@@ -45,7 +45,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     final Environment globals = new Environment();
     final Runtime runtime;
     public Environment environment = globals;
-    private LoxCallable fnCall = null; // current function being executed
+    public LoxCallable fnCall = null; // current function being executed
     private LoxClass currentClass = null; // current class being visited
     public Map<String, LoxClass> classMap = new HashMap<>();
 
@@ -393,20 +393,26 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Object visitSuperExpr(Expr.Super expr) {
-        Object instance = environment.get("this", true, expr.keyword);
-        if (instance == null || !(instance instanceof LoxInstance)) {
+        Object objInstance = environment.get("this", true, expr.keyword);
+        // This should never happen!
+        if (objInstance == null || !(objInstance instanceof LoxInstance)) {
             throw new RuntimeError(expr.keyword, "'super' keyword couldn't resolve 'this'! BUG");
         }
-        Stmt.Class classStmt = this.fnCall.getDecl().klass;
-        // FIXME: there are no class stmts for singleton classes, so this blows up when calling
-        // super in a static method or other singleton method.
-        LoxClass enclosingClass = classMap.get(classStmt.name.lexeme);
-        LoxClass superClass = enclosingClass.getSuper();
-        if (superClass == null) {
-            throw new RuntimeError(expr.keyword, "'super' keyword couldn't find superclass! BUG");
+        LoxInstance instance = Runtime.toInstance(objInstance);
+        LoxClass lookupClassStart = null;
+        if (Runtime.isClass(instance)) {
+            lookupClassStart = ((LoxClass)instance).getSuper().getSingletonKlass();
+        } else {
+            lookupClassStart = instance.getKlass().getSuper();
         }
-        Object value = superClass.getMethodOrGetterProp(expr.property.lexeme, (LoxInstance)instance, this);
+        // FIXME: throw a better error (lox NameError, maybe?)
+        if (lookupClassStart == null) {
+            throw new RuntimeError(expr.keyword, "'super' keyword couldn't find superclass!");
+        }
+        // FIXME: what if `this.super = rval`, should look for setter method!
+        Object value = instance.getMethodOrGetterProp(expr.property.lexeme, lookupClassStart, this);
         if (value == null) {
+            // FIXME: throw a better error (lox NameError, maybe?)
             throw new RuntimeError(expr.keyword, "'super." + expr.property.lexeme + "' doesn't reference a valid method or getter!");
         }
         return value;
@@ -492,15 +498,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object obj = evaluate(expr.left);
         if (obj instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)obj;
-            LoxCallable getterFunc = instance.getKlass().getGetter(expr.property.lexeme);
+            // FIXME: use getPropertyOrGetterFunc after getProperty
             LoxCallable oldFnCall = this.fnCall;
-            if (getterFunc != null) {
-                this.fnCall = getterFunc;
-            }
             Object value = instance.getProperty(expr.property.lexeme, this);
-            if (getterFunc != null) {
-                this.fnCall = oldFnCall;
-            }
             return value;
         } else {
             throw new RuntimeError(expr.property, "Attempt to access property of non-instance, is: " + this.nativeTypeof(tokenFromExpr(expr.left), obj));
@@ -712,8 +712,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object nextIterMethod = null;
         if (!Runtime.isArray(evalObj) && (evalObj instanceof LoxInstance)) {
             LoxInstance instance = (LoxInstance)evalObj;
-            iterMethod = instance.getMethodOrGetterProp("iter", instance.getKlass(), this);
-            nextIterMethod = instance.getMethodOrGetterProp("nextIter", instance.getKlass(), this);
+            iterMethod = instance.getMethodOrGetterProp("iter", this);
+            nextIterMethod = instance.getMethodOrGetterProp("nextIter", this);
             if (iterMethod == null && nextIterMethod == null) {
                 throw new RuntimeException("foreach expr must be an Array object or object that responds to iter() or next_iter()");
             }

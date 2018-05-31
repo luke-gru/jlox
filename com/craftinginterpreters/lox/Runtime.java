@@ -77,14 +77,14 @@ class Runtime {
         if (isClass(obj)) { return false; }
         if (!isInstance(obj)) { return false; }
         LoxInstance instance = (LoxInstance)obj;
-        return classOf(instance).getName().equals("Array");
+        return instance.isA("Array");
     }
 
     static boolean isString(Object obj) {
         if (isClass(obj)) { return false; }
         if (!isInstance(obj)) { return false; }
         LoxInstance instance = (LoxInstance)obj;
-        return classOf(instance).getName().equals("String");
+        return instance.isA("String");
     }
 
     static boolean isNumber(Object obj) {
@@ -462,6 +462,7 @@ class Runtime {
         classClass.defineGetter(new LoxNativeCallable("superClass", 0, 0) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                System.err.println("Class#superClass called");
                 LoxClass klass = interp.environment.getThisClass();
                 return klass.getSuper();
             }

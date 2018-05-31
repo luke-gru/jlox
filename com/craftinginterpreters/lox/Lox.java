@@ -26,10 +26,12 @@ public class Lox {
     public static String initialScriptAbsolute = null; // filename given to command-line -f flag
     public static Map<String, String> scriptsLoadedOnce = new HashMap<>();
     public static Map<String, String> scriptsLoaded = new HashMap<>();
+    public static Map<String, Boolean> debugKeys = new HashMap<>(); // given with -d flag, comma-separated
 
     public static void main(String[] args) throws IOException {
         String fname = null;
         String loadPathStr = null;
+        String debugKeysStr = null;
         List<String> loadPathExtra = new ArrayList<>();
         int i = 0;
 
@@ -39,6 +41,9 @@ public class Lox {
                 i += 2;
             } else if (args[i].equals("-L")) {
                 loadPathStr = args[i+1];
+                i += 2;
+            } else if (args[i].equals("-D")) {
+                debugKeysStr = args[i+1];
                 i += 2;
             } else {
                 System.err.println("Usage: Lox [-f FILENAME]");
@@ -50,6 +55,12 @@ public class Lox {
             String[] splitAry = loadPathStr.split(":");
             for (String path : splitAry) {
                 loadPathExtra.add(path);
+            }
+        }
+        if (debugKeysStr != null) {
+            String[] keyAry = debugKeysStr.split(",");
+            for (String key : keyAry) {
+                debugKeys.put(key, true);
             }
         }
         initLoadPath(loadPathExtra);

@@ -62,3 +62,4 @@ Right now if we have a getter then set that same property, when we retrieve
 the property the getter is called.
 * getter/setter/ method lookup should respect singleton class lookup like
 Ruby's. Right now it acts weirdly for static functions.
+* Add c style multiline comments [DONE]

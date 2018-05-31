@@ -1,0 +1,36 @@
+class Buffer < String {
+}
+
+class String {
+  class new(*args) {
+    return this(*args);
+  }
+}
+
+var b = Buffer();
+b.push("woah");
+print b;
+print b.toString();
+print String.new("this", "should", "work");
+print Buffer.new("this", "should", "also", "work");
+
+// This results in a StackOverflow!
+//
+in(Buffer) {
+  class new(*args) {
+    print "new buffer!";
+    return super.new(*args);
+  }
+}
+//
+print Buffer.new("and", "this");
+
+
+__END__
+-- expect: --
+woah
+woah
+this should work
+this should also work
+new buffer!
+and this
