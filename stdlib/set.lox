@@ -1,27 +1,34 @@
 class Set {
   init(*elements) {
-    this._ary = [];
+    this._map = Map();
     this.add(*elements);
   }
 
   add(*elements) {
     foreach (el in elements) {
-      if (!this._ary.contains(el)) {
-        this._ary.push(el);
-      }
+      this._map.put(el, true);
     }
     return this;
   }
 
+  remove(*elements) {
+    this._map.remove(*elements);
+    return this;
+  }
+
+  contains(key) {
+    return this._map.get(key) == true;
+  }
+
   toArray() {
-    return this._ary;
+    return this._map.keys();
   }
 
   iter() {
-    return this._ary;
+    return this._map.keys();
   }
 
   toString() {
-    return "Set<" + String(this._ary) + ">";
+    return "Set<" + String(this.toArray()) + ">";
   }
 }

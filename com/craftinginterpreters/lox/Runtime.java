@@ -778,6 +778,22 @@ class Runtime {
                 return instance;
             }
         });
+        mapClass.defineMethod(new LoxNativeCallable("remove", 1, -1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                List<Object> retList = new ArrayList<>();
+                for (Object key : args) {
+                    retList.add(mapIntern.remove(key));
+                }
+                if (args.size() == 1) {
+                    return retList.get(0);
+                } else {
+                    return interp.createInstance("Array", retList);
+                }
+            }
+        });
         mapClass.defineMethod(new LoxNativeCallable("keys", 0, 0) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
