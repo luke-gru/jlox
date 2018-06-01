@@ -271,4 +271,14 @@ class LoxInstance {
         return Runtime.isClass(this);
     }
 
+    // checks if the given actual property exists on the instance, does not
+    // check getters/setters or methods.
+    public boolean hasNormalProperty(String propName) {
+        return properties.containsKey(propName);
+    }
+
+    public void delNormalProperty(String propName) {
+        properties.remove(propName);
+    }
+
 }

@@ -40,6 +40,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public String runningFile = null;
+    public static Map<String, LoxInstance> staticStringPool = new HashMap<>();
 
     public final Map<Expr, Integer> locals = new HashMap<>();
     final Environment globals = new Environment();
@@ -145,10 +146,23 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Object visitLiteralExpr(Expr.Literal expr) {
+        // regular string
         if (expr.value instanceof StringBuffer) {
             LoxInstance string = createInstance("String", new ArrayList<Object>());
             ((StringBuffer)string.getHiddenProp("buf")).append(expr.value.toString());
             return string;
+        // static (frozen) string
+        } else if (expr.value instanceof String) {
+            String staticStr = (String)expr.value;
+            if (staticStringPool.containsKey(staticStr)) {
+                return staticStringPool.get(staticStr);
+            } else {
+                LoxInstance string = createInstance("String", new ArrayList<Object>());
+                ((StringBuffer)string.getHiddenProp("buf")).append(staticStr);
+                string.freeze();
+                staticStringPool.put(staticStr, string);
+                return string;
+            }
         } else {
             return expr.value;
         }

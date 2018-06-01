@@ -676,6 +676,11 @@ public class Parser {
                 new StringBuffer((String)prevTok().literal)
             );
         }
+        if (matchAny(S_STRING)) {
+            return new Expr.Literal(
+                (String)prevTok().literal
+            );
+        }
 
         if (matchAny(LEFT_PAREN)) {
             Expr expr = expression();

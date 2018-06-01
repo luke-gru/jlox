@@ -1,8 +1,11 @@
 package com.craftinginterpreters.lox;
 
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 class LoxClass extends LoxInstance implements LoxCallable {
     public String name;
@@ -160,6 +163,18 @@ class LoxClass extends LoxInstance implements LoxCallable {
             klass = klass.getSuper();
         }
         return null;
+    }
+
+    public List<String> getMethodNames(boolean includeAncestorLookup) {
+        LoxClass klass = this;
+        Set<String> methods =  new HashSet<>();
+        while (klass != null) {
+            Set<String> keys = klass.methods.keySet();
+            methods.addAll(keys);
+            if (!includeAncestorLookup) break;
+            klass = klass.getSuper();
+        }
+        return new ArrayList<String>(methods);
     }
 
 }

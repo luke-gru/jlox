@@ -1,0 +1,22 @@
+class Building {
+  openDoor() { print "opening door"; }
+}
+
+print Building.methodNames(false);
+assert(Building.methodNames(true).length > 1, "should return method names in ancestor classes too");
+
+print isCallable(Building);
+print isCallable("string");
+print isCallable(fun() { });
+print isCallable("string".equals);
+print isCallable("string".length);
+
+
+__END__
+-- expect: --
+[openDoor]
+true
+false
+true
+true
+false

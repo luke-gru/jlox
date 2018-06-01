@@ -64,9 +64,13 @@ the property the getter is called. [DONE]
 Ruby's. Right now it acts weirdly for static functions. [DONE]
 * Add c style multiline comments [DONE]
 * make REPL better by adding readline support (up key, down key, history
-support, etc.)
-* Add Class#methods(bool), Class#getters(bool) and Class#setters(bool) methods
-* Add Class#ancestors method
-* Add Hash class?
-* Add Object#properties(bool includeGetters), returns Hash of property names
-and values
+support, etc.) []
+* Add Class#methodNames(bool), Class#getterNames(bool) and
+Class#setterNames(bool) methods []
+* Add Class#ancestors method, returns array of Class objects []
+* Add Hash or Map class? []
+* Add Object#propertyNames(bool includeGetters = true), and Object#properties returns Hash of property names
+and values []
+* Add isCallable(obj) global function [DONE]
+* Add static (frozen, interned) strings, like Ruby [], s"" or s'', can't have
+interpolation []

@@ -164,9 +164,20 @@ class Scanner {
             case '\n':
                 line++;
                 break;
-            case '"': doubleQuotedString(); break;
-            case '\'': singleQuotedString(); break;
+            case '"': doubleQuotedString(false); break;
+            case '\'': singleQuotedString(false); break;
             default:
+                if (c == 's' && peek() == '"') {
+                    advance();
+                    start += 1;
+                    doubleQuotedString(true);
+                    return;
+                } else if (c == 's' && peek() == '\'') {
+                    advance();
+                    start += 1;
+                    singleQuotedString(true);
+                    return;
+                }
                 if (LoxUtil.isDigit(c)) {
                     number();
                 } else if (LoxUtil.isAlpha(c)) {
@@ -199,7 +210,7 @@ class Scanner {
         addToken(ttype);
     }
 
-    private void doubleQuotedString() {
+    private void doubleQuotedString(boolean isStaticString) {
         while ((peek() != '"' || peekPrev() == '\\') && !isAtEnd()) {
             if (peek() == '\n') line++;
             advance();
@@ -220,10 +231,14 @@ class Scanner {
         value = value.replaceAll("\\\\n", "\n"); // replace \n (escaped newline) with \n for the lox string
         value = value.replaceAll("\\\\t", "\t"); // replace \t (escaped newline) with \t for the lox string
         value = value.replaceAll("\\\\r", "\r"); // replace \r (escaped newline) with \r for the lox string
-        addToken(STRING, value);
+        if (isStaticString) {
+            addToken(S_STRING, value);
+        } else {
+            addToken(STRING, value);
+        }
     }
 
-    private void singleQuotedString() {
+    private void singleQuotedString(boolean isStaticString) {
         while ((peek() != '\'' || peekPrev() == '\\') && !isAtEnd()) {
             if (peek() == '\n') line++;
             advance();
@@ -241,7 +256,11 @@ class Scanner {
         // Trim the surrounding quotes.
         String value = source.substring(start + 1, current - 1);
         value = value.replaceAll("\\\\'", "'"); // replace \' (escaped squote) with ' for the lox string
-        addToken(STRING, value);
+        if (isStaticString) {
+            addToken(S_STRING, value);
+        } else {
+            addToken(STRING, value);
+        }
     }
 
     private void number() {

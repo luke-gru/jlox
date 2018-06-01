@@ -1,0 +1,37 @@
+var s = s"static string";
+var s2 = s'static string';
+print s;
+print s2;
+print s == s2;
+print s.objectId == s2.objectId;
+print s"static string".objectId == s.objectId;
+print s"static string".objectId == s2.objectId;
+print s.objectId == 'static string'.objectId; // NOTE: non static string on RHS
+print s.objectId == 'static string'.objectId; // NOTE: non-stati string on RHS
+print s.objectId == s'static string'.objectId;
+print s2.objectId == s"static string".objectId;
+
+print "";
+
+try {
+  s.push("can't modify frozen strings");
+} catch (FrozenObjectError e) {
+  print s == s2;
+  print e._class;
+}
+
+__END__
+-- expect: --
+static string
+static string
+true
+true
+true
+true
+false
+false
+true
+true
+
+true
+<class FrozenObjectError>

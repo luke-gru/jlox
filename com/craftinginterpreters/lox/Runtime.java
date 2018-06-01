@@ -356,7 +356,13 @@ class Runtime {
                 return null;
             }
         });
-
+        globalEnv.define("isCallable", new LoxNativeCallable("isCallable", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                Object arg = args.get(0);
+                return Runtime.isCallable(arg);
+            }
+        });
     }
 
     public void defineBuiltinClasses() {
@@ -364,55 +370,80 @@ class Runtime {
         LoxNativeClass objClass = new LoxNativeClass("Object", null);
         objClass.defineMethod(new LoxNativeCallable("equals", 1, 1) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 return Runtime.bool(
-                        interpreter.environment.getThis().equals(arguments.get(0))
+                        interp.environment.getThis().equals(args.get(0))
                 );
+            }
+        });
+        objClass.defineMethod(new LoxNativeCallable("delProp", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError", "delProp called on frozen object");
+                }
+                Object argObj = args.get(0);
+                LoxUtil.checkString(argObj, interp, "ArgumentError", null, 1);
+                LoxInstance argStr = Runtime.toInstance(argObj);
+                String propName = argStr.getHiddenProp("buf").toString();
+                if (instance.hasNormalProperty(propName)) {
+                    instance.delNormalProperty(propName);
+                    return true;
+                } else {
+                    return false;
+                }
             }
         });
         objClass.defineGetter(new LoxNativeCallable("_class", 0, 0) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                return Runtime.classOf(interpreter.environment.getThis());
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                return Runtime.classOf(interp.environment.getThis());
             }
         });
         objClass.defineGetter(new LoxNativeCallable("_singletonClass", 0, 0) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                return interpreter.environment.getThis().getSingletonKlass();
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                return interp.environment.getThis().getSingletonKlass();
             }
         });
         objClass.defineMethod(new LoxNativeCallable("freeze", 0, 0) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                interpreter.environment.getThis().freeze();
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                interp.environment.getThis().freeze();
                 return null;
+            }
+        });
+        objClass.defineMethod(new LoxNativeCallable("isFrozen", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                return interp.environment.getThis().isFrozen;
             }
         });
         objClass.defineGetter(new LoxNativeCallable("objectId", 0, 0) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                LoxInstance instance = interpreter.environment.getThis();
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
                 return instance.objectId();
             }
         });
         objClass.defineMethod(new LoxNativeCallable("hashCode", 0, 0) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
-                LoxInstance instance = interpreter.environment.getThis();
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
                 return instance.hashCode();
             }
         });
         objClass.defineMethod(new LoxNativeCallable("dup", 0, 0) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return instance.dup(interp);
             }
         });
         objClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return Runtime.createString(instance.toString(), interp);
             }
@@ -481,6 +512,25 @@ class Runtime {
                 return klass.getSuper();
             }
         });
+        classClass.defineMethod(new LoxNativeCallable("methodNames", 0, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxClass klass = interp.environment.getThisClass();
+                boolean includeAncestorLookup = true;
+                if (args.size() == 1) {
+                    includeAncestorLookup = interp.isTruthy(args.get(0));
+                }
+                List<String> methodNames = klass.getMethodNames(includeAncestorLookup);
+                List<Object> methodNameStrs = new ArrayList<>();
+                for (String methodName : methodNames) {
+                    if (methodName.equals("init")) {
+                        continue;
+                    }
+                    methodNameStrs.add(Runtime.createString(methodName, interp));
+                }
+                return interp.createInstance("Array", methodNameStrs);
+            }
+        });
         registerClass(classClass);
 
         // class Array
@@ -546,6 +596,9 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError", "<push> called on frozen Array object");
+                }
                 List<Object> ary = (List<Object>)(instance.getHiddenProp("ary"));
                 ary.add(args.get(0));
                 return instance;
@@ -555,6 +608,9 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError", "<push> called on frozen Array object");
+                }
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
                 Object el = ary.remove(ary.size()-1);
                 return el;
@@ -665,6 +721,9 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError", "<push> called on frozen String object");
+                }
                 StringBuffer buf = (StringBuffer)instance.getHiddenProp("buf");
                 int argNum = 1;
                 for (Object arg : args) {
