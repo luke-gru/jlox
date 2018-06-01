@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 # vim: ft=sh
 
-CLASSPATH=$PWD
+CLASSPATH=$PWD:$PWD/vendor/jline-2.10.jar
 java -cp "$CLASSPATH" com.craftinginterpreters.lox.AstPrinter "$@"

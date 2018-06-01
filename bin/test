@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 # vim: ft=sh
 
-CLASSPATH=$PWD:$PWD/vendor/hamcrest-core-1.3.jar:$PWD/vendor/junit-4.12.jar
+CLASSPATH=$PWD:$PWD/vendor/hamcrest-core-1.3.jar:$PWD/vendor/junit-4.12.jar:$PWD/vendor/jline-2.10.jar
 cd com/craftinginterpreters/test && java -cp "$CLASSPATH" com.craftinginterpreters.test.MyRunner "$@"

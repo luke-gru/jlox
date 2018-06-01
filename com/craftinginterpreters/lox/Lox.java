@@ -13,6 +13,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Iterator;
 
+import jline.console.ConsoleReader;
+import java.io.PrintWriter;
+
 public class Lox {
     private static final Interpreter interpreter = new Interpreter();
 
@@ -78,7 +81,6 @@ public class Lox {
         } catch (IOException e) {
         }
         if (curDir != null) {
-            //System.err.println("curDir: " + curDir);
             initialLoadPath.add(curDir);
         }
         String stdlibPath = LoxUtil.classPath(Lox.class) + "/stdlib";
@@ -165,37 +167,51 @@ public class Lox {
     }
 
     private static void runPrompt() throws IOException {
-        InputStreamReader input = new InputStreamReader(System.in);
-        BufferedReader reader = new BufferedReader(input);
+        ConsoleReader reader = new ConsoleReader();
+        PrintWriter out = new PrintWriter(reader.getOutput());
+        reader.setPrompt("> ");
 
         Scanner scanner = new Scanner("");
         Parser parser;
         List<Token> tokens;
         List<Stmt> statements;
-        System.out.print("> ");
+
+        String line;
         for (;;) {
-            String line = reader.readLine();
+            line = reader.readLine();
+            if (line == null) {
+                break;
+            }
+            if (line.equals("exit") || line.equals("quit")) {
+                break;
+            }
+            if (line.equals("cls")) {
+                reader.clearScreen();
+                out.println(""); // avoid double-prompt at next input
+                continue;
+            }
             scanner.appendSrc(line);
             tokens = scanner.scanUntilEnd();
             if (scanner.inBlock > 0) {
-                System.out.print("> ");
+                String prompt = "> ";
                 for (int i = 0; i < scanner.inBlock; i++) {
-                    System.out.print("  "); // indent
+                    prompt = prompt + "  ";
                 }
+                reader.setPrompt(prompt);
             } else {
                 scanner.addEOF();
                 parser = new Parser(tokens);
                 parser.setNativeClassNames(interpreter.runtime.nativeClassNames());
                 statements = parser.parse();
-                if (hadError) {
+                if (hadError) { // error message has already been displayed to stderr
                     hadError = false;
                     scanner = new Scanner("");
-                    System.out.print("> ");
+                    reader.setPrompt("> ");
                     continue;
                 }
                 runStmts(statements);
                 scanner = new Scanner("");
-                System.out.print("> ");
+                reader.setPrompt("> ");
             }
             hadError = false;
         }

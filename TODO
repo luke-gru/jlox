@@ -4,7 +4,6 @@ TODO:
 * object literals, maybe? []
 * iterators, with returning iterator with instance iter() method like python,
 along with 'for elem in obj' syntax [DONE]
-* private methods, maybe? []
 * all classes inherit from Object automatically [DONE]
 * ["propName"] and ["propName"]= for dynamic property get and set [DONE]
 * add builtin Array class instead of using LoxArray, use LoxInstance with
@@ -19,10 +18,9 @@ the interpreter is running. []
 * signal handling []
 * add keyword arguments []
 * default arguments for functions [DONE]
-* allow overridden methods with different number of arguments, maybe? []
 * frozen objects, can't use setProperty on the instance [DONE]
 * Don't allow frozen objects to use push() and other methods that change the
-object's internals. []
+object's internals. [DONE]
 * better stdlib []
 * add test suite [DONE]
 * add '+=, -=,' etc binary operators [DONE]
@@ -64,7 +62,7 @@ the property the getter is called. [DONE]
 Ruby's. Right now it acts weirdly for static functions. [DONE]
 * Add c style multiline comments [DONE]
 * make REPL better by adding readline support (up key, down key, history
-support, etc.) []
+support, etc.) [DONE]
 * Add Class#methodNames(bool), Class#getterNames(bool) and
 Class#setterNames(bool) methods []
 * Add Class#ancestors method, returns array of Class objects [DONE]
