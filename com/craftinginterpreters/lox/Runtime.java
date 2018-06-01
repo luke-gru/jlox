@@ -6,6 +6,8 @@ import java.util.Stack;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
+import java.util.Set;
+import java.util.Collection;
 import java.io.*;
 import static com.craftinginterpreters.lox.Interpreter.LoadScriptError;
 
@@ -690,7 +692,13 @@ class Runtime {
                 int sz = ary.size();
                 int i = 0;
                 for (Object obj : ary) {
-                    buf.append(interp.stringify(obj));
+                    String objStr = null;
+                    if (obj != null && obj.equals(instance)) {
+                        objStr = "[instance...]";
+                    } else {
+                        objStr = interp.stringify(obj);
+                    }
+                    buf.append(objStr);
                     i++;
                     if (i < sz) {
                         buf.append(",");
@@ -701,6 +709,152 @@ class Runtime {
             }
         });
         registerClass(arrayClass);
+
+        // class Map
+        LoxNativeClass mapClass = new LoxNativeClass("Map", objClass);
+        mapClass.klass = classClass;
+        // FIXME: allow Map(1, 2) or Map([1,2]) also. Right now we only allow
+        // Map([[1,2]])
+        mapClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> internalMap = new HashMap<>();
+                instance.setHiddenProp("map", internalMap);
+                Object aryObj = null;
+                if (args.size() > 0) {
+                    aryObj = args.get(0);
+                    LoxUtil.checkIsA("Array", aryObj, interp, "ArgumentError", null, 1);
+                    LoxInstance aryInstance = Runtime.toInstance(aryObj);
+                    List<Object> internalAry = (List<Object>)aryInstance.getHiddenProp("ary");
+                    int elNum = 1;
+                    for (Object elAry : internalAry) {
+                        if (!Runtime.isArray(elAry)) {
+                            LoxUtil.checkIsA("Array", elAry, interp, "ArgumentError",
+                                    "Element " + String.valueOf(elNum) +
+                                    " of given Array object must be an Array.", 1);
+                        }
+                        LoxInstance elAryInst = Runtime.toInstance(elAry);
+                        List<Object> elAryInternal = (List<Object>)elAryInst.getHiddenProp("ary");
+                        if (elAryInternal.size() != 2) {
+                            LoxUtil.checkIsA("Array", elAry, interp, "ArgumentError",
+                                    "Element " + String.valueOf(elNum) +
+                                    " of given Array object must be an Array of size 2.", 1);
+                        } else {
+                            Object key = elAryInternal.get(0);
+                            Object val = elAryInternal.get(1);
+                            internalMap.put(key, val);
+                        }
+                        elNum++;
+                    }
+                }
+                return instance;
+            }
+        });
+        mapClass.defineMethod(new LoxNativeCallable("get", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                Object argObj = args.get(0);
+                if (mapIntern.containsKey(argObj)) {
+                    return mapIntern.get(argObj);
+                } else {
+                    if (instance.hasNormalProperty("default")) {
+                        return instance.getNormalProperty("default");
+                    }
+                    return null;
+                }
+            }
+        });
+        mapClass.defineMethod(new LoxNativeCallable("put", 2, 2) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                Object keyObj = args.get(0);
+                Object valObj = args.get(1);
+                mapIntern.put(keyObj, valObj);
+                return instance;
+            }
+        });
+        mapClass.defineMethod(new LoxNativeCallable("keys", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                Set<Object> keys = mapIntern.keySet();
+                List<Object> keysList = new ArrayList<>();
+                for (Object key : keys) {
+                    keysList.add(key);
+                }
+                return interp.createInstance("Array", keysList);
+            }
+        });
+        mapClass.defineMethod(new LoxNativeCallable("values", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                Collection<Object> values = mapIntern.values();
+                List<Object> valuesList = new ArrayList<>();
+                for (Object val : values) {
+                    valuesList.add(val);
+                }
+                return interp.createInstance("Array", valuesList);
+            }
+        });
+        mapClass.defineMethod(new LoxNativeCallable("clear", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                mapIntern.clear();
+                return instance;
+            }
+        });
+        // TODO: add iter() method, either returns a MapIterator with
+        // iter_next returning a double, or actually
+        // create the key-value array of doubles and return it.
+        mapClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                StringBuffer buf = new StringBuffer("{");
+                int sz = mapIntern.size();
+                int i = 0;
+
+                Iterator iter = mapIntern.entrySet().iterator();
+                while (iter.hasNext()) {
+                    Map.Entry pair = (Map.Entry)iter.next();
+                    Object key = pair.getKey();
+                    Object val = pair.getValue();
+                    String keyStr = null;
+                    if (key != null && key.equals(instance)) {
+                        keyStr = "{instance...}";
+                    } else {
+                        keyStr = interp.stringify(key);
+                    }
+                    String valStr = null;
+                    if (val != null && val.equals(instance)) {
+                        valStr = "{instance...}";
+                    } else {
+                        valStr = interp.stringify(val);
+                    }
+                    buf.append(keyStr + " => ");
+                    buf.append(valStr);
+                    i++;
+                    if (i < sz) {
+                        buf.append(", ");
+                    }
+                }
+                buf.append("}");
+
+                return Runtime.createString(buf, interp);
+            }
+        });
+        registerClass(mapClass);
 
         // class String
         LoxNativeClass stringClass = new LoxNativeClass("String", objClass);

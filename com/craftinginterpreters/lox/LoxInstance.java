@@ -282,4 +282,12 @@ class LoxInstance {
         properties.remove(propName);
     }
 
+    public Object getNormalProperty(String propName) {
+        if (properties.containsKey(propName)) {
+            return properties.get(propName);
+        } else {
+            return null;
+        }
+    }
+
 }
