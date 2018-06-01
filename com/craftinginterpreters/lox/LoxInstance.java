@@ -69,7 +69,7 @@ class LoxInstance {
         if (lookupKlass.isSingletonKlass) {
             LoxInstance singletonOf = lookupKlass.singletonOf;
             if (Runtime.isClass(singletonOf)) {
-                Object val = getProperty(name, interp, ((LoxClass)singletonOf).getKlass());
+                Object val = getProperty(name, interp, Runtime.getClass("Class"));
                 if (val != null) return val;
             }
         }
@@ -124,14 +124,15 @@ class LoxInstance {
             String className = null;
             LoxClass superClass = null;
             if (isClass()) {
-                LoxClass superKlass = ((LoxClass)this).getSuper();
-                className = ((LoxClass)this).getName();
+                LoxClass thisClass = (LoxClass)this;
+                LoxClass superKlass = thisClass.getSuper();
+                className = thisClass.getName();
                 if (superKlass != null) {
                     superClass = superKlass.getSingletonKlass();
                 }
             } else {
                 superClass = getKlass();
-                className = klassName;
+                className = "\"" + toString() + "\"";
             }
             this.singletonKlass = new LoxClass(className + " (meta)", superClass, new HashMap<String, LoxCallable>());
             this.singletonKlass.isSingletonKlass = true;

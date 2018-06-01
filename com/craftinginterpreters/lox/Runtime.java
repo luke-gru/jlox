@@ -512,6 +512,45 @@ class Runtime {
                 return klass.getSuper();
             }
         });
+        classClass.defineMethod(new LoxNativeCallable("ancestors", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxClass klass = interp.environment.getThisClass();
+                boolean isSClass = klass.isSingletonKlass;
+                boolean sClassOfClass = false;
+                LoxClass sClassOfKlass = null;
+                if (isSClass) {
+                    sClassOfClass = (klass.singletonOf instanceof LoxClass);
+                    if (sClassOfClass) {
+                        sClassOfKlass = (LoxClass)klass.singletonOf;
+                    }
+                }
+                List<Object> list = new ArrayList<>();
+                while (klass != null) {
+                    if (isSClass && sClassOfClass) {
+                        list.add(klass); // singleton class of the class
+                        LoxClass cSuper = sClassOfKlass.getSuper();
+                        while (cSuper != null) {
+                            klass = cSuper.getSingletonKlass();
+                            list.add(klass);
+                            cSuper = cSuper.getSuper();
+                        }
+                        klass = Runtime.getClass("Class"); // now start at <class Class> and move up
+                        while (klass != null) {
+                            list.add(klass);
+                            klass = klass.getSuper();
+                        }
+                    } else if (isSClass) { // singleton lookup first, then regular class ancestry lookup
+                        list.add(klass);
+                        klass = klass.getSuper();
+                    } else { // regular class ancestry lookup
+                        list.add(klass);
+                        klass = klass.getSuper();
+                    }
+                }
+                return interp.createInstance("Array", list);
+            }
+        });
         classClass.defineMethod(new LoxNativeCallable("methodNames", 0, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {

@@ -11,6 +11,12 @@ print isCallable(fun() { });
 print isCallable("string".equals);
 print isCallable("string".length);
 
+print "";
+
+print String.ancestors();
+print (String("hi"))._singletonClass.ancestors(); // FIXME: weird bug where we need the parens around (String("hi")) (parse error)
+print String._singletonClass.ancestors();
+
 
 __END__
 -- expect: --
@@ -20,3 +26,7 @@ false
 true
 true
 false
+
+[<class String>,<class Object>]
+[<class "hi" (meta)>,<class String>,<class Object>]
+[<class String (meta)>,<class Object (meta)>,<class Class>,<class Object>]
