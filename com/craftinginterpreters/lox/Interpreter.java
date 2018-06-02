@@ -546,13 +546,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
+    // PropGet
     @Override
     public Object visitPropAccessExpr(Expr.PropAccess expr) {
         Object obj = evaluate(expr.left);
         if (obj instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)obj;
-            // FIXME: use getPropertyOrGetterFunc after getProperty
-            LoxCallable oldFnCall = this.fnCall;
             Object value = instance.getProperty(expr.property.lexeme, this);
             return value;
         } else {

@@ -450,6 +450,13 @@ class Runtime {
                 return Runtime.createString(instance.toString(), interp);
             }
         });
+        // default property missing method, takes the name of the property as a string
+        objClass.defineMethod(new LoxNativeCallable("propertyMissing", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                return null;
+            }
+        });
         registerClass(objClass);
 
         // class Class

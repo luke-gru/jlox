@@ -71,7 +71,18 @@ class LoxInstance {
                 if (val != null) return val;
             }
         }
-        return null;
+        List<Object> propMissingArgs = new ArrayList<>();
+        propMissingArgs.add(Runtime.createString(name, interp));
+        LoxCallable propMissingFunc = lookupKlass.boundMethod(
+            this, interp.environment, "propertyMissing");
+        if (propMissingFunc == null) {
+            return null;
+        }
+        LoxCallable oldFnCall = interp.fnCall;
+        interp.fnCall = propMissingFunc;
+        Object ret = propMissingFunc.call(interp, propMissingArgs, null);
+        interp.fnCall = oldFnCall;
+        return ret;
     }
 
     public LoxInstance dup(Interpreter interp) {

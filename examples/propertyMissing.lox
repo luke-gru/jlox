@@ -1,0 +1,42 @@
+var o = Object();
+print o.name;
+var propertyMissingCalled = 0;
+class Object {
+  propertyMissing(propName) {
+    propertyMissingCalled += 1;
+    return "my prop: " + propName;
+  }
+}
+
+print o.name;
+print o.name;
+print propertyMissingCalled;
+
+print "";
+
+propertyMissingCalled = 0;
+class Object {
+  // actually creates the property on the object
+  propertyMissing(propName) {
+    propertyMissingCalled += 1;
+    var propValue = "my prop: " + propName;
+    this[propName] = propValue;
+    return propValue;
+  }
+}
+
+var o2 = Object();
+print o2.name;
+print o2.name;
+print propertyMissingCalled;
+
+__END__
+-- expect: --
+nil
+my prop: name
+my prop: name
+2
+
+my prop: name
+my prop: name
+1
