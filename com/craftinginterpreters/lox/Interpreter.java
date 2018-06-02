@@ -773,8 +773,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             if (iterMethod != null) {
                 LoxCallable iterCallable = (LoxCallable)iterMethod;
                 evalObj =  evaluateCall(iterCallable, new ArrayList<Object>(), tokenFromExpr(stmt.obj));
-                if (!Runtime.isArray(evalObj)) {
-                    throw new RuntimeException("foreach expr returned from iter() must be an Array");
+                if (Runtime.isInstance(evalObj) && !Runtime.isArray(evalObj)) {
+                    nextIterMethod = ((LoxInstance)evalObj).getMethodOrGetterProp("nextIter", this);
+                    if (nextIterMethod == null) {
+                        throw new RuntimeException("foreach expr returned from iter() must be an Array or respond to nextIter()");
+                    }
+                    useNextIter = true;
+                } else if (!Runtime.isArray(evalObj)) {
+                    throw new RuntimeException("foreach expr returned from iter() must be an Array or respond to nextIter()");
                 }
             } else {
                 useNextIter = true;
@@ -799,7 +805,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 // TODO: check OOB array access
                 Object val;
                 if (useNextIter) {
-                    val = evaluateCall((LoxCallable)nextIterMethod, elements, null);
+                    val = evaluateCall((LoxCallable)nextIterMethod, LoxUtil.EMPTY_ARGS, null);
                     if (val == null) { break; }
                 } else {
                     val = elements.get(i);

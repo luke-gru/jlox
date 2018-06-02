@@ -482,12 +482,6 @@ class Runtime {
                 }
             }
         });
-        classClass.defineSingletonMethod(new LoxNativeCallable("numInstances", 0, 0) {
-            @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
-                return (double)LoxInstance.numInstances;
-            }
-        });
         classClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -771,6 +765,9 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError", "<put> called on frozen map: " + interp.stringify(instance));
+                }
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 Object keyObj = args.get(0);
                 Object valObj = args.get(1);
@@ -782,6 +779,9 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError", "<remove> called on frozen map: " + interp.stringify(instance));
+                }
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 List<Object> retList = new ArrayList<>();
                 for (Object key : args) {
@@ -824,14 +824,23 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError", "<clear> called on frozen map: " + interp.stringify(instance));
+                }
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 mapIntern.clear();
                 return instance;
             }
         });
-        // TODO: add iter() method, either returns a MapIterator with
-        // iter_next returning a double, or actually
-        // create the key-value array of doubles and return it.
+        mapClass.defineMethod(new LoxNativeCallable("iter", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                List<Object> mapIterArgs = new ArrayList<>();
+                mapIterArgs.add(instance);
+                return interp.createInstance("MapIterator", mapIterArgs);
+            }
+        });
         mapClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -871,6 +880,86 @@ class Runtime {
             }
         });
         registerClass(mapClass);
+
+        // MapIterator class
+        LoxNativeClass mapIterClass = new LoxNativeClass("MapIterator", objClass);
+        mapIterClass.defineMethod(new LoxNativeCallable("init", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance iter = interp.environment.getThis();
+                Object mapInstanceObj = args.get(0);
+                LoxUtil.checkIsA("Map", mapInstanceObj, interp, "ArgumentError", null, 1);
+                iter.setNormalProperty("iterable", mapInstanceObj);
+                LoxInstance mapInstance = Runtime.toInstance(mapInstanceObj);
+                Boolean frozenState = mapInstance.isFrozen ? (Boolean)true : (Boolean)false;
+                iter.setHiddenProp("iterableOldFrozenState", frozenState);
+                mapInstance.freeze();
+                Map<Object,Object> javaMap = (Map<Object,Object>)mapInstance.getHiddenProp("map");
+                Iterator<Map.Entry<Object, Object>> javaMapIter = javaMap.entrySet().iterator();
+                iter.setHiddenProp("iterator", javaMapIter);
+                return null;
+            }
+        });
+        mapIterClass.defineMethod(new LoxNativeCallable("nextIter", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance iter = interp.environment.getThis();
+                Object mapInstanceObj = iter.getNormalProperty("iterable");
+                LoxUtil.checkIsA("Map", mapInstanceObj, interp, "TypeError", "MapIterator#.iterable needs to be a map!", 0);
+                LoxInstance mapInstance = Runtime.toInstance(mapInstanceObj);
+                Iterator<Map.Entry<Object, Object>> javaMapIter = (Iterator<Map.Entry<Object,Object>>)iter.getHiddenProp("iterator");
+                if (javaMapIter.hasNext()) {
+                    Map.Entry<Object,Object> pair = javaMapIter.next();
+                    Object key = pair.getKey();
+                    Object val = pair.getValue();
+                    List<Object> newArrayArgs = new ArrayList<>();
+                    newArrayArgs.add(key);
+                    newArrayArgs.add(val);
+                    return interp.createInstance("Array", newArrayArgs);
+                } else {
+                    Boolean oldFrozenState = (Boolean)iter.getHiddenProp("iterableOldFrozenState");
+                    if (oldFrozenState != null && oldFrozenState == (Boolean)false) {
+                        mapInstance.unfreeze();
+                    }
+                    return null;
+                }
+            }
+        });
+        mapIterClass.defineMethod(new LoxNativeCallable("hasNext", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance iter = interp.environment.getThis();
+                Object mapInstanceObj = iter.getNormalProperty("iterable");
+                LoxUtil.checkIsA("Map", mapInstanceObj, interp, "TypeError", "MapIterator#.iterable needs to be a map!", 0);
+                LoxInstance mapInstance = Runtime.toInstance(mapInstanceObj);
+                Iterator<Map.Entry<Object,Object>> javaMapIter = (Iterator<Map.Entry<Object,Object>>)iter.getHiddenProp("iterator");
+                return javaMapIter.hasNext();
+            }
+        });
+        mapIterClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance iter = interp.environment.getThis();
+                Object mapInstanceObj = iter.getNormalProperty("iterable");
+                LoxUtil.checkIsA("Map", mapInstanceObj, interp, "TypeError", "MapIterator#.iterable needs to be a map!", 0);
+                LoxInstance mapInstance = Runtime.toInstance(mapInstanceObj);
+                Iterator<Map.Entry<Object, Object>> javaMapIter = (Iterator<Map.Entry<Object,Object>>)iter.getHiddenProp("iterator");
+                Map<Object,Object> javaMap = (Map<Object,Object>)mapInstance.getHiddenProp("map");
+                boolean isFinished = false;
+                if (javaMapIter != null) { // first time nextIter is called, create the iterator
+                    isFinished = !javaMapIter.hasNext();
+                }
+                StringBuffer buf = new StringBuffer();
+                buf.append("<MapIterator instance ").append(interp.stringify(mapInstance));
+                if (isFinished) {
+                    buf.append(" (done)");
+                }
+                buf.append(">");
+                return Runtime.createString(buf, interp);
+            }
+        });
+        registerClass(mapIterClass);
+
 
         // class String
         LoxNativeClass stringClass = new LoxNativeClass("String", objClass);
@@ -1006,6 +1095,8 @@ class Runtime {
 
         LoxNativeClass argErrorClass = new LoxNativeClass("ArgumentError", errorClass);
         registerClass(argErrorClass);
+        LoxNativeClass typeErrorClass = new LoxNativeClass("TypeError", errorClass);
+        registerClass(typeErrorClass);
         LoxNativeClass assertErrorClass = new LoxNativeClass("AssertionError", errorClass);
         registerClass(assertErrorClass);
         LoxNativeClass frozError = new LoxNativeClass("FrozenObjectError", errorClass);

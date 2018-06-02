@@ -14,13 +14,11 @@ class LoxInstance {
     // Used internally, Objects are Java-land objects
     private final Map<String, Object> hiddenProps = new HashMap<>();
     public boolean isFrozen = false;
-    public static int numInstances = 0;
 
     LoxInstance(LoxClass klass, String className) {
         this.klass = klass;
         this.klassName = className;
         this.singletonKlass = null;
-        numInstances++;
     }
 
     @Override
@@ -252,6 +250,10 @@ class LoxInstance {
         this.isFrozen = true;
     }
 
+    public void unfreeze() {
+        this.isFrozen = false;
+    }
+
     public Object getHiddenProp(String name) {
         if (this.hiddenProps.containsKey(name)) {
             return this.hiddenProps.get(name);
@@ -262,10 +264,6 @@ class LoxInstance {
 
     public void setHiddenProp(String name, Object val) {
         this.hiddenProps.put(name, val);
-    }
-
-    public void finalize() {
-        numInstances--;
     }
 
     public boolean isClass() {
@@ -288,6 +286,10 @@ class LoxInstance {
         } else {
             return null;
         }
+    }
+
+    public void setNormalProperty(String propName, Object value) {
+        properties.put(propName, value);
     }
 
 }

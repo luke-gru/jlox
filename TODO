@@ -66,7 +66,7 @@ support, etc.) [DONE]
 * Add Class#methodNames(bool), Class#getterNames(bool) and
 Class#setterNames(bool) methods []
 * Add Class#ancestors method, returns array of Class objects [DONE]
-* Add Hash or Map class? []
+* Add Hash or Map class? [IN PROGRESS]
 * Add Object#propertyNames(bool includeGetters = true), and Object#properties returns Hash of property names
 and values []
 * Add isCallable(obj) global function [DONE]

@@ -1,0 +1,52 @@
+var map = Map([["Cooper", "annoying dog"], ["Gracie", "good doggy"]]);
+print map.isFrozen();
+foreach (key, val in map) {
+  print key + ": " + val;
+}
+print map.isFrozen();
+
+print "";
+
+var iter = map.iter();
+print map.isFrozen();
+print iter.hasNext();
+var frozenObjErr = nil;
+try {
+  map.clear();
+} catch (FrozenObjectError err) {
+  frozenObjErr = err;
+}
+print frozenObjErr != nil;
+
+print "";
+
+print iter.nextIter() != nil;
+print iter.hasNext();
+
+print "";
+
+print iter.nextIter() != nil;
+print iter.hasNext();
+print iter.nextIter() == nil;
+print iter.nextIter() == nil;
+print map.isFrozen();
+
+__END__
+-- expect: --
+false
+Gracie: good doggy
+Cooper: annoying dog
+false
+
+true
+true
+true
+
+true
+true
+
+true
+false
+true
+true
+false
