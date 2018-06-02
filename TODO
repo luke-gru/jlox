@@ -21,7 +21,6 @@ the interpreter is running. []
 * frozen objects, can't use setProperty on the instance [DONE]
 * Don't allow frozen objects to use push() and other methods that change the
 object's internals. [DONE]
-* better stdlib []
 * add test suite [DONE]
 * add '+=, -=,' etc binary operators [DONE]
 * class (static) methods and properties [DONE]
@@ -50,7 +49,7 @@ blocks which get evaluated once upon being visited. [DONE]
 obj._singletonClass._singletonClass, returns wrong value)
 * Add more classes to stdlib []
 * Make functions LoxInstances, instead of treating them differently. []
-* implement some sort of methodMissing hook, like Ruby's. []
+* implement some sort of methodMissing hook, like Ruby's. [DONE]
 * allow objects to overload methods for primitive operations: +, -, *, [],
 []=, maybe also '.' (propGet) and '.=', propSet. []
 * Make '::' lookup, also maybe nested classes get set on the enclosing class
@@ -66,9 +65,12 @@ support, etc.) [DONE]
 * Add Class#methodNames(bool), Class#getterNames(bool) and
 Class#setterNames(bool) methods []
 * Add Class#ancestors method, returns array of Class objects [DONE]
-* Add Hash or Map class? [IN PROGRESS]
+* Add Map class? [IN PROGRESS]
+* Add ArrayIterator, like MapIterator ? []
 * Add Object#propertyNames(bool includeGetters = true), and Object#properties returns Hash of property names
 and values []
 * Add isCallable(obj) global function [DONE]
 * Add static (frozen, interned) strings, like Ruby [], s"" or s'', can't have
 interpolation [DONE]
+* Add Object#opCmp hook method, which returns -1, 0, or 1.
+* Add __LINE__ constant support in scripts (in scanner) []

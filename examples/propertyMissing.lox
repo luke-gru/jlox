@@ -25,10 +25,25 @@ class Object {
   }
 }
 
+
 var o2 = Object();
 print o2.name;
 print o2.name;
 print propertyMissingCalled;
+
+class Object {
+  propertyMissing(propName) {
+    var _this = this;
+    return fun() {
+      return _this.greeting;
+    };
+  }
+}
+
+print "";
+o2.greeting = "HEY THERE";
+print o2.greet();
+print o2.greetAgain();
 
 __END__
 -- expect: --
@@ -40,3 +55,6 @@ my prop: name
 my prop: name
 my prop: name
 1
+
+HEY THERE
+HEY THERE

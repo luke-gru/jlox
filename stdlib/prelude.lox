@@ -1,0 +1,23 @@
+class Map {
+  filter(fn) {
+    var newMap = Map();
+    this.each(fun(k, v) {
+      if (fn(k,v)) {
+        newMap.put(k,v);
+      }
+    });
+    return newMap;
+  }
+}
+
+class Array {
+  filter(fn) {
+    var newAry = Array();
+    this.each(fun(el) {
+      if (fn(el)) {
+        newAry.push(el);
+      }
+    });
+    return newAry;
+  }
+}

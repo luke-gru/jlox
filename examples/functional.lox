@@ -1,0 +1,26 @@
+class Prop {
+  class get(propName) {
+    return fun(obj) { return obj[propName]; };
+  }
+  class call(propName) {
+    return fun(obj) { return obj[propName](); };
+  }
+}
+class Student {
+  init(name) {
+    this.name = name;
+  }
+  fullName() {
+    return "Mr. or Ms. " + this.name;
+  }
+}
+var students = [Student("Patrick"),Student("Josie")];
+var names = students.map(Prop.get("name"));
+print names;
+var fullNames = students.map(Prop.call("fullName"));
+print fullNames;
+
+__END__
+-- expect: --
+[Patrick,Josie]
+[Mr. or Ms. Patrick,Mr. or Ms. Josie]

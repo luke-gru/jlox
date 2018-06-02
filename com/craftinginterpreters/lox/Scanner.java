@@ -198,6 +198,10 @@ class Scanner {
     private void identifier() {
         while (LoxUtil.isAlphaNumeric(peek())) advance();
         String text = source.substring(start, current);
+        if (text.equals("__LINE__")) {
+            addToken(NUMBER, (double)this.line);
+            return;
+        }
 
         TokenType ttype = keywords.get(text);
         if (ttype == null) {

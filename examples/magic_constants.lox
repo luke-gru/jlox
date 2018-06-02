@@ -1,0 +1,7 @@
+print __LINE__;
+print __LINE__ + 1;
+
+__END__
+-- expect: --
+1
+3

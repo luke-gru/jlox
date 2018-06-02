@@ -132,7 +132,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
             declare(param.token);
             define(param.token);
         }
-        resolve(expr.body);
+        resolve(expr.body); // Stmt.Block
         endScope();
         return null;
     }

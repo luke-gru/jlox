@@ -597,6 +597,7 @@ class Runtime {
                 return (double)((List<Object>)instance.getHiddenProp("ary")).size();
             }
         });
+        // [1,2] + [1] => [1,2,1]
         arrayClass.defineMethod(new LoxNativeCallable("opAdd", 1, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -614,6 +615,7 @@ class Runtime {
                 return newAry;
             }
         });
+        // [1,2] * 3 => [1,2,1,2,1,2]
         arrayClass.defineMethod(new LoxNativeCallable("opMul", 1, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -667,12 +669,31 @@ class Runtime {
                 return b;
             }
         });
+        arrayClass.defineMethod(new LoxNativeCallable("each", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                LoxCallable func = (LoxCallable)args.get(0);
+                // TODO: check arg is a function
+                if (!Runtime.acceptsNArgs(func, 1)) {
+                    // TODO: throw error
+                }
+                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                for (Object el : ary) {
+                    List<Object> funcArgs = new ArrayList<>();
+                    funcArgs.add(el);
+                    interp.evaluateCall(func, funcArgs, tok);
+                }
+                return instance;
+            }
+        });
         arrayClass.defineMethod(new LoxNativeCallable("map", 1, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 LoxInstance newInstance = Runtime.array(new ArrayList<Object>(), interp);
                 LoxCallable func = (LoxCallable)args.get(0);
+                // TODO: check arg is a function
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
                 List<Object> retAry = (List<Object>)newInstance.getHiddenProp("ary");
                 for (Object el : ary) {
@@ -715,7 +736,7 @@ class Runtime {
         LoxNativeClass mapClass = new LoxNativeClass("Map", objClass);
         mapClass.klass = classClass;
         // FIXME: allow Map(1, 2) or Map([1,2]) also. Right now we only allow
-        // Map([[1,2]])
+        // Map([[1,2]]), which is annoying
         mapClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -812,6 +833,28 @@ class Runtime {
                     keysList.add(key);
                 }
                 return interp.createInstance("Array", keysList);
+            }
+        });
+        mapClass.defineMethod(new LoxNativeCallable("each", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Object argObj = args.get(0);
+                LoxCallable func = (LoxCallable)argObj;
+                if (!Runtime.acceptsNArgs(func, 2)) {
+                    // TODO: throw error
+                }
+                Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
+                Iterator<Map.Entry<Object, Object>> javaMapIter = mapIntern.entrySet().iterator();
+                Map.Entry pair = null;
+                while (javaMapIter.hasNext()) {
+                    pair = javaMapIter.next();
+                    List<Object> funcArgs = new ArrayList<>();
+                    funcArgs.add(pair.getKey());
+                    funcArgs.add(pair.getValue());
+                    interp.evaluateCall(func, funcArgs, tok);
+                }
+                return instance;
             }
         });
         mapClass.defineMethod(new LoxNativeCallable("values", 0, 0) {
