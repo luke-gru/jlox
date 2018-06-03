@@ -35,6 +35,26 @@ class LoxInstance {
         return (double)System.identityHashCode(this);
     }
 
+    @Override
+    public int hashCode() {
+        if (Runtime.isString(this)) {
+            return ((StringBuffer)hiddenProps.get("buf")).toString().hashCode();
+        } else {
+            return super.hashCode();
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (Runtime.isString(this) && Runtime.isString(obj)) {
+            String a = ((StringBuffer)hiddenProps.get("buf")).toString();
+            String b = ((StringBuffer)((LoxInstance)obj).hiddenProps.get("buf")).toString();
+            return a.equals(b);
+        } else {
+            return super.equals(obj);
+        }
+    }
+
     // Property access, 'instance.prop'. 'prop' here can be a regular
     // property, a getter method, in which case it's called, or a regular
     // method, in which case it's returned, uncalled but bound to the

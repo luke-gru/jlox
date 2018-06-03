@@ -773,22 +773,29 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object nextIterMethod = null;
         if (!Runtime.isArray(evalObj) && (evalObj instanceof LoxInstance)) {
             LoxInstance instance = (LoxInstance)evalObj;
-            iterMethod = instance.getMethodOrGetterProp("iter", this);
-            nextIterMethod = instance.getMethodOrGetterProp("nextIter", this);
+            iterMethod = instance.getMethod("iter", this);
+            nextIterMethod = instance.getMethod("nextIter", this);
             if (iterMethod == null && nextIterMethod == null) {
-                throw new RuntimeException("foreach expr must be an Array object or object that responds to iter() or next_iter()");
+                throwLoxError("TypeError",
+                    "foreach expr must be an Array object or object that responds to " +
+                    "iter() or nextIter(), is: " + stringify(instance)
+                );
             }
             if (iterMethod != null) {
                 LoxCallable iterCallable = (LoxCallable)iterMethod;
                 evalObj =  evaluateCall(iterCallable, new ArrayList<Object>(), tokenFromExpr(stmt.obj));
                 if (Runtime.isInstance(evalObj) && !Runtime.isArray(evalObj)) {
-                    nextIterMethod = ((LoxInstance)evalObj).getMethodOrGetterProp("nextIter", this);
+                    nextIterMethod = ((LoxInstance)evalObj).getMethod("nextIter", this);
                     if (nextIterMethod == null) {
-                        throw new RuntimeException("foreach expr returned from iter() must be an Array or respond to nextIter()");
+                        throwLoxError("TypeError",
+                            "foreach expr returned from iter() must be an Array or respond to nextIter()"
+                        );
                     }
                     useNextIter = true;
                 } else if (!Runtime.isArray(evalObj)) {
-                    throw new RuntimeException("foreach expr returned from iter() must be an Array or respond to nextIter()");
+                    throwLoxError("TypeError",
+                        "foreach expr returned from iter() must be an Array or respond to nextIter()"
+                    );
                 }
             } else {
                 useNextIter = true;
@@ -810,7 +817,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (!useNextIter && i >= len) {
                     break;
                 }
-                // TODO: check OOB array access
+                // FIXME: check OOB array access
                 Object val;
                 if (useNextIter) {
                     val = evaluateCall((LoxCallable)nextIterMethod, LoxUtil.EMPTY_ARGS, null);
@@ -820,15 +827,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     i++;
                 }
                 if (numVars > 1 && (!Runtime.isArray(val))) {
-                    throw new RuntimeException("'foreach' element must be Array object when given more than 1 variable in foreach loop (" +
-                        String.valueOf(numVars) + " variables given). Element class: " + this.nativeTypeof(null, val));
+                    throwLoxError("TypeError", "'foreach' element must be Array object when given more than 1 variable in foreach loop (" +
+                        String.valueOf(numVars) + " variables given). Element class: " + this.nativeTypeof(null, val)
+                    );
                 }
                 if (numVars > 1) {
                     LoxInstance valObj = (LoxInstance)val;
                     List<Object> valElements = (List<Object>)valObj.getHiddenProp("ary");
                     for (int j = 0; j < numVars; j++) {
                         Token elemVar = stmt.variables.get(j);
-                        // TODO: check OOB array access
+                        // FIXME: check OOB array access
                         environment.define(elemVar.lexeme, valElements.get(j));
                     }
                 } else {

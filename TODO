@@ -79,3 +79,9 @@ interpolation [DONE]
 * Add Object#indexGet and #indexSet hooks for [] and []= [IN PROGRESS], still
 have to add the methods natively to Map and Array, right now there's just in
 stdlib/prelude.
+* Get rid of the throw new RuntimeError calls in the interpreter, replace with
+calls to throwLoxError. Also, give a token to throwLoxError so that we can
+report the line of the error. This token should live in the wrapper exception
+class of the error, the RuntimeThrow class. []
+* Make stack traces and error messages include the given file, and add more
+useful info. []

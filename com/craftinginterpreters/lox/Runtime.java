@@ -291,10 +291,10 @@ class Runtime {
 
                     StringBuffer outBuf = new StringBuffer();
                     StringBuffer errBuf = new StringBuffer();
-                    BufferedReader stdOut = new BufferedReader(new
-                            InputStreamReader(p.getInputStream()));
-                    BufferedReader stdError = new BufferedReader(new
-                            InputStreamReader(p.getErrorStream()));
+                    BufferedReader stdOut = new BufferedReader(
+                        new InputStreamReader(p.getInputStream()));
+                    BufferedReader stdError = new BufferedReader(
+                        new InputStreamReader(p.getErrorStream()));
                     while ((s = stdOut.readLine()) != null) {
                         outBuf.append(s).append("\n");
                     }
@@ -351,7 +351,8 @@ class Runtime {
 
                 String newNameJava = Runtime.toJavaString(newNameLox);
                 if (!LoxUtil.isValidIdentifier(newNameJava)) {
-                    interp.throwLoxError("ArgumentError", "invalid identifier given to 'alias' for function '" +
+                    interp.throwLoxError("ArgumentError",
+                        "invalid identifier given to 'alias' for function '" +
                         callable.getName() + "'");
                 }
                 interp.environment.enclosing.define(newNameJava, callableObj);
@@ -374,7 +375,8 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 return Runtime.bool(
-                        interp.environment.getThis().equals(args.get(0))
+                        // strict equality, must be same java object
+                        interp.environment.getThis() == args.get(0)
                 );
             }
         });
@@ -383,7 +385,8 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
-                    interp.throwLoxError("FrozenObjectError", "delProp called on frozen object");
+                    interp.throwLoxError("FrozenObjectError",
+                        "Object#delProp called on frozen object");
                 }
                 Object argObj = args.get(0);
                 LoxUtil.checkString(argObj, interp, "ArgumentError", null, 1);
@@ -641,23 +644,47 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
-                    interp.throwLoxError("FrozenObjectError", "<push> called on frozen Array object");
+                    interp.throwLoxError("FrozenObjectError",
+                        "<Array#push> called on frozen Array object");
                 }
                 List<Object> ary = (List<Object>)(instance.getHiddenProp("ary"));
                 ary.add(args.get(0));
                 return instance;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("pop", 0, 0) {
+        arrayClass.defineMethod(new LoxNativeCallable("pop", 0, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
-                    interp.throwLoxError("FrozenObjectError", "<push> called on frozen Array object");
+                    interp.throwLoxError("FrozenObjectError",
+                        "<Array#pop> called on frozen Array object");
                 }
+                int popMax = 1;
+                Object ret = null;
+                List<Object> retInternal = null;
+                if (args.size() > 0) {
+                    Object argObj = args.get(0);
+                    LoxUtil.checkIsA("number", argObj, interp, "ArgumentError", null, 1);
+                    popMax = (int)(double)argObj;
+                    if (popMax > 1) {
+                        ret = interp.createInstance("Array", new ArrayList<Object>());
+                        retInternal = (List<Object>)((LoxInstance)ret).getHiddenProp("ary");
+                    }
+                }
+                int popped = 0;
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
-                Object el = ary.remove(ary.size()-1);
-                return el;
+                Object el = null;
+                while (popped < popMax && ary.size() > 0) {
+                    el = ary.remove(ary.size()-1);
+                    if (popMax > 1) {
+                        retInternal.add(el);
+                    } else {
+                        ret = el;
+                    }
+                    popped++;
+                }
+                return ret;
             }
         });
         arrayClass.defineMethod(new LoxNativeCallable("contains", 1, 1) {
@@ -667,6 +694,111 @@ class Runtime {
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
                 Boolean b = ary.contains(args.get(0));
                 return b;
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("get", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Object idx = args.get(0);
+                LoxUtil.checkIsA("number", idx, interp, "ArgumentError", null, 1);
+                int idxNum = (int)(double)idx;
+                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                if (idxNum >= ary.size()) {
+                    return null;
+                }
+                return ary.get(idxNum);
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("set", 2, 2) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                Object idx = args.get(0);
+                LoxUtil.checkIsA("number", idx, interp, "ArgumentError", null, 1);
+                Object val = args.get(1);
+                int idxNum = (int)(double)idx;
+                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                int arySz = ary.size();
+                if (idxNum >= arySz) {
+                    int i = arySz;
+                    while (i <= idxNum) {
+                        ary.add(null);
+                        i++;
+                    }
+                }
+                ary.set(idxNum, val);
+                return instance;
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("indexGet", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                LoxCallable getMethod = instance.getMethod("get", interp);
+                if (getMethod == null) {
+                    interp.throwLoxError("TypeError",
+                        "Array has no method '#get' for '[]' (#indexGet)");
+                }
+                return interp.evaluateCall(getMethod, args, tok);
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("indexSet", 2, 2) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                LoxCallable setMethod = instance.getMethod("set", interp);
+                if (setMethod == null) {
+                    interp.throwLoxError("TypeError",
+                        "Array has no method '#set' for '[]=' (#indexSet)");
+                }
+                return interp.evaluateCall(setMethod, args, tok);
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("shift", 0, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError",
+                        "<Array#shift> called on frozen Array object");
+                }
+                int shiftMax = 1;
+                Object ret = null;
+                List<Object> retInternal = null;
+                if (args.size() > 0) {
+                    Object argObj = args.get(0);
+                    LoxUtil.checkIsA("number", argObj, interp, "ArgumentError", null, 1);
+                    shiftMax = (int)(double)argObj;
+                    if (shiftMax > 1) {
+                        ret = interp.createInstance("Array", new ArrayList<Object>());
+                        retInternal = (List<Object>)((LoxInstance)ret).getHiddenProp("ary");
+                    }
+                }
+                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                int shifted = 0;
+                while (shifted < shiftMax && ary.size() > 0) {
+                    if (shiftMax > 1) {
+                        retInternal.add(ary.remove(0));
+                    } else {
+                        ret = ary.remove(0);
+                    }
+                    shifted++;
+                }
+                return ret;
+            }
+        });
+        arrayClass.defineMethod(new LoxNativeCallable("unshift", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                if (instance.isFrozen) {
+                    interp.throwLoxError("FrozenObjectError",
+                        "<Array#unshift> called on frozen Array object");
+                }
+                List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                ary.add(0, args.get(0));
+                return instance;
             }
         });
         arrayClass.defineMethod(new LoxNativeCallable("each", 1, 1) {
@@ -753,15 +885,15 @@ class Runtime {
                     for (Object elAry : internalAry) {
                         if (!Runtime.isArray(elAry)) {
                             LoxUtil.checkIsA("Array", elAry, interp, "ArgumentError",
-                                    "Element " + String.valueOf(elNum) +
-                                    " of given Array object must be an Array.", 1);
+                                "Element " + String.valueOf(elNum) +
+                                " of given Array object must be an Array.", 1);
                         }
                         LoxInstance elAryInst = Runtime.toInstance(elAry);
                         List<Object> elAryInternal = (List<Object>)elAryInst.getHiddenProp("ary");
                         if (elAryInternal.size() != 2) {
                             LoxUtil.checkIsA("Array", elAry, interp, "ArgumentError",
-                                    "Element " + String.valueOf(elNum) +
-                                    " of given Array object must be an Array of size 2.", 1);
+                                "Element " + String.valueOf(elNum) +
+                                " of given Array object must be an Array of size 2.", 1);
                         } else {
                             Object key = elAryInternal.get(0);
                             Object val = elAryInternal.get(1);
@@ -794,7 +926,8 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
-                    interp.throwLoxError("FrozenObjectError", "<put> called on frozen map: " + interp.stringify(instance));
+                    interp.throwLoxError("FrozenObjectError",
+                        "<Map#put> called on frozen map: " + interp.stringify(instance));
                 }
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 Object keyObj = args.get(0);
@@ -803,12 +936,37 @@ class Runtime {
                 return instance;
             }
         });
+        mapClass.defineMethod(new LoxNativeCallable("indexGet", 1, 1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                LoxCallable getMethod = instance.getMethod("get", interp);
+                if (getMethod == null) {
+                    interp.throwLoxError("TypeError",
+                        "Map has no method '#get' for '[]' (#indexGet)");
+                }
+                return interp.evaluateCall(getMethod, args, tok);
+            }
+        });
+        mapClass.defineMethod(new LoxNativeCallable("indexSet", 2, 2) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                LoxCallable putMethod = instance.getMethod("put", interp);
+                if (putMethod == null) {
+                    interp.throwLoxError("TypeError",
+                        "Map has no method '#put' for '[]=' (#indexSet)");
+                }
+                return interp.evaluateCall(putMethod, args, tok);
+            }
+        });
         mapClass.defineMethod(new LoxNativeCallable("remove", 1, -1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
-                    interp.throwLoxError("FrozenObjectError", "<remove> called on frozen map: " + interp.stringify(instance));
+                    interp.throwLoxError("FrozenObjectError",
+                        "<Map#remove> called on frozen map: " + interp.stringify(instance));
                 }
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 List<Object> retList = new ArrayList<>();
@@ -875,7 +1033,8 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
-                    interp.throwLoxError("FrozenObjectError", "<clear> called on frozen map: " + interp.stringify(instance));
+                    interp.throwLoxError("FrozenObjectError",
+                        "<Map#clear> called on frozen map: " + interp.stringify(instance));
                 }
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 mapIntern.clear();
@@ -1070,7 +1229,8 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
-                    interp.throwLoxError("FrozenObjectError", "<push> called on frozen String object");
+                    interp.throwLoxError("FrozenObjectError",
+                        "<String#push> called on frozen String object");
                 }
                 StringBuffer buf = (StringBuffer)instance.getHiddenProp("buf");
                 int argNum = 1;

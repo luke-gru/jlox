@@ -1,12 +1,34 @@
-loadScript("prelude");
 var m = Map([[1,2]]);
 print m;
 m[2] = 4;
 print m[1];
 print m[2];
 
+class StringMap {
+  init() {
+    this._map = Map();
+  }
+  indexGet(name) {
+    return this._map[String(name)];
+  }
+  indexSet(name, val) {
+    this._map[String(name)] = val;
+    return this;
+  }
+  toString() {
+    return "<StringMap " + String(this._map) + ">";
+  }
+}
+
+var sm = StringMap();
+sm[10] = 100;
+sm['10'] = 101;
+sm['10'] = 200;
+print sm;
+
 __END__
 -- expect: --
 {1 => 2}
 2
 4
+<StringMap {10 => 200}>
