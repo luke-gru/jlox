@@ -1,87 +1,31 @@
 TODO:
-* multiple var declaration [DONE], multiple assignment [], return multiple values [DONE]
-* splat parameters + splat arguments [DONE]
-* object literals, maybe? []
-* iterators, with returning iterator with instance iter() method like python,
-along with 'for elem in obj' syntax [DONE]
-* all classes inherit from Object automatically [DONE]
-* ["propName"] and ["propName"]= for dynamic property get and set [DONE]
-* add builtin Array class instead of using LoxArray, use LoxInstance with
-class of Array [DONE]
-* add builtin String class instead of using java StringBuffer, use LoxInstance with
-class of String [DONE]
-* Add way to cast strings to numbers [DONE]
-* Add string interpolation [DONE]
-* add standard Error classes [DONE]
+* multiple assignment []
 * throw Interrupt errors on interrupts, so the program can catch them when
 the interpreter is running. []
 * signal handling []
 * add keyword arguments []
-* default arguments for functions [DONE]
-* frozen objects, can't use setProperty on the instance [DONE]
-* Don't allow frozen objects to use push() and other methods that change the
-object's internals. [DONE]
-* add test suite [DONE]
 * add atexit() hook for program []
-* add '+=, -=,' etc binary operators [DONE]
-* class (static) methods and properties [DONE]
-* add Object#dup method, which shallow copies an object and its properties [DONE]
-* add Object#initDup hook for duplicated objects [DONE]
 * Figure out what it means to dup a class. Should this be possible? It is in
 Ruby, for example. []
-* Add builtin class Class, like Ruby. Class constructor creates new anon class. [DONE]
-* Allow re-opening classes [DONE]
 * Allow undefining methods and functions (undef) []
-* Allow aliasing methods like Ruby, which creates a copy of the original
-method? [DONE]
 * Fix alias() functions to actually clone() the callable for stack trace
 purposes. []
-* Add singleton classes. If so, would have to re-implement static functions [DONE]
-* Add `in(expr) { }` construct like JavaScript's with or Ruby's instance_eval [DONE].
-* Add eval(String) for evaling code. [DONE]
-* Add way to load other script files [DONE]
-* Add way to nest classes within classes and refer to nested classes by scoped
-names. [DONE]
-* Allow arbitrary expressions and statements within class { } and in { }
-blocks which get evaluated once upon being visited. [DONE]
-* Fix \" within double-quoted strings [DONE]
-* Allow single-quoted strings [DONE]
-* Add Object#_singletonClass [DONE] (but need to fix
-obj._singletonClass._singletonClass, returns wrong value)
 * Add more files to stdlib []
 * Make functions LoxInstances, instead of treating them differently. []
-* implement some sort of methodMissing hook, like Ruby's. [DONE]
 * allow objects to overload methods for primitive operations: +, -, *, [],
 []=, maybe also '.' (propGet) and '.=', propSet. []
-* Make '::' lookup, also maybe nested classes get set on the enclosing class
-as a property, so lookup is performed with '.'? [DONE]
-* property lookup should look first for properties, then getters, then methods.
-Right now if we have a getter then set that same property, when we retrieve
-the property the getter is called. [DONE]
-* getter/setter/ method lookup should respect singleton class lookup like
-Ruby's. Right now it acts weirdly for static functions. [DONE]
-* Add c style multiline comments [DONE]
-* make REPL better by adding readline support (up key, down key, history
-support, etc.) [DONE]
 * Add Class#methodNames(bool), Class#getterNames(bool) and
 Class#setterNames(bool) methods []
-* Add Class#ancestors method, returns array of Class objects [DONE]
-* Add Map class? [DONE]
-* Add ArrayIterator, like MapIterator? []
+* Add ArrayIterator, like MapIterator? [] Not sure if needed
 * Add Object#propertyNames(bool includeGetters = true), and
 * Object#properties(includeGetters) returns Hash of property names
 and values []
-* Add isCallable(obj) global function [DONE]
-* Add static (frozen, interned) strings, like Ruby [], s"" or s'', can't have
-interpolation [DONE]
-* Add Object#opCmp hook method, which returns -1, 0, or 1.
-* Add __LINE__ constant support in scripts (in scanner) [DONE]
-* Add Object#indexGet and #indexSet hooks for [] and []= [IN PROGRESS], still
-have to add the methods natively to Map and Array, right now there's just in
-stdlib/prelude.
+* Add Object#opCmp hook method, which returns -1, 0, or 1. []
 * Get rid of the throw new RuntimeError calls in the interpreter, replace with
 calls to throwLoxError. Also, give a token to throwLoxError so that we can
 report the line of the error. This token should live in the wrapper exception
 class of the error, the RuntimeThrow class. []
 * Make stack traces and error messages include the given file, and add more
 useful info. []
+* Add modules like Ruby's? As in, definitions of static and instance methods
+that can be reused across classes. []
