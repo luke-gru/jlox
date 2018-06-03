@@ -11,7 +11,7 @@ class of Array [DONE]
 * add builtin String class instead of using java StringBuffer, use LoxInstance with
 class of String [DONE]
 * Add way to cast strings to numbers [DONE]
-* Add string interpolation, maybe? []
+* Add string interpolation [DONE]
 * add standard Error classes [DONE]
 * throw Interrupt errors on interrupts, so the program can catch them when
 the interpreter is running. []

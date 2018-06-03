@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import static com.craftinginterpreters.lox.TokenType.*;
 
@@ -671,12 +673,67 @@ public class Parser {
         if (matchAny(NUMBER)) {
             return new Expr.Literal(prevTok().literal);
         }
-        if (matchAny(STRING)) {
+        if (matchAny(SQ_STRING)) {
             return new Expr.Literal(
                 new StringBuffer((String)prevTok().literal)
             );
         }
-        if (matchAny(S_STRING)) {
+        if (matchAny(DQ_STRING)) {
+            // parse out any string interpolation, "${expr}"
+            String str = (String)prevTok().literal;
+            Pattern p = Pattern.compile("\\$\\{.+?\\}");
+            Matcher m = p.matcher(str);
+            if (str.length() > 0 && m.find()) {
+                int startIdx = m.start();
+                int endIdx = m.end();
+                int strlen = str.length();
+                String strBefore = "";
+                String strAfter = "";
+                if (startIdx > 0) {
+                    strBefore = str.substring(0, startIdx);
+                }
+                if (endIdx < (strlen-1)) {
+                    strAfter = str.substring(endIdx, strlen-1);
+                }
+                String exprStr = str.substring(startIdx+2, endIdx-1);
+                //System.err.println("interpolation found");
+                //System.err.println("before: '" + strBefore + "'");
+                //System.err.println("after: '" + strAfter + "'");
+                //System.err.println("in: '" + exprStr + "'");
+                Scanner exprScanner = new Scanner(exprStr);
+                Token prevToken = prevTok();
+                exprScanner.line = prevToken.line;
+                List<Token> newTokens = exprScanner.scanUntilEnd();
+                addTokens(newTokens, current);
+                //System.err.println("peekTok() = " + peekTok().lexeme);
+                //for (Token tok : this.tokens) {
+                    //System.err.println("TOK = " + tok.lexeme);
+                //}
+                Expr innerExpr = expression();
+                //System.err.println("after inner");
+                // interpolation transformation: change
+                //   "Welcome, ${person.name}!" to
+                //   "Welcome, " + person.name + "!"
+                Expr.Grouping group = new Expr.Grouping(null);
+                Expr.Literal litBefore = new Expr.Literal(strBefore);
+                Expr.Literal litAfter = new Expr.Literal(strAfter);
+                Expr.Binary plusOp1 = new Expr.Binary(
+                    litBefore,
+                    new Token(PLUS, "+", null, prevToken.line),
+                    innerExpr
+                );
+                Expr.Binary plusOp2 = new Expr.Binary(
+                    plusOp1,
+                    new Token(PLUS, "+", null, prevToken.line),
+                    litAfter
+                );
+                group.expression = plusOp2;
+                return group;
+            }
+            return new Expr.Literal(new StringBuffer(str));
+        }
+        // static string (var s = s"frozen, static string")
+        if (matchAny(ST_STRING)) {
             return new Expr.Literal(
                 (String)prevTok().literal
             );
@@ -788,6 +845,10 @@ public class Parser {
 
     private Token peekTok() {
         return tokens.get(current);
+    }
+
+    private void addTokens(List<Token> newTokens, int idx) {
+        tokens.addAll(idx, newTokens);
     }
 
     private Token peekTokN(int n) {

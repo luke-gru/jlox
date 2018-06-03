@@ -13,7 +13,7 @@ class Scanner {
 
     private int start = 0;
     private int current = 0;
-    private int line = 1;
+    public int line = 1;
     public int inBlock = 0;
     private boolean scriptEnded = false; // ended with __END__ keyword
 
@@ -51,7 +51,7 @@ class Scanner {
         this.source = source;
     }
 
-    void reset() {
+    public void reset() {
         this.start = 0;
         this.current = 0;
         this.line = 1;
@@ -59,13 +59,13 @@ class Scanner {
         this.tokens.clear();
     }
 
-    List<Token> scanTokens() {
+    public List<Token> scanTokens() {
         scanUntilEnd();
         addEOF();
         return tokens;
     }
 
-    List<Token> scanUntilEnd() {
+    public List<Token> scanUntilEnd() {
         while (!isAtEnd()) {
             // We are at the beginning of the next lexeme.
             start = current;
@@ -74,11 +74,11 @@ class Scanner {
         return tokens;
     }
 
-    void appendSrc(String src) {
+    public void appendSrc(String src) {
         this.source = source + src;
     }
 
-    void addEOF() {
+    public void addEOF() {
         tokens.add(new Token(EOF, "", null, line));
     }
 
@@ -236,9 +236,9 @@ class Scanner {
         value = value.replaceAll("\\\\t", "\t"); // replace \t (escaped newline) with \t for the lox string
         value = value.replaceAll("\\\\r", "\r"); // replace \r (escaped newline) with \r for the lox string
         if (isStaticString) {
-            addToken(S_STRING, value);
+            addToken(ST_STRING, value);
         } else {
-            addToken(STRING, value);
+            addToken(DQ_STRING, value);
         }
     }
 
@@ -261,9 +261,9 @@ class Scanner {
         String value = source.substring(start + 1, current - 1);
         value = value.replaceAll("\\\\'", "'"); // replace \' (escaped squote) with ' for the lox string
         if (isStaticString) {
-            addToken(S_STRING, value);
+            addToken(ST_STRING, value);
         } else {
-            addToken(STRING, value);
+            addToken(SQ_STRING, value);
         }
     }
 
