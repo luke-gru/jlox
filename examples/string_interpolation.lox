@@ -1,8 +1,10 @@
 fun getName() { return "Gracie"; }
 print "Hi, ${getName()}";
+print s"Hi, ${getName()}";
 print 'Hi, ${getName()}';
 
 __END__
 -- expect: --
 Hi, Gracie
+Hi, ${getName()}
 Hi, ${getName()}

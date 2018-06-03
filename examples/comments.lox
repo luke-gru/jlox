@@ -1,0 +1,15 @@
+// print "this shouldn't appear";
+/*
+
+print "this shouldn't appear";
+print "this shouldn't appear";
+print "this shouldn't appear";
+/*
+print "this shouldn't appear";
+
+*/
+print "this SHOULD appear";
+
+__END__
+-- expect: --
+this SHOULD appear

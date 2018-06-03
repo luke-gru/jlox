@@ -1,4 +1,10 @@
 class Map {
+  indexGet(idx) {
+    return this.get(idx);
+  }
+  indexSet(idx, val) {
+    return this.put(idx, val);
+  }
   filter(fn) {
     var newMap = Map();
     this.each(fun(k, v) {
@@ -11,6 +17,12 @@ class Map {
 }
 
 class Array {
+  /*indexGet(idx) {
+    return this.get(idx);
+  }
+  indexSet(idx, val) {
+    return this.set(idx, val);
+  }*/
   filter(fn) {
     var newAry = Array();
     this.each(fun(el) {

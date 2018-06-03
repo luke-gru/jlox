@@ -184,26 +184,24 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitIndexedGetExpr(Expr.IndexedGet expr) {
         Object obj = evaluate(expr.left);
-        if (!(Runtime.isArray(obj)) && !(Runtime.isString(obj)) &&
-           (!(obj instanceof LoxInstance))) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "index access expr (expr[]), LHS must be array object, string or object.");
+        if (!(obj instanceof LoxInstance)) {
+            throwLoxError("TypeError",
+                "index access expr (expr[index]), expr must be an object, is: " +
+                nativeTypeof(tokenFromExpr(expr.left), obj));
         }
         Object index = evaluate(expr.indexExpr);
-        boolean needsNumberIndex = Runtime.isArray(obj) || Runtime.isString(obj);
-        boolean needsStringIndex = (obj instanceof LoxInstance) && !needsNumberIndex;
-        if (needsNumberIndex && !(Runtime.isNumber(index))) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "index access accessor (expr[accessor]) must be number for arrays and strings.");
-        } else if (needsStringIndex && !Runtime.isString(index)) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "index access accessor (expr[accessor]) must be string for objects.");
+        LoxInstance lhsInstance = (LoxInstance)obj;
+        LoxCallable indexGetMeth = lhsInstance.getMethod("indexGet", this);
+        if (indexGetMeth != null) {
+            List<Object> indexValArgs = new ArrayList<>();
+            indexValArgs.add(index);
+            return evaluateCall(indexGetMeth, indexValArgs, tokenFromExpr(expr));
         }
-        // TODO: call indexGet() on instance, if it's defined (if allow open classes)
         if (Runtime.isArray(obj)) {
             LoxInstance ary = Runtime.toInstance(obj);
             Token tok = tokenFromExpr(expr.left);
             List<Object> elements = (List<Object>)ary.getHiddenProp("ary");
-            // TODO: check array OOB access
             return elements.get(((Double)index).intValue());
-        // TODO: call indexGet() on instance, if it's defined (if allow open classes)
         } else if (Runtime.isString(obj)) {
             LoxInstance strInstance = Runtime.toString(obj);
             StringBuffer strBuf = (StringBuffer)strInstance.getHiddenProp("buf");
@@ -214,7 +212,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             return newInstance;
         } else if (obj instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)obj;
-            LoxInstance strIndexInst = (LoxInstance)index;
+            if (!Runtime.isString(index)) {
+                throwLoxError("TypeError",
+                    "object[index], index must be a string, is: " +
+                    nativeTypeof(tokenFromExpr(expr.indexExpr), index));
+            }
+            LoxInstance strIndexInst = Runtime.toString(index);
             StringBuffer strIndex = (StringBuffer)strIndexInst.getHiddenProp("buf");
             return instance.getProperty(strIndex.toString(), this);
         } else {
@@ -225,36 +228,41 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitIndexedSetExpr(Expr.IndexedSet expr) {
         Object obj = evaluate(expr.left);
-        if (!(Runtime.isString(obj)) && !(Runtime.isInstance(obj))) {
-            throw new RuntimeError(tokenFromExpr(expr.left), "indexed set expr (expr[index] = rval), LHS must be a String or Array object, or some other object.");
+        if (!(Runtime.isInstance(obj))) {
+            throwLoxError("TypeError",
+                "indexed set expr (expr[index] = rval), expr must be an Object, is: " +
+                nativeTypeof(tokenFromExpr(expr.left), obj));
         }
-        boolean needsNumberIndex = (Runtime.isArray(obj)) || (Runtime.isString(obj));
-        boolean needsStringIndex = (obj instanceof LoxInstance) && !needsNumberIndex;
         Object index = evaluate(expr.indexExpr);
-        if (needsNumberIndex && !(index instanceof Double)) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a number when expr evaluates to a String or Array object.");
-        } else if (needsStringIndex && !(Runtime.isString(index))) {
-            throw new RuntimeError(tokenFromExpr(expr.indexExpr), "indexed set index (expr[index] = rval) must be a String when expr evaluates to a non-Array or String object.");
-        }
         Object val = evaluate(expr.value);
+        LoxInstance lhsInstance = (LoxInstance)obj;
+        LoxCallable indexSetMeth = lhsInstance.getMethod("indexSet", this);
+        if (indexSetMeth != null) {
+            List<Object> indexValArgs = new ArrayList<>();
+            indexValArgs.add(index);
+            indexValArgs.add(val);
+            return evaluateCall(indexSetMeth, indexValArgs, tokenFromExpr(expr));
+        }
         if (Runtime.isArray(obj)) {
             LoxInstance ary = (LoxInstance)obj;
             Token tok = tokenFromExpr(expr.left);
             List<Object> elements = (List<Object>)ary.getHiddenProp("ary");
-            // TODO: check array OOB access
+            // FIXME: check array OOB access!
             elements.set(((Double)index).intValue(), val);
             return val;
         } else if (Runtime.isString(obj)) {
             LoxInstance strBufInst = (LoxInstance)obj;
             StringBuffer strBuf = (StringBuffer)strBufInst.getHiddenProp("buf");
             if (!Runtime.isString(val)) {
-                throw new RuntimeError(tokenFromExpr(expr.indexExpr), "string[index]=value, value must be a String!");
+                throwLoxError("TypeError",
+                    "string[index]=value, value must be a String, is: " +
+                    nativeTypeof(tokenFromExpr(expr.value), val));
             }
             LoxInstance strBufValInst = (LoxInstance)val;
             StringBuffer strBufVal = (StringBuffer)strBufValInst.getHiddenProp("buf");
             int start = ((Double)index).intValue();
             int end = start + strBufVal.length();
-            if (start > strBuf.length()) { // FIXME: very slow
+            if (start > strBuf.length()) { // FIXME: very slow!
                 int len = strBuf.length();
                 while (len < start) {
                     strBuf.append(" ");
@@ -263,7 +271,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             } else {
                 strBuf.delete(start, end);
             }
-            // TODO
             strBuf.insert(start, strBufVal.toString());
             return val;
         } else if (obj instanceof LoxInstance) {
@@ -271,6 +278,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             LoxInstance indexInst = (LoxInstance)index;
             StringBuffer indexBuf = (StringBuffer)indexInst.getHiddenProp("buf");
             String indexStr = indexBuf.toString();
+            // FIXME: should look in singleton class, etc, just like getters
+            // and methods!
             LoxCallable setterFunc = instance.getKlass().getSetter(indexStr);
             LoxCallable oldFnCall = this.fnCall;
             if (setterFunc != null) {

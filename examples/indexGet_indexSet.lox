@@ -1,0 +1,12 @@
+loadScript("prelude");
+var m = Map([[1,2]]);
+print m;
+m[2] = 4;
+print m[1];
+print m[2];
+
+__END__
+-- expect: --
+{1 => 2}
+2
+4

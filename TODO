@@ -22,6 +22,7 @@ the interpreter is running. []
 * Don't allow frozen objects to use push() and other methods that change the
 object's internals. [DONE]
 * add test suite [DONE]
+* add atexit() hook for program []
 * add '+=, -=,' etc binary operators [DONE]
 * class (static) methods and properties [DONE]
 * add Object#dup method, which shallow copies an object and its properties [DONE]
@@ -30,7 +31,7 @@ object's internals. [DONE]
 Ruby, for example. []
 * Add builtin class Class, like Ruby. Class constructor creates new anon class. [DONE]
 * Allow re-opening classes [DONE]
-* Allow undefining methods and functions []
+* Allow undefining methods and functions (undef) []
 * Allow aliasing methods like Ruby, which creates a copy of the original
 method? [DONE]
 * Fix alias() functions to actually clone() the callable for stack trace
@@ -47,7 +48,7 @@ blocks which get evaluated once upon being visited. [DONE]
 * Allow single-quoted strings [DONE]
 * Add Object#_singletonClass [DONE] (but need to fix
 obj._singletonClass._singletonClass, returns wrong value)
-* Add more classes to stdlib []
+* Add more files to stdlib []
 * Make functions LoxInstances, instead of treating them differently. []
 * implement some sort of methodMissing hook, like Ruby's. [DONE]
 * allow objects to overload methods for primitive operations: +, -, *, [],
@@ -65,12 +66,16 @@ support, etc.) [DONE]
 * Add Class#methodNames(bool), Class#getterNames(bool) and
 Class#setterNames(bool) methods []
 * Add Class#ancestors method, returns array of Class objects [DONE]
-* Add Map class? [IN PROGRESS]
-* Add ArrayIterator, like MapIterator ? []
-* Add Object#propertyNames(bool includeGetters = true), and Object#properties returns Hash of property names
+* Add Map class? [DONE]
+* Add ArrayIterator, like MapIterator? []
+* Add Object#propertyNames(bool includeGetters = true), and
+* Object#properties(includeGetters) returns Hash of property names
 and values []
 * Add isCallable(obj) global function [DONE]
 * Add static (frozen, interned) strings, like Ruby [], s"" or s'', can't have
 interpolation [DONE]
 * Add Object#opCmp hook method, which returns -1, 0, or 1.
-* Add __LINE__ constant support in scripts (in scanner) []
+* Add __LINE__ constant support in scripts (in scanner) [DONE]
+* Add Object#indexGet and #indexSet hooks for [] and []= [IN PROGRESS], still
+have to add the methods natively to Map and Array, right now there's just in
+stdlib/prelude.
