@@ -15,6 +15,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
     final Map<String, LoxCallable> setters;
     boolean isSingletonKlass = false;
     LoxInstance singletonOf = null;
+    private LoxClass classDefinedIn = null;
 
     LoxClass(String name, LoxClass superClass, Map<String, LoxCallable> methods) {
         super(null, "Class");
@@ -33,6 +34,7 @@ class LoxClass extends LoxInstance implements LoxCallable {
         this.methods = methods;
         this.getters = new HashMap<>();
         this.setters = new HashMap<>();
+        this.classDefinedIn = this;
     }
 
     @Override
@@ -43,10 +45,20 @@ class LoxClass extends LoxInstance implements LoxCallable {
     @Override
     public String getName() {
         if (name == null) {
-            return "(anon)";
+            return "(Anon)";
         } else {
             return name;
         }
+    }
+
+    @Override
+    public LoxClass getClassDefinedIn() {
+        return this.classDefinedIn;
+    }
+
+    @Override
+    public void setClassDefinedIn(LoxClass klass) {
+        this.classDefinedIn = klass;
     }
 
     // constructor arity min

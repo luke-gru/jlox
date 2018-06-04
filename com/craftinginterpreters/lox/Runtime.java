@@ -416,7 +416,7 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 interp.environment.getThis().freeze();
-                return null;
+                return interp.environment.getThis();
             }
         });
         objClass.defineMethod(new LoxNativeCallable("isFrozen", 0, 0) {
@@ -453,7 +453,8 @@ class Runtime {
                 return Runtime.createString(instance.toString(), interp);
             }
         });
-        // default property missing method, takes the name of the property as a string
+        // Default property missing method, takes the name of the property as a string.
+        // Does nothing by default, except return `nil`.
         objClass.defineMethod(new LoxNativeCallable("propertyMissing", 1, 1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
