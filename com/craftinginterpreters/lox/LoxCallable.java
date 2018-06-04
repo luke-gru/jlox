@@ -8,8 +8,8 @@ interface LoxCallable {
   public int arityMax();
   public String getName(); // ex: "typeof"
   public String toString(); // ex: "<fn typeof>"
-  public LoxClass getClassDefinedIn();
-  public void setClassDefinedIn(LoxClass klass);
+  public LoxModule getModuleDefinedIn(); // returns module or class or null
+  public void setModuleDefinedIn(LoxModule modOrClass);
   public LoxCallable bind(LoxInstance instance, Environment env);
   public Stmt.Function getDecl(); // NOTE: can be null, like for native (builtin) functions
 }

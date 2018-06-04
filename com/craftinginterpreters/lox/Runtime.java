@@ -75,6 +75,10 @@ class Runtime {
         return (obj instanceof LoxClass);
     }
 
+    static boolean isModule(Object obj) {
+        return (obj instanceof LoxModule);
+    }
+
     static boolean isArray(Object obj) {
         if (isClass(obj)) { return false; }
         if (!isInstance(obj)) { return false; }
@@ -471,6 +475,21 @@ class Runtime {
                 LoxModule mod = (LoxModule)interp.environment.getThis();
                 interp.throwLoxError("TypeError", tok,
                     "Cannot instantiate a module. Tried to insantiate module '" + mod.getName() + "'");
+                return null;
+            }
+        });
+        modClass.defineMethod(new LoxNativeCallable("include", 1, -1) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                LoxModule thisModOrClass = (LoxModule)interp.environment.getThis();
+                for (Object arg : args) {
+                    if (!Runtime.isModule(arg)) {
+                        interp.throwLoxError("ArgumentError", tok,
+                            "Only modules may be included into other modules or classes (" + thisModOrClass.toString() +
+                            "tried to include " + interp.stringify(arg) + ")");
+                    }
+                    ((LoxModule)arg).includeIn(thisModOrClass);
+                }
                 return null;
             }
         });

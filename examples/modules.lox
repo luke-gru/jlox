@@ -1,0 +1,19 @@
+module Greetable {
+  greet(greeting) { print greeting + " from object of " + String(this._class); }
+}
+
+class Object { this.include(Greetable); }
+print Greetable;
+print Object.ancestors();
+var o = Object();
+o.greet("hey there");
+[].greet("hey there again");
+print Array.ancestors();
+
+__END__
+-- expect: --
+<module Greetable>
+[<class Object>,<module Greetable>]
+hey there from object of <class Object>
+hey there again from object of <class Array>
+[<class Array>,<class Object>,<module Greetable>]

@@ -51,7 +51,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     final Runtime runtime;
     public Environment environment = globals;
     public LoxCallable fnCall = null; // current function being executed
-    private LoxClass currentClass = null; // current class being visited
+    private LoxModule currentMod = null; // current module or class being visited
     public Map<String, LoxClass> classMap = new HashMap<>();
     public Map<String, LoxModule> modMap = new HashMap<>();
 
@@ -885,23 +885,23 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         Object obj = evaluate(stmt.object);
         if (!Runtime.isInstance(obj)) {
             Token tok = tokenFromExpr(stmt.object);
+            // FIXME: use throwLoxError instead
             throw new RuntimeError(tok,
                     "Expression given to 'in' must evaluate to an instance or class, is: " +
                     nativeTypeof(tok, obj));
         }
         LoxInstance objInst = Runtime.toInstance(obj);
         LoxInstance oldThis = this._this;
-        LoxClass oldCurClass = this.currentClass;
+        LoxModule oldCurMod = this.currentMod;
         Environment outerEnv = this.environment;
 
-        this._this = objInst;
-        LoxClass thisKlass = null;
-        if (Runtime.isClass(objInst)) {
-            thisKlass = (LoxClass)objInst;
+        LoxModule thisMod = null;
+        if (Runtime.isModule(objInst)) {
+            thisMod = (LoxModule)objInst;
         } else {
-            thisKlass = objInst.getSingletonKlass();
+            thisMod = (LoxModule)objInst.getSingletonKlass();
         }
-        this.currentClass = thisKlass;
+        this.currentMod = thisMod;
 
         this.environment = new Environment(outerEnv);
         environment.define("this", objInst);
@@ -909,8 +909,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             execute(statement);
         }
 
-        this._this = oldThis;
-        this.currentClass = oldCurClass;
+        this.currentMod = oldCurMod;
         this.environment = outerEnv;
         return null;
     }
@@ -970,20 +969,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         boolean isGetter = func.type == Parser.FunctionType.GETTER;
         boolean isSetter = func.type == Parser.FunctionType.SETTER;
         boolean isInstanceMethod = func.type == Parser.FunctionType.METHOD;
-        LoxClass klass = this.currentClass;
+        LoxModule mod = this.currentMod;
         LoxCallable callable = new LoxFunction(func, this.environment, isInitializer);
         if (isStaticMethod) {
-            klass.getSingletonKlass().methods.put(func.name.lexeme, callable);
-            callable.setClassDefinedIn(klass.getSingletonKlass());
+            mod.getSingletonKlass().methods.put(func.name.lexeme, callable);
+            callable.setModuleDefinedIn(mod.getSingletonKlass());
         } else if (isGetter) {
-            klass.getters.put(func.name.lexeme, callable);
-            callable.setClassDefinedIn(klass);
+            mod.getters.put(func.name.lexeme, callable);
+            callable.setModuleDefinedIn(mod);
         } else if (isSetter) {
-            klass.setters.put(func.name.lexeme, callable);
-            callable.setClassDefinedIn(klass);
+            mod.setters.put(func.name.lexeme, callable);
+            callable.setModuleDefinedIn(mod);
         } else  if (isInstanceMethod){
-            klass.methods.put(func.name.lexeme, callable);
-            callable.setClassDefinedIn(klass);
+            mod.methods.put(func.name.lexeme, callable);
+            callable.setModuleDefinedIn(mod);
         } else {
             environment.defineFunction(stmt.name, stmt);
             environment.define(stmt.name.lexeme, callable);
@@ -993,10 +992,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitClassStmt(Stmt.Class stmt) {
-        LoxClass enclosingClass = this.currentClass;
+        LoxModule enclosingMod = this.currentMod;
         String namePrefix = "";
-        if (enclosingClass != null) {
-            namePrefix = enclosingClass.getName() + ".";
+        if (enclosingMod != null) {
+            namePrefix = enclosingMod.getName() + ".";
         }
         String newClassNameFull = namePrefix + stmt.name.lexeme;
         LoxClass existingClass = classMap.get(newClassNameFull);
@@ -1022,33 +1021,68 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             classMap.put(newClassNameFull, klass);
             environment.assign(stmt.name, klass, false);
         }
-        this.currentClass = klass;
+        this.currentMod = klass;
         Environment outerEnv = environment;
         this.environment = new Environment(outerEnv);
         this.environment.define("this", klass);
 
-        if (enclosingClass != null) {
-            Object propVal = enclosingClass.getProperty(stmt.name.lexeme, this);
+        if (enclosingMod != null) {
+            Object propVal = enclosingMod.getProperty(stmt.name.lexeme, this);
             if (propVal != null) {
                 System.err.println("Warning: Overwriting property " + stmt.name.lexeme +
-                    " on class " + enclosingClass.getName() +
+                    " on class " + enclosingMod.getName() +
                     " due to nested class declaration");
             }
-            enclosingClass.setProperty(stmt.name.lexeme, klass, this, null);
+            enclosingMod.setProperty(stmt.name.lexeme, klass, this, null);
         }
 
         for (Stmt statement : stmt.body) {
             execute(statement);
         }
 
-        this.currentClass = enclosingClass;
+        this.currentMod = enclosingMod;
         this.environment = outerEnv;
         return null;
     }
 
-    // TODO
     @Override
     public Void visitModuleStmt(Stmt.Module stmt) {
+        LoxModule enclosingMod = this.currentMod;
+        String namePrefix = "";
+        if (enclosingMod != null) {
+            namePrefix = enclosingMod.getName() + ".";
+        }
+        String newModNameFull = namePrefix + stmt.name.lexeme;
+        LoxModule existingMod = modMap.get(newModNameFull);
+        LoxModule mod = existingMod;
+        if (mod == null) { // new module definition
+            environment.define(stmt.name.lexeme, null);
+            Map<String, LoxCallable> methods = new HashMap<>();
+            mod = new LoxModule(Runtime.getClass("Module"), "Module", newModNameFull, methods);
+            modMap.put(newModNameFull, mod);
+            environment.assign(stmt.name, mod, false);
+        }
+        this.currentMod = mod;
+        Environment outerEnv = environment;
+        this.environment = new Environment(outerEnv);
+        this.environment.define("this", mod);
+
+        if (enclosingMod != null) {
+            Object propVal = enclosingMod.getProperty(stmt.name.lexeme, this);
+            if (propVal != null) {
+                System.err.println("Warning: Overwriting property " + stmt.name.lexeme +
+                    " on module or class " + enclosingMod.getName() +
+                    " due to nested module declaration");
+            }
+            enclosingMod.setProperty(stmt.name.lexeme, mod, this, null);
+        }
+
+        for (Stmt statement : stmt.body) {
+            execute(statement);
+        }
+
+        this.currentMod = enclosingMod;
+        this.environment = outerEnv;
         return null;
     }
 

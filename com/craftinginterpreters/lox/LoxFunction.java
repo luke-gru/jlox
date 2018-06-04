@@ -7,7 +7,7 @@ class LoxFunction implements LoxCallable {
     final Stmt.Function declaration;
     final Environment closure;
     final boolean isInitializer;
-    private LoxClass classDefinedIn = null;
+    private LoxModule modDefinedIn = null;
 
     LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
         this.declaration = declaration;
@@ -79,21 +79,21 @@ class LoxFunction implements LoxCallable {
             return "(anon)";
         } else {
             String prefix = "";
-            if (classDefinedIn != null) {
-                prefix = classDefinedIn.getName() + "#";
+            if (modDefinedIn != null) {
+                prefix = modDefinedIn.getName() + "#";
             }
             return prefix + declaration.name.lexeme;
         }
     }
 
     @Override
-    public LoxClass getClassDefinedIn() {
-        return this.classDefinedIn;
+    public LoxModule getModuleDefinedIn() {
+        return this.modDefinedIn;
     }
 
     @Override
-    public void setClassDefinedIn(LoxClass klass) {
-        this.classDefinedIn = klass;
+    public void setModuleDefinedIn(LoxModule klass) {
+        this.modDefinedIn = klass;
     }
 
     // The least amount of arguments the function can get called with.

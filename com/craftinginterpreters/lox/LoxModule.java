@@ -36,12 +36,13 @@ class LoxModule extends LoxInstance {
     // A new LoxClass is created with the name of this module.
     public void includeIn(LoxModule modOrClass) {
         if (modOrClass instanceof LoxClass) {
+            // TODO: include all modules in `includedModules` after including this module!
             LoxClass klass = (LoxClass)modOrClass;
             LoxClass klassSuperOrig = klass.getSuper();
             klass.superClass = new LoxClass(getName(), klassSuperOrig, methods);
             klass.superClass.getters = getters;
             klass.superClass.setters = setters;
-            klass.module = this;
+            klass.superClass.module = this;
         } else {
             modOrClass.includedModules.add(this);
         }

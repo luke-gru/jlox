@@ -7,7 +7,7 @@ class LoxNativeCallable implements LoxCallable {
     final int arityMin;
     final int arityMax;
     LoxInstance boundInstance = null;
-    private LoxClass classDefinedIn = null;
+    private LoxModule modDefinedIn = null;
 
     LoxNativeCallable(String name, int arityMin, int arityMax) {
         this.name = name;
@@ -49,20 +49,20 @@ class LoxNativeCallable implements LoxCallable {
     @Override
     public String getName() {
         String prefix = "";
-        if (classDefinedIn != null) {
-            prefix = classDefinedIn.getName() + "#";
+        if (modDefinedIn != null) {
+            prefix = modDefinedIn.getName() + "#";
         }
         return prefix + this.name;
     }
 
     @Override
-    public LoxClass getClassDefinedIn() {
-        return this.classDefinedIn;
+    public LoxModule getModuleDefinedIn() {
+        return this.modDefinedIn;
     }
 
     @Override
-    public void setClassDefinedIn(LoxClass klass) {
-        this.classDefinedIn = klass;
+    public void setModuleDefinedIn(LoxModule mod) {
+        this.modDefinedIn = mod;
     }
 
     @Override

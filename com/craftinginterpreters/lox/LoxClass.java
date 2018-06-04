@@ -11,8 +11,8 @@ class LoxClass extends LoxModule implements LoxCallable {
     public LoxClass superClass;
     boolean isSingletonKlass = false;
     LoxInstance singletonOf = null;
-    private LoxClass classDefinedIn = null; // for LoxCallable
-    public LoxModule module = null;
+    private LoxModule modDefinedIn = null; // for LoxCallable
+    public LoxModule module = null; // if this is a class created when a class includes another module.
 
     LoxClass(String name, LoxClass superClass, Map<String, LoxCallable> methods) {
         super(null, "Class", name, methods);
@@ -23,26 +23,30 @@ class LoxClass extends LoxModule implements LoxCallable {
             klass = Runtime.getClass("Class");
         }
         this.klass = klass;
-        if (superClass == null && this.name != null && !this.name.equals("Object")) {
-            superClass = Runtime.getClass("Object");
-        }
+        //if (superClass == null && this.name != null && !this.name.equals("Object")) {
+            //superClass = Runtime.getClass("Object");
+        //}
         this.superClass = superClass;
-        this.classDefinedIn = this;
+        this.modDefinedIn = this;
     }
 
     @Override
     public String toString() {
-        return "<class " + getName() + ">";
+        if (module == null) {
+            return "<class " + getName() + ">";
+        } else {
+            return "<module " + getName() + ">";
+        }
     }
 
     @Override
-    public LoxClass getClassDefinedIn() {
-        return this.classDefinedIn;
+    public LoxModule getModuleDefinedIn() {
+        return this.modDefinedIn;
     }
 
     @Override
-    public void setClassDefinedIn(LoxClass klass) {
-        this.classDefinedIn = klass;
+    public void setModuleDefinedIn(LoxModule mod) {
+        this.modDefinedIn = mod;
     }
 
     // constructor arity min
