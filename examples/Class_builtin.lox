@@ -9,7 +9,7 @@ print c.name;
 
 __END__
 -- expect: --
-<class (anon)>
-<class (anon)>
+<class (Anon)>
+<class (Anon)>
 Object
-(anon)
+(Anon)

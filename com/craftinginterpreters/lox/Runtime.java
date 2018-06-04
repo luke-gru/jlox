@@ -463,19 +463,50 @@ class Runtime {
         });
         registerClass(objClass);
 
-        // class Class
-        LoxNativeClass classClass = new LoxNativeClass("Class", objClass);
-        objClass.klass = classClass;
-        classClass.defineSingletonMethod(new LoxNativeCallable("all", 0, 0) {
+        // class Module
+        LoxNativeClass modClass = new LoxNativeClass("Module", objClass);
+        modClass.defineMethod(new LoxNativeCallable("init", 0, -1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
-                List<Object> klasses = new ArrayList<>();
+                LoxModule mod = (LoxModule)interp.environment.getThis();
+                interp.throwLoxError("TypeError", tok,
+                    "Cannot instantiate a module. Tried to insantiate module '" + mod.getName() + "'");
+                return null;
+            }
+        });
+        modClass.defineSingletonMethod(new LoxNativeCallable("all", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                List<Object> mods = new ArrayList<>();
                 Iterator iter = interp.classMap.entrySet().iterator();
                 while (iter.hasNext()) {
                     Map.Entry pair = (Map.Entry)iter.next();
-                    klasses.add(pair.getValue());
+                    mods.add(pair.getValue());
                 }
-                return Runtime.array(klasses, interp);
+                iter = interp.modMap.entrySet().iterator();
+                while (iter.hasNext()) {
+                    Map.Entry pair = (Map.Entry)iter.next();
+                    mods.add(pair.getValue());
+                }
+                return Runtime.array(mods, interp);
+            }
+        });
+        registerClass(modClass);
+
+        // class Class
+        LoxNativeClass classClass = new LoxNativeClass("Class", modClass);
+        objClass.klass = classClass;
+        modClass.klass = classClass;
+        classClass.defineSingletonMethod(new LoxNativeCallable("all", 0, 0) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+                List<Object> classes = new ArrayList<>();
+                Iterator iter = interp.classMap.entrySet().iterator();
+                while (iter.hasNext()) {
+                    Map.Entry pair = (Map.Entry)iter.next();
+                    classes.add(pair.getValue());
+                }
+                return Runtime.array(classes, interp);
             }
         });
         classClass.defineSingletonMethod(new LoxNativeCallable("getByName", 1, 1) {
@@ -527,7 +558,7 @@ class Runtime {
                 boolean sClassOfClass = false;
                 LoxClass sClassOfKlass = null;
                 if (isSClass) {
-                    sClassOfClass = (klass.singletonOf instanceof LoxClass);
+                    sClassOfClass = (klass.singletonOf instanceof LoxModule);
                     if (sClassOfClass) {
                         sClassOfKlass = (LoxClass)klass.singletonOf;
                     }
@@ -581,7 +612,6 @@ class Runtime {
 
         // class Array
         LoxNativeClass arrayClass = new LoxNativeClass("Array", objClass);
-        arrayClass.klass = classClass;
         arrayClass.defineMethod(new LoxNativeCallable("init", 0, -1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -867,7 +897,6 @@ class Runtime {
 
         // class Map
         LoxNativeClass mapClass = new LoxNativeClass("Map", objClass);
-        mapClass.klass = classClass;
         // FIXME: allow Map(1, 2) or Map([1,2]) also. Right now we only allow
         // Map([[1,2]]), which is annoying
         mapClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
@@ -1173,7 +1202,6 @@ class Runtime {
 
         // class String
         LoxNativeClass stringClass = new LoxNativeClass("String", objClass);
-        stringClass.klass = classClass;
         stringClass.defineMethod(new LoxNativeCallable("init", 0, -1) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
@@ -1262,6 +1290,8 @@ class Runtime {
             }
         });
         registerClass(numClass);
+
+        /* Error classes: */
 
         // class Error
         LoxNativeClass errorClass = new LoxNativeClass("Error", objClass);

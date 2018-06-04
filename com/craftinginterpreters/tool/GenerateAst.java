@@ -48,6 +48,7 @@ public class GenerateAst {
         "Function   : Token name, List<Param> formals, Stmt body, Parser.FunctionType type, Class klass",
         "Return     : Token token, Expr expression",
         "Class      : Token name, Expr.Variable superClassVar, Object superClass, List<Stmt> body",
+        "Module     : Token name, List<Stmt> body",
         "Try        : Block tryBlock, List<Catch> catchStmts",
         "Catch      : Expr catchExpr, Expr.Variable catchVar, Block block",
         "Throw      : Token keyword, Expr throwExpr",

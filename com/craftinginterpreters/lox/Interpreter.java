@@ -53,6 +53,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public LoxCallable fnCall = null; // current function being executed
     private LoxClass currentClass = null; // current class being visited
     public Map<String, LoxClass> classMap = new HashMap<>();
+    public Map<String, LoxModule> modMap = new HashMap<>();
 
     public HashMap<String, Object> options = null;
     public StringBuffer printBuf = null;
@@ -555,9 +556,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
             return evaluateCall(callable, args, tokenFromExpr(callExpr.left));
         } else {
-            Token tok = tokenFromExpr(callExpr);
+            Token tok = tokenFromExpr(callExpr.left);
+            // FIXME: show the object or the class, if there is one as the LHS
+            // of the call. Right now, Array.methods(), LHS here is the result
+            // of Array.methods, which is nil. We need more information on
+            // this CallExpr node during interpretation time itself.
             throwLoxError("NoSuchFunctionError", tok,
-                "Undefined function or method " + tok.lexeme);
+                "Undefined function or method '" + tok.lexeme + "'");
             return null;
         }
     }
@@ -630,8 +635,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
             return value;
         } else {
-            throw new RuntimeError(expr.property, "Attempt to set property of non-instance");
+            throwLoxError("TypeError", expr.property,
+                "Attempt to set property on non-instance");
         }
+        return null;
     }
 
     public Object evaluateCall(LoxCallable callable, List<Object> args, Token callToken) {
@@ -687,7 +694,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (useArrayElements) {
                     LoxInstance aryValue = (LoxInstance)value;
                     List<Object> aryElements = (List<Object>)aryValue.getHiddenProp("ary");
-                    // TODO: check OOB array access
+                    // FIXME: check OOB array access
                     Object val = aryElements.get(useArrayElementsIdx);
                     environment.define(varTok.lexeme, val);
                     useArrayElementsIdx++;
@@ -761,7 +768,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     }
                     if (runtimeBreak) break;
                     if (stmt.increment != null) {
-                    evaluate(stmt.increment);
+                        evaluate(stmt.increment);
                     }
                     evalBody = evaluate(stmt.test);
                 }
@@ -1036,6 +1043,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
         this.currentClass = enclosingClass;
         this.environment = outerEnv;
+        return null;
+    }
+
+    // TODO
+    @Override
+    public Void visitModuleStmt(Stmt.Module stmt) {
         return null;
     }
 

@@ -86,8 +86,10 @@ public class Parser {
     private Stmt inLoopStmt = null;
     private Stmt.Function currentFn = null;
     public Map<String, Stmt.Class> classMap = new HashMap<>();
+    public Map<String, Stmt.Module> modMap = new HashMap<>();
     private List<String> nativeClassNames = new ArrayList<>();
     private Stmt.Class currentClass = null;
+    private Stmt.Module currentMod = null;
 
     public enum FunctionType {
         NONE,
@@ -146,11 +148,8 @@ public class Parser {
                 Expr.Variable superNameVar = null;
 
                 if (matchAny(LESS)) {
-                    superName = consumeTok(IDENTIFIER, "Expected class name after '<'");
+                    superName = consumeTok(IDENTIFIER, "Expected identifier after '<'");
                     superNameVar = new Expr.Variable(superName);
-                    //if (!classExists(superName.lexeme)) {
-                        //throw error(superName, "Class " + superName.lexeme + " must be defined before being inherited from");
-                    //}
                 }
                 consumeTok(LEFT_BRACE, "Expected '{' after class name");
                 Stmt.Class enclosingClass = this.currentClass;
@@ -161,6 +160,18 @@ public class Parser {
                 classMap.put(name.lexeme, classStmt);
                 this.currentClass = enclosingClass;
                 return classStmt;
+            }
+            if (matchAny(MODULE)) {
+                Token name = consumeTok(IDENTIFIER, "Expected identifier after 'module' keyword");
+                consumeTok(LEFT_BRACE, "Expected '{' after module name");
+                Stmt.Module enclosingMod = this.currentMod;
+                Stmt.Module modStmt = new Stmt.Module(name, null); // body set below
+                this.currentMod = modStmt;
+                List<Stmt> modBody = classBody();
+                modStmt.body = modBody;
+                modMap.put(name.lexeme, modStmt);
+                this.currentMod = enclosingMod;
+                return modStmt;
             }
             return statement();
         } catch (ParseError error) {
@@ -883,9 +894,12 @@ public class Parser {
 
             switch (peekTok().type) {
                 case CLASS:
+                case MODULE:
                 case FUN:
                 case VAR:
                 case FOR:
+                case FOREACH:
+                case IN:
                 case IF:
                 case WHILE:
                 case PRINT:

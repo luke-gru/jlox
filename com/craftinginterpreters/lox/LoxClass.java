@@ -7,19 +7,15 @@ import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
 
-class LoxClass extends LoxInstance implements LoxCallable {
-    public String name;
+class LoxClass extends LoxModule implements LoxCallable {
     public LoxClass superClass;
-    final Map<String, LoxCallable> methods;
-    final Map<String, LoxCallable> getters;
-    final Map<String, LoxCallable> setters;
     boolean isSingletonKlass = false;
     LoxInstance singletonOf = null;
-    private LoxClass classDefinedIn = null;
+    private LoxClass classDefinedIn = null; // for LoxCallable
+    public LoxModule module = null;
 
     LoxClass(String name, LoxClass superClass, Map<String, LoxCallable> methods) {
-        super(null, "Class");
-        this.name = name;
+        super(null, "Class", name, methods);
         LoxClass klass = null;
         if (this.name != null && this.name.equals("Class")) {
             klass = this;
@@ -31,24 +27,12 @@ class LoxClass extends LoxInstance implements LoxCallable {
             superClass = Runtime.getClass("Object");
         }
         this.superClass = superClass;
-        this.methods = methods;
-        this.getters = new HashMap<>();
-        this.setters = new HashMap<>();
         this.classDefinedIn = this;
     }
 
     @Override
     public String toString() {
         return "<class " + getName() + ">";
-    }
-
-    @Override
-    public String getName() {
-        if (name == null) {
-            return "(Anon)";
-        } else {
-            return name;
-        }
     }
 
     @Override

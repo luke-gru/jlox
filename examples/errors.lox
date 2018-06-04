@@ -24,6 +24,6 @@ __END__
 -- expect: --
 hey
 2
-<fn toString>
+<fn Error#toString>
 <class Error>
 MyError: BAD!

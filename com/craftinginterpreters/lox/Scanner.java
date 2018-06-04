@@ -23,6 +23,7 @@ class Scanner {
         keywords = new HashMap<>();
         keywords.put("and",    AND);
         keywords.put("class",  CLASS);
+        keywords.put("module", MODULE);
         keywords.put("else",   ELSE);
         keywords.put("false",  FALSE);
         keywords.put("for",    FOR);
@@ -126,11 +127,23 @@ class Scanner {
             case '=': addToken(match('=') ? EQUAL_EQUAL : EQUAL); break;
             case '<': addToken(match('=') ? LESS_EQUAL : LESS); break;
             case '>': addToken(match('=') ? GREATER_EQUAL : GREATER); break;
+            case '&': {
+                if (match('&')) {
+                    addToken(AND); break;
+                }
+                // fallthru
+            }
+            case '|': {
+                if (match('|')) {
+                    addToken(OR); break;
+                }
+                // fallthru
+            }
             case '/': {
-                if (match('/')) {
+                if (match('/')) { // single-line comment (// ...)
                     // A comment goes until the end of the line.
                     while (peek() != '\n' && !isAtEnd()) advance();
-                } else if (match('*')) {
+                } else if (match('*')) { // multi-line comment (/* ... */)
                     char ch;
                     boolean seenStar = false;
                     while (!isAtEnd()) {

@@ -25,6 +25,6 @@ calls to throwLoxError. Also, give a token to throwLoxError so that we can
 report the line of the error. This token should live in the wrapper exception
 class of the error, the RuntimeThrow class. [DONE]
 * Make stack traces and error messages include the given file, and add more
-useful info. [IN PROGRESS]
+useful info. []
 * Add modules like Ruby's? As in, definitions of static and instance methods
-that can be reused across classes. []
+that can be reused across classes. [IN PROGRESS]

@@ -13,6 +13,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     private List<String> nativeClassNames = null;
 
     private Stmt.Class currentClass = null;
+    private Stmt.Module currentMod = null;
     private Stmt.In currentIn = null;
 
     Resolver(Interpreter interpreter) {
@@ -91,6 +92,7 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitVariableExpr(Expr.Variable expr) {
+        // TODO: allow inner scoped variable name to shadow outer scope variable name of same name
         if (!scopes.isEmpty() && scopes.peek().get(expr.name.lexeme) == Boolean.FALSE) {
             error(expr.name, "Cannot read local variable in its own initializer.");
         }
@@ -280,7 +282,23 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         endScope();
 
         this.currentClass = enclosingClass;
+        return null;
+    }
 
+    @Override
+    public Void visitModuleStmt(Stmt.Module stmt) {
+        declare(stmt.name);
+        define(stmt.name);
+
+        Stmt.Module enclosingMod = this.currentMod;
+        this.currentMod = stmt;
+
+        beginScope();
+        scopes.peek().put("this", true);
+        resolve(stmt.body);
+        endScope();
+
+        this.currentMod = enclosingMod;
         return null;
     }
 

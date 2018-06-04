@@ -10,6 +10,7 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     private int indent = 0;
     private Resolver resolver = null;
     private Stmt.Class currentClass = null;
+    private Stmt.Module currentMod = null;
 
     public static boolean silenceErrorOutput = false;
     public static String PARSE_ERROR = "!error!";
@@ -19,6 +20,7 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         String src = null;
         boolean printVarResolution = false;
         int i = 0;
+        String usage = "Usage: AstPrinter [-f FILENAME] [-s SRC]";
 
         while (i < args.length) {
             if (args[i].equals("-f")) {
@@ -31,15 +33,21 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
                 printVarResolution = true;
                 i++;
             } else {
-                System.err.println("Usage: AstPrinter [-f FILENAME] [-s SRC]");
+                System.err.println(usage);
                 System.exit(1);
             }
+        }
+
+        if (src == null && fname == null) {
+            System.err.println(usage);
+            System.exit(1);
         }
 
         if (src == null) {
             byte[] bytes = Files.readAllBytes(Paths.get(fname));
             src = new String(bytes, Charset.defaultCharset());
         }
+
         Parser parser = Parser.newFromSource(src);
         boolean silenceErrorsOld = Lox.silenceParseErrors;
         if (silenceErrorOutput) {
@@ -310,6 +318,27 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         indent--;
         builder.append(indent() + ")");
         this.currentClass = enclosingClass;
+        return builder.toString();
+    }
+
+    @Override
+    public String visitModuleStmt(Stmt.Module stmt) {
+        Stmt.Module enclosingMod = this.currentMod;
+        this.currentMod = stmt;
+        StringBuilder builder = new StringBuilder();
+        builder.append(indent() + "(modDecl " + stmt.name.lexeme);
+        if (stmt.body.size() == 0) {
+            return builder.append(")").toString();
+        }
+        builder.append("\n");
+        indent++;
+        for (Stmt statement : stmt.body) {
+            builder.append(statement.accept(this));
+            builder.append("\n");
+        }
+        indent--;
+        builder.append(indent() + ")");
+        this.currentMod = enclosingMod;
         return builder.toString();
     }
 
