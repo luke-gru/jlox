@@ -12,8 +12,7 @@ Ruby, for example. []
 purposes. []
 * Add more files to stdlib []
 * Make functions LoxInstances, instead of treating them differently. []
-* allow objects to overload methods for primitive operations: +, -, *, [],
-[]=, maybe also '.' (propGet) and '.=', propSet. []
+* allow objects to overload methods for primitive operations: +, -, *, [DONE]
 * Add Class#methodNames(bool), Class#getterNames(bool) and
 Class#setterNames(bool) methods []
 * Add ArrayIterator, like MapIterator? [] Not sure if needed
@@ -24,8 +23,8 @@ and values []
 * Get rid of the throw new RuntimeError calls in the interpreter, replace with
 calls to throwLoxError. Also, give a token to throwLoxError so that we can
 report the line of the error. This token should live in the wrapper exception
-class of the error, the RuntimeThrow class. []
+class of the error, the RuntimeThrow class. [DONE]
 * Make stack traces and error messages include the given file, and add more
-useful info. []
+useful info. [IN PROGRESS]
 * Add modules like Ruby's? As in, definitions of static and instance methods
 that can be reused across classes. []

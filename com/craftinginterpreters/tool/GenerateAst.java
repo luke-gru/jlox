@@ -12,6 +12,9 @@ public class GenerateAst {
       System.exit(1);
     }
     String outputDir = args[0];
+    // NOTE: when add new expr class here, make sure to change
+    // Interpreter#tokenFromExpr as well as the various visitor methods
+    // (compiler will catch visitor methods, though).
     defineAst(outputDir, "Expr", Arrays.asList(
         "Binary   : Expr left, Token operator, Expr right",
         "Logical  : Expr left, Token operator, Expr right",

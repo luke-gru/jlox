@@ -13,15 +13,19 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeContinue extends RuntimeException {}
     public static class RuntimeThrow extends RuntimeException {
         final Object value;
-        final Token keywordTok;
-        RuntimeThrow(Object value, Token keywordTok) {
+        final Token tok;
+        RuntimeThrow(Object value, Token tok) {
             super(null, null, false, false);
             this.value = value;
-            this.keywordTok = keywordTok;
+            this.tok = tok;
         }
 
         public String toString(Interpreter interp) {
-            return interp.stringify(this.value);
+            String errMsg = interp.stringify(this.value);
+            if (tok != null) {
+                errMsg += ("\nError at '" + tok.lexeme + "' on line " + String.valueOf(tok.line));
+            }
+            return errMsg;
         }
     }
 
@@ -110,7 +114,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } catch (RuntimeError error) {
             this.runtimeError = error;
             System.err.println("==============");
-            System.err.print("RuntimeError: ");
+            System.err.println("RuntimeError:");
             Lox.runtimeError(error);
             System.err.println("Stacktrace:");
             System.err.println(stacktrace());
@@ -118,7 +122,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } catch (RuntimeThrow error) {
             this.runtimeError = error;
             System.err.println("==============");
-            System.err.println("Uncaught error: " + error.toString(this));
+            System.err.println("Uncaught error:\n" + error.toString(this));
             System.err.println("Stacktrace:");
             System.err.println(stacktrace());
             System.err.println("==============");
@@ -185,9 +189,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitIndexedGetExpr(Expr.IndexedGet expr) {
         Object obj = evaluate(expr.left);
         if (!(obj instanceof LoxInstance)) {
-            throwLoxError("TypeError",
+            Token tok = tokenFromExpr(expr.left);
+            throwLoxError("TypeError", tok,
                 "index access expr (expr[index]), expr must be an object, is: " +
-                nativeTypeof(tokenFromExpr(expr.left), obj));
+                nativeTypeof(tok, obj));
         }
         Object index = evaluate(expr.indexExpr);
         LoxInstance lhsInstance = (LoxInstance)obj;
@@ -213,9 +218,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } else if (obj instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)obj;
             if (!Runtime.isString(index)) {
-                throwLoxError("TypeError",
+                Token indexTok = tokenFromExpr(expr.indexExpr);
+                throwLoxError("TypeError", indexTok,
                     "object[index], index must be a string, is: " +
-                    nativeTypeof(tokenFromExpr(expr.indexExpr), index));
+                    nativeTypeof(indexTok, index));
             }
             LoxInstance strIndexInst = Runtime.toString(index);
             StringBuffer strIndex = (StringBuffer)strIndexInst.getHiddenProp("buf");
@@ -229,9 +235,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitIndexedSetExpr(Expr.IndexedSet expr) {
         Object obj = evaluate(expr.left);
         if (!(Runtime.isInstance(obj))) {
-            throwLoxError("TypeError",
+            Token lhsTok = tokenFromExpr(expr.left);
+            throwLoxError("TypeError", lhsTok,
                 "indexed set expr (expr[index] = rval), expr must be an Object, is: " +
-                nativeTypeof(tokenFromExpr(expr.left), obj));
+                nativeTypeof(lhsTok, obj));
         }
         Object index = evaluate(expr.indexExpr);
         Object val = evaluate(expr.value);
@@ -254,9 +261,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             LoxInstance strBufInst = (LoxInstance)obj;
             StringBuffer strBuf = (StringBuffer)strBufInst.getHiddenProp("buf");
             if (!Runtime.isString(val)) {
-                throwLoxError("TypeError",
+                Token valTok = tokenFromExpr(expr.value);
+                throwLoxError("TypeError", valTok,
                     "string[index]=value, value must be a String, is: " +
-                    nativeTypeof(tokenFromExpr(expr.value), val));
+                    nativeTypeof(valTok, val));
             }
             LoxInstance strBufValInst = (LoxInstance)val;
             StringBuffer strBufVal = (StringBuffer)strBufValInst.getHiddenProp("buf");
@@ -348,12 +356,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                         return evaluateCall(divMeth, divArgs, tokenFromExpr(expr));
                     } else {
                         System.err.println("opDiv not found for class " + leftInst.getKlass().getName());
-                        // raise error: method opDiv not found
+                        String className = leftInst.getKlass().getName();
+                        throwLoxError("NoSuchMethodError", tokenFromExpr(expr.left),
+                            "opDiv method ('/') not found for object of class " + className);
                     }
                 }
                 checkNumberOperands(expr.operator, left, right);
                 if ((double)right == 0.0) {
-                    throw new RuntimeError(expr.operator, "division by 0");
+                    throwLoxError("LogicError", tokenFromExpr(expr.right),
+                        "division by 0 is undefined");
                 }
                 return (double)left / (double)right;
             }
@@ -384,12 +395,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                         addArgs.add(right);
                         return evaluateCall(addMeth, addArgs, tokenFromExpr(expr));
                     } else {
-                        System.err.println("opAdd not found for class " + leftInst.getKlass().getName());
-                        // raise error: method opAdd not found
+                        String className = leftInst.getKlass().getName();
+                        throwLoxError("NoSuchMethodError", tokenFromExpr(expr.left),
+                            "opAdd ('+') method not found for object of class " + className);
                     }
                 }
 
-                throw new RuntimeError(expr.operator, "operands for '+' must be two numbers or two Strings, LHS=" +
+                throwLoxError("TypeError", tokenFromExpr(expr),
+                        "operands for '+' must be 2 numbers or 2 Strings, or LHS " +
+                        "must be an instance and with the method 'opAdd' defined. LHS=" +
                         nativeTypeof(tokenFromExpr(expr.left), left) + ", RHS=" +
                         nativeTypeof(tokenFromExpr(expr.right), right));
             case GREATER:
@@ -456,10 +470,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitSuperExpr(Expr.Super expr) {
         Object objInstance = environment.get("this", true, expr.keyword);
-        // This should never happen!
-        if (objInstance == null || !(objInstance instanceof LoxInstance)) {
-            throw new RuntimeError(expr.keyword, "'super' keyword couldn't resolve 'this'! BUG");
-        }
         LoxInstance instance = Runtime.toInstance(objInstance);
         LoxClass lookupClassStart = null;
         if (Runtime.isClass(instance)) {
@@ -467,15 +477,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } else {
             lookupClassStart = instance.getKlass().getSuper();
         }
-        // FIXME: throw a better error (lox NameError, maybe?)
         if (lookupClassStart == null) {
-            throw new RuntimeError(expr.keyword, "'super' keyword couldn't find superclass!");
+            throwLoxError("NameError", tokenFromExpr(expr),
+                "'super' keyword couldn't find superclass.");
         }
         // FIXME: what if `this.super = rval`, should look for setter method!
-        Object value = instance.getMethodOrGetterProp(expr.property.lexeme, lookupClassStart, this);
+        Object value = instance.getMethodOrGetterProp(
+            expr.property.lexeme, lookupClassStart, this);
         if (value == null) {
-            // FIXME: throw a better error (lox NameError, maybe?)
-            throw new RuntimeError(expr.keyword, "'super." + expr.property.lexeme + "' doesn't reference a valid method or getter!");
+            throwLoxError("NoSuchMethodError", expr.property,
+                "'super." + expr.property.lexeme +
+                "' doesn't reference a valid method or getter.");
         }
         return value;
     }
@@ -510,7 +522,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (expr instanceof Expr.SplatCall) {
                     Object ary = evaluate(((Expr.SplatCall)expr).expression);
                     if (!Runtime.isArray(ary)) {
-                        throw new RuntimeError(tokenFromExpr(callExpr), "Splat arg expression must evaluate to an array object");
+                        throwLoxError("ArgumentError", tokenFromExpr(expr),
+                            "Splat arg expression must evaluate to an Array object");
                     }
                     LoxInstance aryInstance = (LoxInstance)ary;
                     List<Object> elements = (List<Object>)aryInstance.getHiddenProp("ary");
@@ -534,9 +547,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 }
                 int actualN = args.size();
                 String actualNStr = String.valueOf(actualN);
-                // TODO: add token to thrown error, so it will appear in stacktraces
-                // tokenfromExpr(callExpr.left)
-                throwLoxError("ArgumentError",
+                throwLoxError("ArgumentError", tokenFromExpr(callExpr.left),
                     "Function <" +
                     callable.getName() + "> called with wrong number of arguments. Expected " +
                     expectedNStr + ", got " + actualNStr + "."
@@ -545,7 +556,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             return evaluateCall(callable, args, tokenFromExpr(callExpr.left));
         } else {
             Token tok = tokenFromExpr(callExpr);
-            throw new RuntimeError(tok, "Undefined function or method " + tok.lexeme);
+            throwLoxError("NoSuchFunctionError", tok,
+                "Undefined function or method " + tok.lexeme);
+            return null;
         }
     }
 
@@ -559,12 +572,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitPropAccessExpr(Expr.PropAccess expr) {
         Object obj = evaluate(expr.left);
+        String propName = expr.property.lexeme;
         if (obj instanceof LoxInstance) {
             LoxInstance instance = (LoxInstance)obj;
-            Object value = instance.getProperty(expr.property.lexeme, this);
+            Object value = instance.getProperty(propName, this);
             return value;
         } else {
-            throw new RuntimeError(expr.property, "Attempt to access property of non-instance, is: " + this.nativeTypeof(tokenFromExpr(expr.left), obj));
+            throwLoxError("TypeError", expr.property,
+                "Attempt to access property '" + propName +
+                "' on non-instance. Type: " +
+                this.nativeTypeof(tokenFromExpr(expr.left), obj));
+            return null;
         }
     }
 
@@ -572,26 +590,30 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitPropSetExpr(Expr.PropSet expr) {
         Object obj = null;
         LoxCallable setterFunc = null;
+        String propName = expr.property.lexeme;
         // "super.property = rvalue"
         if (expr.object instanceof Expr.Super) {
             obj = environment.get("this", true, ((Expr.Super)expr.object).keyword);
+            // FIXME: getDecl() can return null if it's a natively defined method!
             Stmt.Class classStmt = this.fnCall.getDecl().klass;
             Object superKlassObj = classStmt.superClass;
             if (superKlassObj == null) {
-                throw new RuntimeError(expr.property, "Couldn't find superclass! BUG");
+                throwLoxError("NameError", tokenFromExpr(expr.object),
+                    "Superclass not found for class " + classStmt.name);
             }
             LoxClass superKlass = (LoxClass)superKlassObj;
-            setterFunc = superKlass.getSetter(expr.property.lexeme);
+            setterFunc = superKlass.getSetter(propName);
             if (setterFunc == null) {
-                throw new RuntimeError(
-                    expr.property,
-                    "'super." + expr.property.lexeme + " = VALUE' needs to refer to a setter method"
+                throwLoxError("NoSuchMethodError", expr.property,
+                    "'super." + propName + " = VALUE' needs to refer to a setter method"
                 );
             }
         } else {
             obj = evaluate(expr.object);
             if (!(obj instanceof LoxInstance)) {
-                throw new RuntimeError(expr.property, "Attempt to set property of non-instance");
+                throwLoxError("TypeError", expr.property,
+                    "Attempt to set property '" + propName + "' on non-instance. LHS type: " +
+                    nativeTypeof(tokenFromExpr(expr.object), obj));
             }
             setterFunc = ((LoxInstance)obj).getKlass().getSetter(expr.property.lexeme);
         }
@@ -776,7 +798,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             iterMethod = instance.getMethod("iter", this);
             nextIterMethod = instance.getMethod("nextIter", this);
             if (iterMethod == null && nextIterMethod == null) {
-                throwLoxError("TypeError",
+                throwLoxError("TypeError", tokenFromExpr(stmt.obj),
                     "foreach expr must be an Array object or object that responds to " +
                     "iter() or nextIter(), is: " + stringify(instance)
                 );
@@ -787,13 +809,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (Runtime.isInstance(evalObj) && !Runtime.isArray(evalObj)) {
                     nextIterMethod = ((LoxInstance)evalObj).getMethod("nextIter", this);
                     if (nextIterMethod == null) {
-                        throwLoxError("TypeError",
+                        throwLoxError("TypeError", tokenFromExpr(stmt.obj),
                             "foreach expr returned from iter() must be an Array or respond to nextIter()"
                         );
                     }
                     useNextIter = true;
                 } else if (!Runtime.isArray(evalObj)) {
-                    throwLoxError("TypeError",
+                    throwLoxError("TypeError", tokenFromExpr(stmt.obj),
                         "foreach expr returned from iter() must be an Array or respond to nextIter()"
                     );
                 }
@@ -827,8 +849,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     i++;
                 }
                 if (numVars > 1 && (!Runtime.isArray(val))) {
-                    throwLoxError("TypeError", "'foreach' element must be Array object when given more than 1 variable in foreach loop (" +
-                        String.valueOf(numVars) + " variables given). Element class: " + this.nativeTypeof(null, val)
+                    throwLoxError("TypeError", tokenFromExpr(stmt.obj),
+                        "'foreach' element must be Array object when given more than 1 variable in foreach loop (" +
+                        String.valueOf(numVars) + " variables given). Element type: " + this.nativeTypeof(null, val)
                     );
                 }
                 if (numVars > 1) {
@@ -1124,16 +1147,19 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             LoxInstance instance = (LoxInstance)object;
             Object methodOrProp = instance.getProperty("length", this);
             if (methodOrProp == null) {
-                throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with a 'length' method, getter or property");
+                throwLoxError("TypeError", tok,
+                    "len() can only be used on Strings, Arrays, Functions and objects with a 'length' method, getter or property");
             }
             if (methodOrProp instanceof Double) {
                 return (double)methodOrProp;
             }
             if (methodOrProp instanceof LoxCallable) {
-                return evaluateCall((LoxCallable)methodOrProp, new ArrayList<Object>(), tok);
+                return evaluateCall((LoxCallable)methodOrProp, LoxUtil.EMPTY_ARGS, tok);
             }
         }
-        throw new RuntimeError(tok, "len() can only be used on Strings, Arrays, Functions and objects with a 'length' method, getter or property");
+        throwLoxError("TypeError", tok,
+            "len() can only be used on Strings, Arrays, Functions and objects with a 'length' method, getter or property");
+        return null;
     }
 
     private void execute(Stmt stmt) {
@@ -1154,6 +1180,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     private Token tokenFromExpr(Expr expr) {
         Token tok = null;
+        boolean warnOnFallthru = false;
         if (expr instanceof Expr.Binary) {
             tok = ((Expr.Binary)expr).operator;
         } else if (expr instanceof Expr.Logical) {
@@ -1170,6 +1197,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             tok = tokenFromExpr(((Expr.Grouping)expr).expression);
         } else if (expr instanceof Expr.Literal) {
             tok = null;
+            warnOnFallthru = false;
         } else if (expr instanceof Expr.PropAccess) {
             tok = ((Expr.PropAccess)expr).property;
         } else if (expr instanceof Expr.PropSet) {
@@ -1188,6 +1216,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             tok = ((Expr.IndexedSet)expr).lbracket;
         } else if (expr instanceof Expr.SplatCall) {
             tok = tokenFromExpr(((Expr.SplatCall)expr).expression);
+        } else {
+            warnOnFallthru = true;
+        }
+        if (warnOnFallthru) {
+            String exprClass = "null";
+            if (expr != null) {
+                exprClass = expr.getClass().getName();
+            }
+            System.err.println(
+                "[Warning]: fallthru on Interpreter#tokenFromExpr for type: " +
+                exprClass) ;
         }
         return tok;
     }
@@ -1334,12 +1373,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         this.runningFile = absPath;
     }
 
-    public void throwLoxError(String errClass, String errMsg) throws RuntimeThrow {
+    public void throwLoxError(String errClass, Token tok, String errMsg) throws RuntimeThrow {
         LoxCallable errConstructor = classMap.get(errClass);
         List<Object> args = new ArrayList<>();
         args.add(Runtime.createString(errMsg, this));
         Object objInstance = evaluateCall(errConstructor, args, null);
-        throw new RuntimeThrow(objInstance, null);
+        throw new RuntimeThrow(objInstance, tok);
+    }
+
+    public void throwLoxError(String errClass, String errMsg) throws RuntimeThrow {
+        throwLoxError(errClass, null, errMsg);
     }
 
     private void evalFile(String fullPath) {

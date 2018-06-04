@@ -1309,9 +1309,16 @@ class Runtime {
         registerClass(typeErrorClass);
         LoxNativeClass assertErrorClass = new LoxNativeClass("AssertionError", errorClass);
         registerClass(assertErrorClass);
-        LoxNativeClass frozError = new LoxNativeClass("FrozenObjectError", errorClass);
-        registerClass(frozError);
-
+        LoxNativeClass frozErrorClass = new LoxNativeClass("FrozenObjectError", errorClass);
+        registerClass(frozErrorClass);
+        LoxNativeClass logicErrorClass = new LoxNativeClass("LogicError", errorClass);
+        registerClass(logicErrorClass);
+        LoxNativeClass nameErrorClass = new LoxNativeClass("NameError", errorClass);
+        registerClass(nameErrorClass);
+        LoxNativeClass noSuchFuncError = new LoxNativeClass("NoSuchFunctionError", errorClass);
+        registerClass(noSuchFuncError);
+        LoxNativeClass noSuchMethError = new LoxNativeClass("NoSuchMethodError", noSuchFuncError);
+        registerClass(noSuchMethError);
     }
 
     public List<String> nativeClassNames() {
