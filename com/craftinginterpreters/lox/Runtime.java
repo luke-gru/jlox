@@ -855,15 +855,26 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
-                LoxCallable func = (LoxCallable)args.get(0);
-                // TODO: check arg is a function
-                if (!Runtime.acceptsNArgs(func, 1)) {
-                    // TODO: throw error
+                Object funcObj = args.get(0);
+                if (!Runtime.isCallable(funcObj)) {
+                    interp.throwLoxError("ArgumentError", tok,
+                        "argument given to Array#each must be a function, is: " +
+                        interp.nativeTypeof(tok, funcObj));
+                }
+                LoxCallable func = (LoxCallable)funcObj;
+                if (!(Runtime.acceptsNArgs(func, 1) || Runtime.acceptsNArgs(func, 0))) {
+                    interp.throwLoxError("ArgumentError", tok,
+                        "function given to Array#each must accept 0 or 1 arguments");
                 }
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
+                int arity = func.arityMax();
                 for (Object el : ary) {
                     List<Object> funcArgs = new ArrayList<>();
-                    funcArgs.add(el);
+                    if (arity == 0) {
+                        // do nothing
+                    } else {
+                        funcArgs.add(el);
+                    }
                     interp.evaluateCall(func, funcArgs, tok);
                 }
                 return instance;
@@ -874,13 +885,27 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 LoxInstance newInstance = Runtime.array(new ArrayList<Object>(), interp);
-                LoxCallable func = (LoxCallable)args.get(0);
-                // TODO: check arg is a function
+                Object funcObj = args.get(0);
+                if (!Runtime.isCallable(funcObj)) {
+                    interp.throwLoxError("ArgumentError", tok,
+                        "argument given to Array#map must be a function, is: " +
+                        interp.nativeTypeof(tok, funcObj));
+                }
+                LoxCallable func = (LoxCallable)funcObj;
+                if (!(Runtime.acceptsNArgs(func, 1) || Runtime.acceptsNArgs(func, 0))) {
+                    interp.throwLoxError("ArgumentError", tok,
+                        "function given to Array#map must accept 0 or 1 arguments");
+                }
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
                 List<Object> retAry = (List<Object>)newInstance.getHiddenProp("ary");
+                int arity = func.arityMax();
                 for (Object el : ary) {
                     List<Object> funcArgs = new ArrayList<>();
-                    funcArgs.add(el);
+                    if (arity == 0) {
+                        // do nothing
+                    } else {
+                        funcArgs.add(el);
+                    }
                     Object ret = interp.evaluateCall(func, funcArgs, tok);
                     retAry.add(ret);
                 }
@@ -916,20 +941,26 @@ class Runtime {
 
         // class Map
         LoxNativeClass mapClass = new LoxNativeClass("Map", objClass);
-        // FIXME: allow Map(1, 2) or Map([1,2]) also. Right now we only allow
-        // Map([[1,2]]), which is annoying
-        mapClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
+        // Map([[1,2],[3,4]]) or Map([1,2]), Map(1, 2)
+        mapClass.defineMethod(new LoxNativeCallable("init", 0, 2) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Map<Object,Object> internalMap = new HashMap<>();
                 instance.setHiddenProp("map", internalMap);
                 Object aryObj = null;
-                if (args.size() > 0) {
+                if (args.size() == 1) {
                     aryObj = args.get(0);
                     LoxUtil.checkIsA("Array", aryObj, interp, "ArgumentError", null, 1);
                     LoxInstance aryInstance = Runtime.toInstance(aryObj);
                     List<Object> internalAry = (List<Object>)aryInstance.getHiddenProp("ary");
+                    // Map([1,2]) same as Map(1,2)
+                    if (internalAry.size() == 2 && !(Runtime.isArray(internalAry.get(0)) || Runtime.isArray(internalAry.get(1)))) {
+                        args = new ArrayList<Object>();
+                        args.add(internalAry.get(0));
+                        args.add(internalAry.get(1));
+                        return _call(interp, args, tok);
+                    }
                     int elNum = 1;
                     for (Object elAry : internalAry) {
                         if (!Runtime.isArray(elAry)) {
@@ -950,6 +981,8 @@ class Runtime {
                         }
                         elNum++;
                     }
+                } else if (args.size() == 2) {
+                    internalMap.put(args.get(0), args.get(1));
                 }
                 return instance;
             }
@@ -1047,18 +1080,31 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object argObj = args.get(0);
-                LoxCallable func = (LoxCallable)argObj;
-                if (!Runtime.acceptsNArgs(func, 2)) {
-                    // TODO: throw error
+                if (!Runtime.isCallable(argObj)) {
+                    interp.throwLoxError("ArgumentError", tok,
+                        "Argument given to Map#each must be a function, is: " +
+                        interp.nativeTypeof(tok, argObj));
                 }
+                LoxCallable func = (LoxCallable)argObj;
+                int arity = func.arityMax();
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 Iterator<Map.Entry<Object, Object>> javaMapIter = mapIntern.entrySet().iterator();
                 Map.Entry pair = null;
                 while (javaMapIter.hasNext()) {
-                    pair = javaMapIter.next();
                     List<Object> funcArgs = new ArrayList<>();
-                    funcArgs.add(pair.getKey());
-                    funcArgs.add(pair.getValue());
+                    pair = javaMapIter.next();
+                    if (arity == 1) { // build up an array of length 2 for the single argument
+                        List<Object> aryArgs = new ArrayList<>();
+                        aryArgs.add(pair.getKey());
+                        aryArgs.add(pair.getValue());
+                        LoxInstance ary = interp.createInstance("Array", aryArgs);
+                        funcArgs.add(ary);
+                    } else if (arity != 0) { // pass 2 arguments to the function: the key and the value
+                        funcArgs.add(pair.getKey());
+                        funcArgs.add(pair.getValue());
+                    } else {
+                        // do nothing, function expects no arguments
+                    }
                     interp.evaluateCall(func, funcArgs, tok);
                 }
                 return instance;

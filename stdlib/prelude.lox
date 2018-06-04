@@ -1,23 +1,47 @@
-class Map {
+module Enumerable {
   filter(fn) {
-    var newMap = Map();
-    this.each(fun(k, v) {
-      if (fn(k,v)) {
-        newMap.put(k,v);
+    var ret = Array();
+    this.each(fun(k) {
+      if (fn(k)) {
+        ret.push(k);
       }
     });
-    return newMap;
+    return ret;
+  }
+
+  reject(fn) {
+    var ret = Array();
+    this.each(fun(k) {
+      if (!fn(k)) {
+        ret.push(k);
+      }
+    });
+    return ret;
+  }
+
+  first(fn = nil) {
+    var ret = nil;
+    var cont = true;
+    this.each(fun(k) {
+      if (!cont) return;
+      if ((fn && fn(k)) || !fn) {
+        ret = k;
+        cont = false;
+      }
+    });
+    return ret;
+  }
+
+  last(fn = nil) {
+    var ret = nil;
+    this.each(fun(k) {
+      if ((fn && fn(k)) || !fn) {
+        ret = k;
+      }
+    });
+    return ret;
   }
 }
 
-class Array {
-  filter(fn) {
-    var newAry = Array();
-    this.each(fun(el) {
-      if (fn(el)) {
-        newAry.push(el);
-      }
-    });
-    return newAry;
-  }
-}
+Array.include(Enumerable);
+Map.include(Enumerable);
