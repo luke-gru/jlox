@@ -1,0 +1,11 @@
+System.atExit(fun() {
+  print "exited 1";
+});
+System.atExit(fun() {
+  print "exited 2";
+});
+
+__END__
+-- expect: --
+exited 2
+exited 1

@@ -1,0 +1,7 @@
+var a = true;
+var s = "POE";
+System.debugger();
+print s;
+
+__END__
+-- noexpect: --

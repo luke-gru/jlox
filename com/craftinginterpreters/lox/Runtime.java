@@ -14,15 +14,19 @@ import static com.craftinginterpreters.lox.Interpreter.LoadScriptError;
 class Runtime {
     final Environment globalEnv;
     static Map<String, LoxClass> classMap;
+    static Map<String, LoxModule> modMap;
     boolean inited = false;
 
-    private Runtime(Environment globalEnv, Map<String, LoxClass> classMap) {
+    private Runtime(Environment globalEnv, Map<String, LoxClass> classMap,
+            Map<String, LoxModule> modMap) {
         this.globalEnv = globalEnv;
         this.classMap = classMap;
+        this.modMap = modMap;
     }
 
-    public static Runtime create(Environment globalEnv, Map<String, LoxClass> classMap) {
-        return new Runtime(globalEnv, classMap);
+    public static Runtime create(Environment globalEnv, Map<String,
+            LoxClass> classMap, Map<String,LoxModule> modMap) {
+        return new Runtime(globalEnv, classMap, modMap);
     }
 
     static Object bool(boolean val) {
@@ -41,14 +45,14 @@ class Runtime {
         return array(copy, interp);
     }
 
-    // FIXME: use nKwargs param
     static boolean acceptsNArgs(LoxCallable callable, int nArgs, int nKwargs) {
         int arityMin = callable.arityMin();
         int arityMax = callable.arityMax();
         if (arityMax < 0) { arityMax = 1000; }
         return (nArgs + nKwargs) >= arityMin && (nArgs + nKwargs) <= arityMax;
     }
-    // FIXME: remove this method
+
+    // FIXME: remove this method, use above method
     static boolean acceptsNArgs(LoxCallable callable, int nArgs) {
         int arityMin = callable.arityMin();
         int arityMax = callable.arityMax();
@@ -117,7 +121,7 @@ class Runtime {
     }
 
     // NOTE: returns true if obj is a LoxFunction or LoxNativeCallable, NOT a LoxClass,
-    // even though LoxClasses are callable.
+    // even though LoxClasses are callable. See `isCallable` for the more general check.
     static boolean isFunction(Object obj) {
         return !Runtime.isInstance(obj) && (obj instanceof LoxCallable);
     }
@@ -162,7 +166,6 @@ class Runtime {
         if (obj == null) { return null; }
         if (isNumber(obj) || isBool(obj)) { return obj; }
         if (isClass(obj)) {
-            // FIXME: use throwLoxError
             interp.throwLoxError("TypeError", null,
                 "Can't 'dup' classes (tried to dup " + interp.stringify(obj) + ")"
             );
@@ -185,12 +188,12 @@ class Runtime {
             return;
         }
         defineGlobalFunctions();
-        defineBuiltinClasses();
+        defineBuiltinClassesAndModules();
         defineGlobalVariables(interp);
         inited = true;
     }
 
-    public void defineGlobalVariables(Interpreter interp) {
+    private void defineGlobalVariables(Interpreter interp) {
        LoxInstance loxLoadPath = interp.createInstance("Array", new ArrayList<Object>());
        for (String path : Lox.initialLoadPath) {
            LoxInstance loxPath = Runtime.createString(path, interp);
@@ -204,7 +207,7 @@ class Runtime {
        globalEnv.define("__FILE__", Runtime.createString("", interp)); // see Interpreter#setRunningFile to see how this is populated
     }
 
-    public void defineGlobalFunctions() {
+    private void defineGlobalFunctions() {
         globalEnv.define("clock", new LoxNativeCallable("clock", 0, 0, null, null) {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments,
@@ -400,7 +403,7 @@ class Runtime {
         });
     }
 
-    public void defineBuiltinClasses() {
+    private void defineBuiltinClassesAndModules() {
         // class Object
         LoxNativeClass objClass = new LoxNativeClass("Object", null);
         objClass.defineMethod(new LoxNativeCallable("equals", 1, 1, null, null) {
@@ -1488,6 +1491,50 @@ class Runtime {
         });
         registerClass(errorClass);
 
+        // System module
+        LoxNativeModule systemMod = new LoxNativeModule("System");
+        // System.exit([exitstatus], [runAtExitHooks])
+        systemMod.defineSingletonMethod(new LoxNativeCallable("exit", 0, 2, null, null) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                if (args.size() < 2 || interp.isTruthy(args.get(1))) {
+                    interp.runAtExitHooks();
+                }
+                Object exitStatusObj = args.get(0);
+                LoxUtil.checkIsA("number", exitStatusObj, interp, "ArgumentError", null, 1);
+                int exitStatus = (int)(double)exitStatusObj;
+                interp.exitInterpreter(exitStatus);
+                return null;
+            }
+        });
+        systemMod.defineSingletonMethod(new LoxNativeCallable("atExit", 1, 1, null, null) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                Object funcObj = args.get(0);
+                LoxUtil.checkIsA("function", funcObj, interp, "ArgumentError", null, 1);
+                LoxCallable func = (LoxCallable)funcObj;
+                interp.registerAtExitHook(func);
+                return null;
+            }
+        });
+        systemMod.defineSingletonMethod(new LoxNativeCallable("debugger", 0, 0, null, null) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                Debugger d = new Debugger(interp);
+                try {
+                    d.start();
+                } catch (IOException err) {
+                    System.err.println("Debugger error:");
+                    System.err.println(err);
+                }
+                return null;
+            }
+        });
+        registerModule(systemMod);
+
         LoxNativeClass argErrorClass = new LoxNativeClass("ArgumentError", errorClass);
         registerClass(argErrorClass);
         LoxNativeClass typeErrorClass = new LoxNativeClass("TypeError", errorClass);
@@ -1522,6 +1569,11 @@ class Runtime {
     private void registerClass(LoxNativeClass klass) {
         globalEnv.define(klass.getName(), klass);
         classMap.put(klass.getName(), klass);
+    }
+
+     private void registerModule(LoxNativeModule mod) {
+        globalEnv.define(mod.getName(), mod);
+        modMap.put(mod.getName(), mod);
     }
 
 }

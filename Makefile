@@ -14,7 +14,7 @@ lox: gen_ast
 	cd ${LOXSOURCEPATH} && javac ${JAVAC_OPTS} -sourcepath ${LOXSOURCEPATH} -cp ${VENDOR_JARPATHS} Lox.java Scanner.java TokenType.java Token.java \
 		Parser.java AstPrinter.java Expr.java Stmt.java Interpreter.java RuntimeError.java Environment.java \
 		LoxCallable.java LoxFunction.java Resolver.java LoxClass.java LoxModule.java LoxInstance.java StackFrame.java \
-		Runtime.java LoxNativeClass.java LoxNativeCallable.java Param.java LoxUtil.java
+		Runtime.java LoxNativeClass.java LoxNativeModule.java LoxNativeCallable.java Param.java LoxUtil.java Debugger.java
 
 .PHONY: clean
 clean:

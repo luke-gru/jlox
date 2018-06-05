@@ -12,7 +12,6 @@ import java.io.IOException;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import org.junit.Test;
-//import org.junit.BeforeClass;
 import com.craftinginterpreters.lox.Interpreter;
 import com.craftinginterpreters.lox.Lox;
 
@@ -322,6 +321,7 @@ public class InterpreterTest {
         HashMap<String, Object> opts = new HashMap<>();
         opts.put("usePrintBuf", (Boolean)true);
         opts.put("useErrorBuf", (Boolean)true);
+        opts.put("simulateExit", (Boolean)true);
         opts.put("filename", null);
         this.interp = new Interpreter(opts);
         boolean hasErr = !this.interp.interpret(src);

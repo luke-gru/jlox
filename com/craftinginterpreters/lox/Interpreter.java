@@ -8,10 +8,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.io.IOException;
 import java.io.File;
+import java.util.Collections;
 
 public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private static class RuntimeBreak extends RuntimeException {}
     private static class RuntimeContinue extends RuntimeException {}
+    private static class SimulateExit extends RuntimeException {}
+    private static class SimulatePause extends RuntimeException {}
     public static class RuntimeThrow extends RuntimeException {
         final Object value;
         final Token tok;
@@ -55,6 +58,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private LoxModule currentMod = null; // current module or class being visited
     public Map<String, LoxClass> classMap = new HashMap<>();
     public Map<String, LoxModule> modMap = new HashMap<>();
+    private List<LoxCallable> atExitHooks = new ArrayList<>();
+    private Boolean atExitHooksRan = false;
 
     public HashMap<String, Object> options = null;
     public StringBuffer printBuf = null;
@@ -65,9 +70,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private Resolver resolver = null;
     public Parser parser = null;
     private String filename; // FIXME: unused
-    public LoxInstance _this = null; // FIXME: unused
     private boolean inited = false;
-    public Object lastValue;
+    public Object lastValue = null;
+
+    private boolean isPaused = false; // debugger pauses interpreter
+    private List<Stmt> statementsLeft = null; // for debugger
 
     public Interpreter() {
         HashMap<String, Object> opts = new HashMap<>();
@@ -76,7 +83,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         opts.put("filename", null);
         this.options = opts;
         this.resolver = new Resolver(this);
-        this.runtime = Runtime.create(globals, classMap);
+        this.runtime = Runtime.create(globals, classMap, modMap);
     }
 
     public Interpreter(HashMap<String, Object> options) {
@@ -92,11 +99,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             this.filename = (String)this.options.get("filename");
         }
         this.resolver = new Resolver(this);
-        this.runtime = Runtime.create(globals, classMap);
+        this.runtime = Runtime.create(globals, classMap, modMap);
     }
 
 
     public boolean interpret(List<Stmt> statements) {
+        if (this.isPaused) { return true; }
+        this.statementsLeft = new ArrayList<Stmt>(statements);
         if (!inited) {
             runtime.init(this);
             if (this.runningFile == null && Lox.initialScriptAbsolute != null) {
@@ -110,8 +119,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
         try {
             for (Stmt statement : statements) {
+                if (this.isPaused) { return true; }
+                if (statementsLeft.size() > 0) {
+                    statementsLeft.remove(0);
+                }
                 execute(statement);
             }
+            runAtExitHooks();
             return true;
         } catch (RuntimeError error) {
             this.runtimeError = error;
@@ -129,6 +143,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             System.err.println(stacktrace());
             System.err.println("==============");
             Lox.hadRuntimeError = true;
+        } catch (SimulateExit _error) {
+            System.err.println("Simulating exit");
+            return true;
         }
         return false;
     }
@@ -550,7 +567,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                                     "Invalid keyword argument due to splatted Map. Keys must be Strings, key " +
                                     "given: " + stringify(key) + ", type: " +
                                     nativeTypeof(tokenFromExpr(expr), key));
-                                // FIXME: throw error, keys must be strings in map splat
                             }
                         }
                     }
@@ -932,7 +948,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     nativeTypeof(tok, obj));
         }
         LoxInstance objInst = Runtime.toInstance(obj);
-        LoxInstance oldThis = this._this;
         LoxModule oldCurMod = this.currentMod;
         Environment outerEnv = this.environment;
 
@@ -1481,6 +1496,57 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public void throwLoxError(String errClass, String errMsg) throws RuntimeThrow {
         throwLoxError(errClass, null, errMsg);
+    }
+
+    // run the exit hooks in reverse order of when they were registered, ie:
+    // the last hook to be registered is run first.
+    public void runAtExitHooks() {
+        if (this.atExitHooksRan) return;
+        List<LoxCallable> hooks = new ArrayList<>(atExitHooks);
+        Collections.reverse(hooks); // reverse in place
+        for (LoxCallable hook : hooks) {
+            evaluateCall(hook, LoxUtil.EMPTY_ARGS, LoxUtil.EMPTY_KWARGS, null);
+        }
+        this.atExitHooksRan = true;
+    }
+
+    public void registerAtExitHook(LoxCallable hook) {
+        this.atExitHooks.add(hook);
+    }
+
+    public void exitInterpreter(int exitStatus) {
+        if (options.containsKey("simulateExit") && options.get("simulateExit") == (Boolean)true) {
+            throw new SimulateExit();
+        } else {
+            System.exit(exitStatus);
+        }
+    }
+
+    public void interpretNextStatement() {
+        if (!this.isPaused) {
+            throw new RuntimeException("interpreter should be paused");
+        }
+        if (statementsLeft == null || statementsLeft.size() == 0) {
+            return;
+        }
+        List<Stmt> nextStatement = new ArrayList<>();
+        nextStatement.add(statementsLeft.remove(0));
+        List<Stmt> oldStatementsLeft = statementsLeft;
+        this.statementsLeft = nextStatement;
+        continueInterpreter();
+        this.statementsLeft = oldStatementsLeft;
+        this.isPaused = true;
+    }
+
+    public void pauseInterpreter() {
+        this.isPaused = true;
+    }
+
+    public void continueInterpreter() {
+        this.isPaused = false;
+        if (statementsLeft != null) {
+            interpret(statementsLeft);
+        }
     }
 
     private void evalFile(String fullPath) {
