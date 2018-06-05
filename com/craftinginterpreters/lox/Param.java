@@ -22,6 +22,10 @@ class Param {
         return defaultVal != null;
     }
 
+    Expr getDefaultValue() {
+        return defaultVal;
+    }
+
     boolean mustReceiveArgument() {
         return !isSplatted && !hasDefaultValue();
     }

@@ -511,13 +511,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (obj instanceof LoxCallable) {
             LoxCallable callable = (LoxCallable)obj;
             List<Object> args = null;
-            Map<String,Object> kwargs = null;
+            Map<String,Object> kwargs = new HashMap<>();
             if (callExpr.args.size() == 0) {
                 args = LoxUtil.EMPTY_ARGS; // small optimization
-                kwargs = LoxUtil.EMPTY_KWARGS;
             } else {
                 args = new ArrayList<>();
-                kwargs = new HashMap<>();
             }
 
             // need to evaluate args first before seeing if the function can
@@ -534,10 +532,14 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     List<Object> elements = (List<Object>)aryInstance.getHiddenProp("ary");
                     args.addAll(elements);
                 } else if (expr instanceof Expr.KeywordArg) {
-                    // TODO: check that this keyword argument is valid for the callable
-                    // Also, pass in default keyword arguments that aren't
-                    // given here!
                     Expr.KeywordArg kwArgExpr = (Expr.KeywordArg)expr;
+                    Map<String,Object> kwargParams = callable.getKwargParams();
+                    if (kwargParams != null && !kwargParams.containsKey(kwArgExpr.name.lexeme)) {
+                        throwLoxError("ArgumentError", tokenFromExpr(expr),
+                            "Invalid keyword argument '" + kwArgExpr.name.lexeme + "'");
+                    }
+                    // FIXME: check that this keyword argument is valid for the callable
+                    //System.err.println("keyword arg getting set in call()");
                     kwargs.put(kwArgExpr.name.lexeme, evaluate(kwArgExpr.expression));
                 } else {
                     args.add(evaluate(expr));
@@ -555,7 +557,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 } else {
                     expectedNStr = String.valueOf(arityMin) + " to " + String.valueOf(arityMax);
                 }
-                int actualN = args.size();
+                int actualN = args.size() + kwargs.size();
                 String actualNStr = String.valueOf(actualN);
                 throwLoxError("ArgumentError", tokenFromExpr(callExpr.left),
                     "Function <" +
@@ -563,7 +565,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     expectedNStr + ", got " + actualNStr + "."
                 );
             }
-            // FIXME: use keyword arguments
             return evaluateCall(callable, args, kwargs, tokenFromExpr(callExpr.left));
         } else {
             Token tok = tokenFromExpr(callExpr.left);
@@ -1285,6 +1286,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             tok = ((Expr.IndexedSet)expr).lbracket;
         } else if (expr instanceof Expr.SplatCall) {
             tok = tokenFromExpr(((Expr.SplatCall)expr).expression);
+        } else if (expr instanceof Expr.KeywordArg) {
+            tok = ((Expr.KeywordArg)expr).name;
         } else {
             warnOnFallthru = true;
         }

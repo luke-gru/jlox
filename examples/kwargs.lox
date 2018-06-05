@@ -1,0 +1,59 @@
+fun greet(name: nil) {
+  print "Welcome, " + String(name);
+}
+
+greet(name: "Luke");
+greet();
+
+fun greet2(name:) {
+  print "Hey there, " + String(name);
+}
+
+var argErr = nil;
+try {
+  greet2("Jim");
+} catch (ArgumentError e) {
+  argErr = e;
+}
+print argErr._class;
+greet2(name: nil);
+
+argErr = nil;
+try {
+  greet2(nam: "Jim");
+} catch (ArgumentError e) {
+  argErr = e;
+}
+print argErr && argErr._class;
+
+fun greet3(msg, name: ) {
+  print msg + ", " + name;
+}
+
+greet3("What's up", name: "Jerry");
+argErr = nil;
+try {
+  greet3("What's up", name: "Jerry", other: "Unnecessary");
+} catch (ArgumentError e) {
+  argErr = e;
+}
+print argErr && argErr._class;
+
+argErr = nil;
+try {
+  greet3("What's up", "Jerry");
+} catch (ArgumentError e) {
+  argErr = e;
+}
+print argErr && argErr._class;
+
+__END__
+-- expect: --
+Welcome, Luke
+Welcome, nil
+<class ArgumentError>
+Hey there, nil
+<class ArgumentError>
+What's up, Jerry
+<class ArgumentError>
+<class ArgumentError>

@@ -235,9 +235,11 @@ public class Parser {
         Token name = consumeTok(IDENTIFIER, "Expected function name after 'fun' keyword.");
         consumeTok(LEFT_PAREN, "Expected '(' after function name.");
         List<Param> formals = new ArrayList<>();
+        List<String> kwArgsGiven = new ArrayList<>();
+        // FIXME: duplicate logic
         while (matchAny(IDENTIFIER, STAR)) {
             Token tok = prevTok();
-            Token paramTok;
+            Token paramTok = null;
             boolean isSplat = false;
             boolean isKwarg = false;
             Expr defaultVal = null;
@@ -250,7 +252,15 @@ public class Parser {
                     defaultVal = expression();
                 } else if (matchAny(COLON)) { // keyword argument
                     isKwarg = true;
+                    if (kwArgsGiven.contains(paramTok.lexeme)) {
+                        // TODO: throw SyntaxError?
+                        throw error(paramTok,
+                            "Duplicate keyword argument given to function '" + name.lexeme + "'" );
+                    }
+                    kwArgsGiven.add(paramTok.lexeme);
                     if (peekTok().type == COMMA) {
+                        defaultVal = null;
+                    } else if (peekTok().type == RIGHT_PAREN) {
                         defaultVal = null;
                     } else {
                         defaultVal = expression();
@@ -644,6 +654,7 @@ public class Parser {
     private Expr call() {
         Expr expr = primary();
         List<Expr> args = new ArrayList<>();
+        List<String> kwArgsGiven = new ArrayList<>();
         while (true) {
             if (matchAny(LEFT_PAREN)) {
                 if (matchAny(RIGHT_PAREN)) {
@@ -655,8 +666,13 @@ public class Parser {
                             arg = expression();
                             arg = new Expr.SplatCall(arg);
                         } else {
-                            if (peekTok().type == IDENTIFIER && peekTokN(1).type == COLON) {
+                            if (peekTok().type == IDENTIFIER && peekTokN(1).type == COLON) { // keyword argument
                                 Token kwTok = consumeTok(IDENTIFIER, "BUG");
+                                if (kwArgsGiven.contains(kwTok.lexeme)) {
+                                    throw error(kwTok,
+                                        "Duplicate keyword argument '" + kwTok.lexeme + "' given to function");
+                                }
+                                kwArgsGiven.add(kwTok.lexeme);
                                 consumeTok(COLON, "BUG");
                                 Expr argExpr = expression();
                                 arg = new Expr.KeywordArg(kwTok, argExpr);
@@ -802,10 +818,12 @@ public class Parser {
             return new Expr.Variable(prevTok());
         }
 
+        // FIXME: duplicate logic (see other matchAny(FUN) in this class)
         if (matchAny(FUN)) {
             Token funTok = prevTok();
             consumeTok(LEFT_PAREN, "Expected '(' after keyword 'fun' for anonymous function");
             List<Param> params = new ArrayList<>();
+            List<String> kwArgsGiven = new ArrayList<>();
             while (matchAny(IDENTIFIER, STAR)) {
                 Token tok = prevTok();
                 Token paramTok;
@@ -821,7 +839,15 @@ public class Parser {
                         defaultVal = expression();
                     } else if (matchAny(COLON)) { // keyword argument
                         isKwarg = true;
+                        if (kwArgsGiven.contains(paramTok.lexeme)) {
+                            // TODO: throw SyntaxError?
+                            throw error(paramTok,
+                                "Duplicate keyword argument given to function '" + funTok.lexeme + "'" );
+                        }
+                        kwArgsGiven.add(paramTok.lexeme);
                         if (peekTok().type == COMMA) {
+                            defaultVal = null;
+                        } else if (peekTok().type == RIGHT_PAREN) {
                             defaultVal = null;
                         } else {
                             defaultVal = expression();

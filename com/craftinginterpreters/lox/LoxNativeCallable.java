@@ -100,8 +100,14 @@ class LoxNativeCallable implements LoxCallable {
         return this.arityMax;
     }
 
-    public Map<String,Object> getKwargs() {
+    @Override
+    public Map<String,Object> getKwargParams() {
         return this.kwArgs;
     }
+
+    public Map<String,Object> getKwargs() {
+        return getKwargParams();
+    }
+
 
 }

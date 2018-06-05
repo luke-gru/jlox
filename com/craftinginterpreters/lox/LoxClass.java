@@ -105,6 +105,24 @@ class LoxClass extends LoxModule implements LoxCallable {
         return null;
     }
 
+    @Override
+    public Map<String,Object> getKwargParams() {
+        Stmt.Function funcDecl = getDecl();
+        List<Param> params = null;
+        if (funcDecl == null) {
+            return null;
+        } else {
+            params = funcDecl.formals;
+            Map<String,Object> ret = new HashMap<>();
+            for (Param param : params) {
+                if (param.isKwarg) {
+                    ret.put(param.varName(), param.defaultVal);
+                }
+            }
+            return ret;
+        }
+    }
+
     // does nothing, as the `call` method does the binding to the constructor,
     // if the class has an `init` method.
     @Override

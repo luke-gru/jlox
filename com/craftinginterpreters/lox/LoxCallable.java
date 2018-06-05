@@ -13,4 +13,5 @@ interface LoxCallable {
     public void setModuleDefinedIn(LoxModule modOrClass);
     public LoxCallable bind(LoxInstance instance, Environment env);
     public Stmt.Function getDecl(); // NOTE: can be null, like for native (builtin) functions
+    public Map<String,Object> getKwargParams();
 }

@@ -46,7 +46,7 @@ class Runtime {
         int arityMin = callable.arityMin();
         int arityMax = callable.arityMax();
         if (arityMax < 0) { arityMax = 1000; }
-        return nArgs >= arityMin && nArgs <= arityMax;
+        return (nArgs + nKwargs) >= arityMin && (nArgs + nKwargs) <= arityMax;
     }
     // FIXME: remove this method
     static boolean acceptsNArgs(LoxCallable callable, int nArgs) {
@@ -1493,6 +1493,8 @@ class Runtime {
         registerClass(logicErrorClass);
         LoxNativeClass nameErrorClass = new LoxNativeClass("NameError", errorClass);
         registerClass(nameErrorClass);
+        LoxNativeClass syntaxErrorClass = new LoxNativeClass("SyntaxError", errorClass);
+        registerClass(syntaxErrorClass);
         LoxNativeClass noSuchFuncError = new LoxNativeClass("NoSuchFunctionError", errorClass);
         registerClass(noSuchFuncError);
         LoxNativeClass noSuchMethError = new LoxNativeClass("NoSuchMethodError", noSuchFuncError);

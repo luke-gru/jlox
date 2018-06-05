@@ -3,6 +3,7 @@ package com.craftinginterpreters.lox;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 
 class LoxFunction implements LoxCallable {
     final Stmt.Function declaration;
@@ -19,32 +20,67 @@ class LoxFunction implements LoxCallable {
     @Override
     public Object call(Interpreter interpreter, List<Object> args, Map<String,Object> kwargs, Token callToken) {
         Environment environment = new Environment(closure);
-        int numParams = declaration.formals.size();
-        int numArgs = args.size();
+        int numParams = declaration.formals.size(); // num normal and keyword params
+        int numArgs = args.size(); // num of normal arguments given (non kwargs)
         boolean hasSplat = false;
         boolean addedSplat = false;
         if (numParams > 0) {
             hasSplat = declaration.formals.get(numParams-1).isSplatted;
         }
-        for (int i = 0; i < numArgs; i++) {
-            boolean isLastParam = (numParams-1) == i;
-            Param param = declaration.formals.get(i);
+        int argsIdx = 0;
+        int paramsIdx = 0;
+        List<String> kwargsProcessed = new ArrayList<>();
+        while (argsIdx < numArgs && paramsIdx < numParams) {
+            Param param = declaration.formals.get(paramsIdx);
+            if (param.isKwarg) {
+                Object kwArgValue = null;
+                if (kwargs.containsKey(param.varName())) {
+                    //System.err.println("kwarg given to function");
+                    kwArgValue = kwargs.get(param.varName());
+                } else {
+                    if (param.hasDefaultValue()) {
+                        //System.err.println("default value from kwarg");
+                        Expr defaultExpr = param.getDefaultValue();
+                        kwArgValue = interpreter.evaluate(defaultExpr);
+                    } else {
+                        interpreter.throwLoxError("ArgumentError", callToken,
+                            "Function " + getName() + " expected keyword argument '" +
+                            param.varName() + ":', but not given");
+                    }
+                }
+                environment.define(param.varName(), kwArgValue);
+                kwargsProcessed.add(param.varName());
+                paramsIdx++;
+                continue;
+            }
+            boolean isLastParam = (numParams-1) == argsIdx;
             if (isLastParam && param.isSplatted) {
-                Object splatAry;
-                splatAry = Runtime.arrayCopy(args.subList(i, numArgs), interpreter);
+                Object splatAry = Runtime.arrayCopy(args.subList(argsIdx, numArgs), interpreter);
                 environment.define(param.varName(), splatAry);
                 addedSplat = true;
+                argsIdx++;
+                paramsIdx++;
                 break;
             } else {
-                environment.define(param.varName(), args.get(i));
+                environment.define(param.varName(), args.get(argsIdx));
             }
-            // FIXME: use kwargs here!
+            argsIdx++;
+            paramsIdx++;
         }
 
-        if (numParams > numArgs) { // set default arguments
+        if (numParams > numArgs) { // set default arguments that weren't provided to the call
             int i = numArgs;
             for (i = numArgs; i < numParams; i++) {
                 Param param = declaration.formals.get(i);
+                if (param.isKwarg && kwargsProcessed.contains(param.varName())) {
+                    continue;
+                }
+                if (param.isKwarg) {
+                    if (kwargs.containsKey(param.varName())) {
+                        environment.define(param.varName(), kwargs.get(param.varName()));
+                        continue;
+                    }
+                }
                 if (param.hasDefaultValue()) {
                     environment.define(param.varName(), interpreter.evaluate(param.defaultVal));
                 }
@@ -145,6 +181,24 @@ class LoxFunction implements LoxCallable {
         Environment environment = new Environment(env);
         environment.define("this", instance);
         return new LoxFunction(declaration, environment, isInitializer);
+    }
+
+    @Override
+    public Map<String,Object> getKwargParams() {
+        Stmt.Function funcDecl = getDecl();
+        List<Param> params = null;
+        if (funcDecl == null) {
+            return null;
+        } else {
+            params = funcDecl.formals;
+            Map<String,Object> ret = new HashMap<>();
+            for (Param param : params) {
+                if (param.isKwarg) {
+                    ret.put(param.varName(), param.defaultVal);
+                }
+            }
+            return ret;
+        }
     }
 
 }
