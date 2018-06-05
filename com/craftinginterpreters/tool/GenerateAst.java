@@ -32,7 +32,8 @@ public class GenerateAst {
         "PropSet    : Expr object, Token property, Expr value",
         "This       : Token keyword",
         "Super      : Token keyword, Token property",
-        "SplatCall  : Expr expression"
+        "SplatCall  : Expr expression",
+        "KeywordArg : Token name, Expr expression"
     ));
     defineAst(outputDir, "Stmt", Arrays.asList(
         "Expression : Expr expression",

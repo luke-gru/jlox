@@ -239,17 +239,25 @@ public class Parser {
             Token tok = prevTok();
             Token paramTok;
             boolean isSplat = false;
+            boolean isKwarg = false;
             Expr defaultVal = null;
             if (tok.type == STAR) {
                 paramTok = consumeTok(IDENTIFIER, "Expected parameter name in function parameter list after '*'.");
                 isSplat = true;
             } else {
                 paramTok = tok;
-                if (matchAny(EQUAL)) {
+                if (matchAny(EQUAL)) { // default argument
                     defaultVal = expression();
+                } else if (matchAny(COLON)) { // keyword argument
+                    isKwarg = true;
+                    if (peekTok().type == COMMA) {
+                        defaultVal = null;
+                    } else {
+                        defaultVal = expression();
+                    }
                 }
             }
-            Param paramObj = new Param(paramTok, defaultVal, isSplat);
+            Param paramObj = new Param(paramTok, defaultVal, isSplat, isKwarg);
             formals.add(paramObj);
             if (peekTok().type == RIGHT_PAREN) {
                 break;
@@ -277,7 +285,7 @@ public class Parser {
                 this.currentFn = oldFn;
             }
         } else {
-            consumeTok(LEFT_BRACE, "Expected { after function parameter list");
+            consumeTok(LEFT_BRACE, "Expected '{' after function parameter list");
         }
         return fnStmt;
     }
@@ -302,7 +310,7 @@ public class Parser {
         List<Param> params = new ArrayList<>();
         consumeTok(LEFT_PAREN, "Expected '(' after '=' in setter decl");
         Token paramTok = consumeTok(IDENTIFIER, "Expected parameter in setter decl");
-        params.add(new Param(paramTok, null, false));
+        params.add(new Param(paramTok, null, false, false));
         consumeTok(RIGHT_PAREN, "Expected ')' after parameter in setter decl");
         consumeTok(LEFT_BRACE, "Expected '{' after parameter in setter decl");
         Stmt.Function fnStmt = new Stmt.Function(name, params, null, fnType, this.currentClass);
@@ -463,13 +471,13 @@ public class Parser {
         if (matchAny(THROW)) {
             Token throwTok = prevTok();
             Expr throwExpr = expression();
-            consumeTok(SEMICOLON, "Expected ';' after throw statement");
+            consumeTok(SEMICOLON, "Expected ';' after 'throw' statement");
             return new Stmt.Throw(throwTok, throwExpr);
         }
         if (matchAny(CONTINUE)) {
             Token contTok = prevTok();
             if (inLoopStmt == null) {
-                throw error(peekTok(), "Keyword 'continue' can only be used in 'while' or 'for' statements.");
+                throw error(peekTok(), "Keyword 'continue' can only be used 'while', 'for' or 'foreach' statements.");
             }
             consumeTok(SEMICOLON, "Expected ';' after keyword 'continue'");
             return new Stmt.Continue(contTok, inLoopStmt);
@@ -477,7 +485,7 @@ public class Parser {
         if (matchAny(BREAK)) {
             Token breakTok = prevTok();
             if (inLoopStmt == null) {
-                throw error(peekTok(), "Keyword 'break' can only be used in 'while' or 'for' statements");
+                throw error(peekTok(), "Keyword 'break' can only be used in 'while', 'for' or 'foreach' statements");
             }
             consumeTok(SEMICOLON, "Expected ';' after keyword 'break'");
             return new Stmt.Break(breakTok, inLoopStmt);
@@ -486,7 +494,7 @@ public class Parser {
             Token retTok = prevTok();
             Expr expression = null;
             if (matchAny(SEMICOLON)) {
-                // do nothing
+                // do nothing: `return;`
             } else {
                 expression = expression();
                 consumeTok(SEMICOLON, "Expected ';' after return expression");
@@ -647,7 +655,14 @@ public class Parser {
                             arg = expression();
                             arg = new Expr.SplatCall(arg);
                         } else {
-                            arg = expression();
+                            if (peekTok().type == IDENTIFIER && peekTokN(1).type == COLON) {
+                                Token kwTok = consumeTok(IDENTIFIER, "BUG");
+                                consumeTok(COLON, "BUG");
+                                Expr argExpr = expression();
+                                arg = new Expr.KeywordArg(kwTok, argExpr);
+                            } else {
+                                arg = expression();
+                            }
                         }
                         args.add(arg);
                         if (matchAny(COMMA)) {
@@ -789,23 +804,31 @@ public class Parser {
 
         if (matchAny(FUN)) {
             Token funTok = prevTok();
-            consumeTok(LEFT_PAREN, "Expected '(' after keyword 'fun' for anon function");
+            consumeTok(LEFT_PAREN, "Expected '(' after keyword 'fun' for anonymous function");
             List<Param> params = new ArrayList<>();
             while (matchAny(IDENTIFIER, STAR)) {
                 Token tok = prevTok();
                 Token paramTok;
                 boolean isSplat = false;
+                boolean isKwarg = false;
                 Expr defaultVal = null;
                 if (tok.type == STAR) {
-                    paramTok = consumeTok(IDENTIFIER, "Expected parameter name after '*' in parameter list");
+                    paramTok = consumeTok(IDENTIFIER, "Expected identifier after '*' in parameter list");
                     isSplat = true;
                 } else {
                     paramTok = tok;
-                    if (matchAny(EQUAL)) {
+                    if (matchAny(EQUAL)) { // default argument
                         defaultVal = expression();
+                    } else if (matchAny(COLON)) { // keyword argument
+                        isKwarg = true;
+                        if (peekTok().type == COMMA) {
+                            defaultVal = null;
+                        } else {
+                            defaultVal = expression();
+                        }
                     }
                 }
-                params.add(new Param(paramTok, defaultVal, isSplat));
+                params.add(new Param(paramTok, defaultVal, isSplat, isKwarg));
                 if (peekTok().type == RIGHT_PAREN) {
                     break;
                 } else {
@@ -820,7 +843,7 @@ public class Parser {
             if (matchAny(LEFT_BRACE)) {
                 body = new Stmt.Block(blockStmts());
             } else {
-                consumeTok(LEFT_BRACE, "Expected { after anon function parameter list");
+                consumeTok(LEFT_BRACE, "Expected '{' after anonymous function's parameter list");
             }
             Expr.AnonFn anonFn = new Expr.AnonFn(funTok, params, body);
             return anonFn;

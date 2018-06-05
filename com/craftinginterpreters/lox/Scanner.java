@@ -99,6 +99,7 @@ class Scanner {
             case ',': addToken(COMMA); break;
             case '.': addToken(DOT); break;
             case ';': addToken(SEMICOLON); break;
+            case ':': addToken(COLON); break;
             case '*': {
                 if (match('=')) {
                     addToken(STAR_EQUAL);

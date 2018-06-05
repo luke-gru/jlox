@@ -5,11 +5,13 @@ class Param {
     final Token token;
     final Expr defaultVal;
     final boolean isSplatted;
+    final boolean isKwarg;
 
-    Param(Token tok, Expr defaultVal, boolean isSplatted) {
+    Param(Token tok, Expr defaultVal, boolean isSplatted, boolean isKwarg) {
         this.token = tok;
         this.defaultVal = defaultVal;
         this.isSplatted = isSplatted;
+        this.isKwarg = isKwarg;
     }
 
     String varName() {
@@ -23,6 +25,5 @@ class Param {
     boolean mustReceiveArgument() {
         return !isSplatted && !hasDefaultValue();
     }
-
 
 }

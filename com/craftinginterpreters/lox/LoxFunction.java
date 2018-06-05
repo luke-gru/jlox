@@ -2,6 +2,7 @@ package com.craftinginterpreters.lox;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 class LoxFunction implements LoxCallable {
     final Stmt.Function declaration;
@@ -16,7 +17,7 @@ class LoxFunction implements LoxCallable {
     }
 
     @Override
-    public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
+    public Object call(Interpreter interpreter, List<Object> args, Map<String,Object> kwargs, Token callToken) {
         Environment environment = new Environment(closure);
         int numParams = declaration.formals.size();
         int numArgs = args.size();
@@ -37,6 +38,7 @@ class LoxFunction implements LoxCallable {
             } else {
                 environment.define(param.varName(), args.get(i));
             }
+            // FIXME: use kwargs here!
         }
 
         if (numParams > numArgs) { // set default arguments

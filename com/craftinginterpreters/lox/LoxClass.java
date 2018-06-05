@@ -23,9 +23,6 @@ class LoxClass extends LoxModule implements LoxCallable {
             klass = Runtime.getClass("Class");
         }
         this.klass = klass;
-        //if (superClass == null && this.name != null && !this.name.equals("Object")) {
-            //superClass = Runtime.getClass("Object");
-        //}
         this.superClass = superClass;
         this.modDefinedIn = this;
     }
@@ -74,21 +71,26 @@ class LoxClass extends LoxModule implements LoxCallable {
     // constructor call, creates new instance and binds the constructor, if
     // any, to the instance and calls it.
     @Override
-    public Object call(Interpreter interpreter, List<Object> args, Token callToken) {
+    public Object call(Interpreter interp, List<Object> args,
+            Map<String,Object> kwargs, Token callToken) {
         LoxInstance instance = null;
         if (getName().equals("Class")) { // var myClass = Class(Object); // creates anonymous class
             Map<String, LoxCallable> methods = new HashMap<>();
             instance = new LoxClass(null, this, methods);
+        } else if (getName().equals("Module")) {
+            Map<String, LoxCallable> methods = new HashMap<>();
+            instance = new LoxModule(Runtime.getClass("Class"), "Class", null, methods);
         } else {
             instance = new LoxInstance(this, this.name);
         }
         LoxCallable constructor = getMethod("init");
         if (constructor != null) {
-            if (!Runtime.acceptsNArgs(constructor, args.size())) {
+            if (!Runtime.acceptsNArgs(constructor, args.size(), kwargs.size())) {
                 Lox.error(constructor.getDecl().name, "constructor called with wrong number of arguments");
                 return null;
             }
-            constructor.bind(instance, interpreter.environment).call(interpreter, args, callToken);
+            constructor.bind(instance, interp.environment).call(
+                interp, args, kwargs, callToken);
         }
         return instance;
     }

@@ -298,6 +298,14 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     @Override
+    public String visitKeywordArgExpr(Expr.KeywordArg expr) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("(kwarg " + expr.name.lexeme + " ");
+        builder.append(expr.expression.accept(this));
+        return builder.append(")").toString();
+    }
+
+    @Override
     public String visitClassStmt(Stmt.Class stmt) {
         Stmt.Class enclosingClass = this.currentClass;
         this.currentClass = stmt;

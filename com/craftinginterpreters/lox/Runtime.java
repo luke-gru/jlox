@@ -31,7 +31,7 @@ class Runtime {
 
     static LoxInstance array(List<Object> list, Interpreter interp) {
         LoxClass arrayClass = classMap.get("Array");
-        Object instance = interp.evaluateCall(arrayClass, list, null);
+        Object instance = interp.evaluateCall(arrayClass, list,LoxUtil.EMPTY_KWARGS, null);
         return Runtime.toInstance(instance);
     }
 
@@ -41,11 +41,19 @@ class Runtime {
         return array(copy, interp);
     }
 
-    static boolean acceptsNArgs(LoxCallable callable, int n) {
+    // FIXME: use nKwargs param
+    static boolean acceptsNArgs(LoxCallable callable, int nArgs, int nKwargs) {
         int arityMin = callable.arityMin();
         int arityMax = callable.arityMax();
         if (arityMax < 0) { arityMax = 1000; }
-        return n >= arityMin && n <= arityMax;
+        return nArgs >= arityMin && nArgs <= arityMax;
+    }
+    // FIXME: remove this method
+    static boolean acceptsNArgs(LoxCallable callable, int nArgs) {
+        int arityMin = callable.arityMin();
+        int arityMax = callable.arityMax();
+        if (arityMax < 0) { arityMax = 1000; }
+        return nArgs >= arityMin && nArgs <= arityMax;
     }
 
     static LoxClass classOf(LoxInstance instance) {
@@ -147,7 +155,10 @@ class Runtime {
         if (obj == null) { return null; }
         if (isNumber(obj) || isBool(obj)) { return obj; }
         if (isClass(obj)) {
-            throw new RuntimeError(null, "Can't dup a class");
+            // FIXME: use throwLoxError
+            interp.throwLoxError("TypeError", null,
+                "Can't 'dup' classes (tried to dup " + interp.stringify(obj) + ")"
+            );
         }
         if (isArray(obj) || isString(obj))  { return ((LoxInstance)obj).dup(interp); }
         if (isInstance(obj))  { return ((LoxInstance)obj).dup(interp); }
@@ -178,7 +189,7 @@ class Runtime {
            LoxInstance loxPath = Runtime.createString(path, interp);
            List<Object> pushArgs = new ArrayList<Object>();
            pushArgs.add(loxPath);
-           interp.callMethod("push", loxLoadPath, pushArgs);
+           interp.callMethod("push", loxLoadPath, pushArgs, LoxUtil.EMPTY_KWARGS);
        }
        globalEnv.define("LOAD_PATH", loxLoadPath);
 
@@ -187,29 +198,33 @@ class Runtime {
     }
 
     public void defineGlobalFunctions() {
-        globalEnv.define("clock", new LoxNativeCallable("clock", 0, 0) {
+        globalEnv.define("clock", new LoxNativeCallable("clock", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interpreter, List<Object> arguments,
+                    Map<String,Object> kwargs, Token tok) {
                 return (double)System.currentTimeMillis() / 1000.0;
             }
         });
-        globalEnv.define("typeof", new LoxNativeCallable("typeof", 1, 1) {
+        globalEnv.define("typeof", new LoxNativeCallable("typeof", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interpreter, List<Object> arguments,
+                    Map<String,Object> kwargs, Token tok) {
                 Object obj = arguments.get(0);
                 return Runtime.createString(interpreter.nativeTypeof(tok, obj), interpreter);
             }
 
         });
-        globalEnv.define("len", new LoxNativeCallable("len", 1, 1) {
+        globalEnv.define("len", new LoxNativeCallable("len", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interpreter, List<Object> arguments,
+                    Map<String,Object> kwargs, Token tok) {
                 return interpreter.nativeLen(tok, arguments.get(0));
             }
         });
-        globalEnv.define("assert", new LoxNativeCallable("assert", 1, 2) {
+        globalEnv.define("assert", new LoxNativeCallable("assert", 1, 2, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> arguments,
+                    Map<String,Object> kwargs, Token tok) {
                 Object expr = arguments.get(0);
                 if (interp.isTruthy(expr)) {
                     return null;
@@ -226,9 +241,10 @@ class Runtime {
                 }
             }
         });
-        globalEnv.define("loadScript", new LoxNativeCallable("loadScript", 1, -1) {
+        globalEnv.define("loadScript", new LoxNativeCallable("loadScript", 1, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interpreter, List<Object> arguments,
+                    Map<String,Object> kwargs, Token tok) {
                 List<String> fnames = new ArrayList<>();
                 boolean ret = true;
                 int argNum = 1;
@@ -253,9 +269,10 @@ class Runtime {
                 return (Boolean)ret;
             }
         });
-        globalEnv.define("loadScriptOnce", new LoxNativeCallable("loadScriptOnce", 1, -1) {
+        globalEnv.define("loadScriptOnce", new LoxNativeCallable("loadScriptOnce", 1, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interpreter, List<Object> arguments, Token tok) {
+            protected Object _call(Interpreter interpreter, List<Object> arguments,
+                    Map<String,Object> kwargs, Token tok) {
                 List<String> fnames = new ArrayList<>();
                 boolean ret = true;
                 int argNum = 1;
@@ -281,9 +298,10 @@ class Runtime {
             }
         });
         // TODO: should return the exitstatus as well in the array
-        globalEnv.define("system", new LoxNativeCallable("system", 1, 1) {
+        globalEnv.define("system", new LoxNativeCallable("system", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
                 LoxInstance loxStr = Runtime.toInstance(args.get(0));
                 String javaStr = Runtime.toJavaString(loxStr);
@@ -316,9 +334,10 @@ class Runtime {
             }
         });
 
-        globalEnv.define("eval", new LoxNativeCallable("eval", 1, 1) {
+        globalEnv.define("eval", new LoxNativeCallable("eval", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
                 LoxInstance loxSrc = Runtime.toInstance(args.get(0));
                 String src = Runtime.toJavaString(loxSrc);
@@ -340,9 +359,10 @@ class Runtime {
         // FIXME: actually clone() the callable so that we set the new name on
         // it for stack traces. Also make sure the name is a proper
         // identifier.
-        globalEnv.define("alias", new LoxNativeCallable("alias", 2, 2) {
+        globalEnv.define("alias", new LoxNativeCallable("alias", 2, 2, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 Object callableObj = args.get(0);
                 Object newNameObj = args.get(1);
                 if (!Runtime.isCallable(callableObj)) {
@@ -363,9 +383,10 @@ class Runtime {
                 return null;
             }
         });
-        globalEnv.define("isCallable", new LoxNativeCallable("isCallable", 1, 1) {
+        globalEnv.define("isCallable", new LoxNativeCallable("isCallable", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 Object arg = args.get(0);
                 return Runtime.isCallable(arg);
             }
@@ -375,18 +396,20 @@ class Runtime {
     public void defineBuiltinClasses() {
         // class Object
         LoxNativeClass objClass = new LoxNativeClass("Object", null);
-        objClass.defineMethod(new LoxNativeCallable("equals", 1, 1) {
+        objClass.defineMethod(new LoxNativeCallable("equals", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 return Runtime.bool(
                         // strict equality, must be same java object
                         interp.environment.getThis() == args.get(0)
                 );
             }
         });
-        objClass.defineMethod(new LoxNativeCallable("delProp", 1, 1) {
+        objClass.defineMethod(new LoxNativeCallable("delProp", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -404,64 +427,73 @@ class Runtime {
                 }
             }
         });
-        objClass.defineGetter(new LoxNativeCallable("_class", 0, 0) {
+        objClass.defineGetter(new LoxNativeCallable("_class", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 return Runtime.classOf(interp.environment.getThis());
             }
         });
-        objClass.defineGetter(new LoxNativeCallable("_singletonClass", 0, 0) {
+        objClass.defineGetter(new LoxNativeCallable("_singletonClass", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 return interp.environment.getThis().getSingletonKlass();
             }
         });
-        objClass.defineMethod(new LoxNativeCallable("freeze", 0, 0) {
+        objClass.defineMethod(new LoxNativeCallable("freeze", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 interp.environment.getThis().freeze();
                 return interp.environment.getThis();
             }
         });
-        objClass.defineMethod(new LoxNativeCallable("isFrozen", 0, 0) {
+        objClass.defineMethod(new LoxNativeCallable("isFrozen", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 return interp.environment.getThis().isFrozen;
             }
         });
-        objClass.defineGetter(new LoxNativeCallable("objectId", 0, 0) {
+        objClass.defineGetter(new LoxNativeCallable("objectId", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return instance.objectId();
             }
         });
-        objClass.defineMethod(new LoxNativeCallable("hashCode", 0, 0) {
+        objClass.defineMethod(new LoxNativeCallable("hashCode", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return instance.hashCode();
             }
         });
-        objClass.defineMethod(new LoxNativeCallable("dup", 0, 0) {
+        objClass.defineMethod(new LoxNativeCallable("dup", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return instance.dup(interp);
             }
         });
-        objClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
+        objClass.defineMethod(new LoxNativeCallable("toString", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return Runtime.createString(instance.toString(), interp);
             }
         });
         // Default property missing method, takes the name of the property as a string.
         // Does nothing by default, except return `nil`.
-        objClass.defineMethod(new LoxNativeCallable("propertyMissing", 1, 1) {
+        objClass.defineMethod(new LoxNativeCallable("propertyMissing", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 return null;
             }
         });
@@ -469,18 +501,20 @@ class Runtime {
 
         // class Module
         LoxNativeClass modClass = new LoxNativeClass("Module", objClass);
-        modClass.defineMethod(new LoxNativeCallable("init", 0, -1) {
+        modClass.defineMethod(new LoxNativeCallable("init", 0, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxModule mod = (LoxModule)interp.environment.getThis();
                 interp.throwLoxError("TypeError", tok,
                     "Cannot instantiate a module. Tried to insantiate module '" + mod.getName() + "'");
                 return null;
             }
         });
-        modClass.defineMethod(new LoxNativeCallable("include", 1, -1) {
+        modClass.defineMethod(new LoxNativeCallable("include", 1, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxModule thisModOrClass = (LoxModule)interp.environment.getThis();
                 for (Object arg : args) {
                     if (!Runtime.isModule(arg)) {
@@ -493,9 +527,10 @@ class Runtime {
                 return null;
             }
         });
-        modClass.defineSingletonMethod(new LoxNativeCallable("all", 0, 0) {
+        modClass.defineSingletonMethod(new LoxNativeCallable("all", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 List<Object> mods = new ArrayList<>();
                 Iterator iter = interp.classMap.entrySet().iterator();
                 while (iter.hasNext()) {
@@ -516,9 +551,10 @@ class Runtime {
         LoxNativeClass classClass = new LoxNativeClass("Class", modClass);
         objClass.klass = classClass;
         modClass.klass = classClass;
-        classClass.defineSingletonMethod(new LoxNativeCallable("all", 0, 0) {
+        classClass.defineSingletonMethod(new LoxNativeCallable("all", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 List<Object> classes = new ArrayList<>();
                 Iterator iter = interp.classMap.entrySet().iterator();
                 while (iter.hasNext()) {
@@ -528,9 +564,10 @@ class Runtime {
                 return Runtime.array(classes, interp);
             }
         });
-        classClass.defineSingletonMethod(new LoxNativeCallable("getByName", 1, 1) {
+        classClass.defineSingletonMethod(new LoxNativeCallable("getByName", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 Object nameStr = args.get(0);
                 LoxUtil.checkString(nameStr, interp, "ArgumentError", null, 1);
                 LoxInstance name = Runtime.toString(nameStr);
@@ -543,9 +580,10 @@ class Runtime {
                 }
             }
         });
-        classClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
+        classClass.defineMethod(new LoxNativeCallable("init", 0, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxClass klass = interp.environment.getThisClass();
                 if (args.size() == 1) {
                     LoxUtil.checkIsA("Class", args.get(0), interp, "ArgumentError", null, 1);
@@ -555,23 +593,26 @@ class Runtime {
                 return klass;
             }
         });
-        classClass.defineGetter(new LoxNativeCallable("name", 0, 0) {
+        classClass.defineGetter(new LoxNativeCallable("name", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxClass klass = interp.environment.getThisClass();
                 return Runtime.createString(klass.getName(), interp);
             }
         });
-        classClass.defineGetter(new LoxNativeCallable("superClass", 0, 0) {
+        classClass.defineGetter(new LoxNativeCallable("superClass", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxClass klass = interp.environment.getThisClass();
                 return klass.getSuper();
             }
         });
-        classClass.defineMethod(new LoxNativeCallable("ancestors", 0, 0) {
+        classClass.defineMethod(new LoxNativeCallable("ancestors", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxClass klass = interp.environment.getThisClass();
                 boolean isSClass = klass.isSingletonKlass;
                 boolean sClassOfClass = false;
@@ -608,9 +649,10 @@ class Runtime {
                 return interp.createInstance("Array", list);
             }
         });
-        classClass.defineMethod(new LoxNativeCallable("methodNames", 0, 1) {
+        classClass.defineMethod(new LoxNativeCallable("methodNames", 0, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxClass klass = interp.environment.getThisClass();
                 boolean includeAncestorLookup = true;
                 if (args.size() == 1) {
@@ -631,9 +673,10 @@ class Runtime {
 
         // class Array
         LoxNativeClass arrayClass = new LoxNativeClass("Array", objClass);
-        arrayClass.defineMethod(new LoxNativeCallable("init", 0, -1) {
+        arrayClass.defineMethod(new LoxNativeCallable("init", 0, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 List<Object> ary = new ArrayList<>();
                 for (Object arg : args) {
@@ -643,17 +686,19 @@ class Runtime {
                 return instance;
             }
         });
-        arrayClass.defineGetter(new LoxNativeCallable("length", 0, 0) {
+        arrayClass.defineGetter(new LoxNativeCallable("length", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return (double)((List<Object>)instance.getHiddenProp("ary")).size();
             }
         });
         // [1,2] + [1] => [1,2,1]
-        arrayClass.defineMethod(new LoxNativeCallable("opAdd", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("opAdd", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object otherObj = args.get(0);
                 LoxUtil.checkIsA("Array", otherObj, interp, "ArgumentError", null, 1);
@@ -669,9 +714,10 @@ class Runtime {
             }
         });
         // [1,2] * 3 => [1,2,1,2,1,2]
-        arrayClass.defineMethod(new LoxNativeCallable("opMul", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("opMul", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object otherObj = args.get(0);
                 LoxUtil.checkIsA("number", otherObj, interp, "ArgumentError", null, 1);
@@ -689,9 +735,10 @@ class Runtime {
                 return newAry;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("push", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("push", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -702,9 +749,10 @@ class Runtime {
                 return instance;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("pop", 0, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("pop", 0, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -737,18 +785,20 @@ class Runtime {
                 return ret;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("contains", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("contains", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
                 Boolean b = ary.contains(args.get(0));
                 return b;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("get", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("get", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object idx = args.get(0);
                 LoxUtil.checkIsA("number", idx, interp, "ArgumentError", null, 1);
@@ -760,9 +810,10 @@ class Runtime {
                 return ary.get(idxNum);
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("set", 2, 2) {
+        arrayClass.defineMethod(new LoxNativeCallable("set", 2, 2, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object idx = args.get(0);
                 LoxUtil.checkIsA("number", idx, interp, "ArgumentError", null, 1);
@@ -781,33 +832,36 @@ class Runtime {
                 return instance;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("indexGet", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("indexGet", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 LoxCallable getMethod = instance.getMethod("get", interp);
                 if (getMethod == null) {
                     interp.throwLoxError("TypeError",
                         "Array has no method '#get' for '[]' (#indexGet)");
                 }
-                return interp.evaluateCall(getMethod, args, tok);
+                return interp.evaluateCall(getMethod, args, kwargs, tok);
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("indexSet", 2, 2) {
+        arrayClass.defineMethod(new LoxNativeCallable("indexSet", 2, 2, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 LoxCallable setMethod = instance.getMethod("set", interp);
                 if (setMethod == null) {
                     interp.throwLoxError("TypeError",
                         "Array has no method '#set' for '[]=' (#indexSet)");
                 }
-                return interp.evaluateCall(setMethod, args, tok);
+                return interp.evaluateCall(setMethod, args, kwargs, tok);
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("shift", 0, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("shift", 0, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -838,9 +892,10 @@ class Runtime {
                 return ret;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("unshift", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("unshift", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -851,9 +906,10 @@ class Runtime {
                 return instance;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("each", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("each", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object funcObj = args.get(0);
                 if (!Runtime.isCallable(funcObj)) {
@@ -875,14 +931,15 @@ class Runtime {
                     } else {
                         funcArgs.add(el);
                     }
-                    interp.evaluateCall(func, funcArgs, tok);
+                    interp.evaluateCall(func, funcArgs, kwargs, tok);
                 }
                 return instance;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("map", 1, 1) {
+        arrayClass.defineMethod(new LoxNativeCallable("map", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 LoxInstance newInstance = Runtime.array(new ArrayList<Object>(), interp);
                 Object funcObj = args.get(0);
@@ -906,15 +963,16 @@ class Runtime {
                     } else {
                         funcArgs.add(el);
                     }
-                    Object ret = interp.evaluateCall(func, funcArgs, tok);
+                    Object ret = interp.evaluateCall(func, funcArgs, kwargs, tok);
                     retAry.add(ret);
                 }
                 return newInstance;
             }
         });
-        arrayClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
+        arrayClass.defineMethod(new LoxNativeCallable("toString", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 List<Object> ary = (List<Object>)instance.getHiddenProp("ary");
                 StringBuffer buf = new StringBuffer("[");
@@ -942,9 +1000,10 @@ class Runtime {
         // class Map
         LoxNativeClass mapClass = new LoxNativeClass("Map", objClass);
         // Map([[1,2],[3,4]]) or Map([1,2]), Map(1, 2)
-        mapClass.defineMethod(new LoxNativeCallable("init", 0, 2) {
+        mapClass.defineMethod(new LoxNativeCallable("init", 0, 2, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Map<Object,Object> internalMap = new HashMap<>();
                 instance.setHiddenProp("map", internalMap);
@@ -959,7 +1018,7 @@ class Runtime {
                         args = new ArrayList<Object>();
                         args.add(internalAry.get(0));
                         args.add(internalAry.get(1));
-                        return _call(interp, args, tok);
+                        return _call(interp, args, kwargs, tok);
                     }
                     int elNum = 1;
                     for (Object elAry : internalAry) {
@@ -987,9 +1046,10 @@ class Runtime {
                 return instance;
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("get", 1, 1) {
+        mapClass.defineMethod(new LoxNativeCallable("get", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 Object argObj = args.get(0);
@@ -1003,9 +1063,10 @@ class Runtime {
                 }
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("put", 2, 2) {
+        mapClass.defineMethod(new LoxNativeCallable("put", 2, 2, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -1018,33 +1079,36 @@ class Runtime {
                 return instance;
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("indexGet", 1, 1) {
+        mapClass.defineMethod(new LoxNativeCallable("indexGet", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 LoxCallable getMethod = instance.getMethod("get", interp);
                 if (getMethod == null) {
                     interp.throwLoxError("TypeError",
                         "Map has no method '#get' for '[]' (#indexGet)");
                 }
-                return interp.evaluateCall(getMethod, args, tok);
+                return interp.evaluateCall(getMethod, args, kwargs, tok);
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("indexSet", 2, 2) {
+        mapClass.defineMethod(new LoxNativeCallable("indexSet", 2, 2, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 LoxCallable putMethod = instance.getMethod("put", interp);
                 if (putMethod == null) {
                     interp.throwLoxError("TypeError",
                         "Map has no method '#put' for '[]=' (#indexSet)");
                 }
-                return interp.evaluateCall(putMethod, args, tok);
+                return interp.evaluateCall(putMethod, args, kwargs, tok);
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("remove", 1, -1) {
+        mapClass.defineMethod(new LoxNativeCallable("remove", 1, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -1062,9 +1126,10 @@ class Runtime {
                 }
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("keys", 0, 0) {
+        mapClass.defineMethod(new LoxNativeCallable("keys", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 Set<Object> keys = mapIntern.keySet();
@@ -1075,9 +1140,10 @@ class Runtime {
                 return interp.createInstance("Array", keysList);
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("each", 1, 1) {
+        mapClass.defineMethod(new LoxNativeCallable("each", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object argObj = args.get(0);
                 if (!Runtime.isCallable(argObj)) {
@@ -1105,14 +1171,15 @@ class Runtime {
                     } else {
                         // do nothing, function expects no arguments
                     }
-                    interp.evaluateCall(func, funcArgs, tok);
+                    interp.evaluateCall(func, funcArgs, kwargs, tok);
                 }
                 return instance;
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("values", 0, 0) {
+        mapClass.defineMethod(new LoxNativeCallable("values", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 Collection<Object> values = mapIntern.values();
@@ -1123,9 +1190,10 @@ class Runtime {
                 return interp.createInstance("Array", valuesList);
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("clear", 0, 0) {
+        mapClass.defineMethod(new LoxNativeCallable("clear", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -1136,18 +1204,20 @@ class Runtime {
                 return instance;
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("iter", 0, 0) {
+        mapClass.defineMethod(new LoxNativeCallable("iter", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 List<Object> mapIterArgs = new ArrayList<>();
                 mapIterArgs.add(instance);
                 return interp.createInstance("MapIterator", mapIterArgs);
             }
         });
-        mapClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
+        mapClass.defineMethod(new LoxNativeCallable("toString", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Map<Object,Object> mapIntern = (Map<Object,Object>)instance.getHiddenProp("map");
                 StringBuffer buf = new StringBuffer("{");
@@ -1187,9 +1257,10 @@ class Runtime {
 
         // MapIterator class
         LoxNativeClass mapIterClass = new LoxNativeClass("MapIterator", objClass);
-        mapIterClass.defineMethod(new LoxNativeCallable("init", 1, 1) {
+        mapIterClass.defineMethod(new LoxNativeCallable("init", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance iter = interp.environment.getThis();
                 Object mapInstanceObj = args.get(0);
                 LoxUtil.checkIsA("Map", mapInstanceObj, interp, "ArgumentError", null, 1);
@@ -1204,9 +1275,10 @@ class Runtime {
                 return null;
             }
         });
-        mapIterClass.defineMethod(new LoxNativeCallable("nextIter", 0, 0) {
+        mapIterClass.defineMethod(new LoxNativeCallable("nextIter", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance iter = interp.environment.getThis();
                 Object mapInstanceObj = iter.getNormalProperty("iterable");
                 LoxUtil.checkIsA("Map", mapInstanceObj, interp, "TypeError", "MapIterator#.iterable needs to be a map!", 0);
@@ -1229,9 +1301,10 @@ class Runtime {
                 }
             }
         });
-        mapIterClass.defineMethod(new LoxNativeCallable("hasNext", 0, 0) {
+        mapIterClass.defineMethod(new LoxNativeCallable("hasNext", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance iter = interp.environment.getThis();
                 Object mapInstanceObj = iter.getNormalProperty("iterable");
                 LoxUtil.checkIsA("Map", mapInstanceObj, interp, "TypeError", "MapIterator#.iterable needs to be a map!", 0);
@@ -1240,9 +1313,10 @@ class Runtime {
                 return javaMapIter.hasNext();
             }
         });
-        mapIterClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
+        mapIterClass.defineMethod(new LoxNativeCallable("toString", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance iter = interp.environment.getThis();
                 Object mapInstanceObj = iter.getNormalProperty("iterable");
                 LoxUtil.checkIsA("Map", mapInstanceObj, interp, "TypeError", "MapIterator#.iterable needs to be a map!", 0);
@@ -1267,9 +1341,10 @@ class Runtime {
 
         // class String
         LoxNativeClass stringClass = new LoxNativeClass("String", objClass);
-        stringClass.defineMethod(new LoxNativeCallable("init", 0, -1) {
+        stringClass.defineMethod(new LoxNativeCallable("init", 0, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 StringBuffer buf = new StringBuffer();
                 for (int i = 0; i < args.size(); i++) {
@@ -1282,17 +1357,19 @@ class Runtime {
                 return instance;
             }
         });
-        stringClass.defineGetter(new LoxNativeCallable("length", 0, 0) {
+        stringClass.defineGetter(new LoxNativeCallable("length", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 return (double)((StringBuffer)instance.getHiddenProp("buf")).length();
             }
         });
         // String#*
-        stringClass.defineMethod(new LoxNativeCallable("opMul", 1, 1) {
+        stringClass.defineMethod(new LoxNativeCallable("opMul", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object arg = args.get(0);
                 LoxUtil.checkIsA("number", arg, interp, "ArgumentError", null, 1);
@@ -1306,9 +1383,10 @@ class Runtime {
             }
         });
         // String#+
-        stringClass.defineMethod(new LoxNativeCallable("opAdd", 1, 1) {
+        stringClass.defineMethod(new LoxNativeCallable("opAdd", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object arg = args.get(0);
                 LoxUtil.checkString(arg, interp, "ArgumentError", null, 1);
@@ -1318,9 +1396,10 @@ class Runtime {
                 return Runtime.createString(newBuf, interp);
             }
         });
-        stringClass.defineMethod(new LoxNativeCallable("push", 0, -1) {
+        stringClass.defineMethod(new LoxNativeCallable("push", 0, -1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 if (instance.isFrozen) {
                     interp.throwLoxError("FrozenObjectError",
@@ -1341,9 +1420,10 @@ class Runtime {
 
         // class Number
         LoxNativeClass numClass = new LoxNativeClass("Number", objClass);
-        numClass.defineSingletonMethod(new LoxNativeCallable("parse", 1, 1) {
+        numClass.defineSingletonMethod(new LoxNativeCallable("parse", 1, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
                 LoxInstance loxStr = Runtime.toString(args.get(0));
                 String javaStr = ((StringBuffer)loxStr.getHiddenProp("buf")).toString();
@@ -1360,9 +1440,10 @@ class Runtime {
 
         // class Error
         LoxNativeClass errorClass = new LoxNativeClass("Error", objClass);
-        errorClass.defineMethod(new LoxNativeCallable("init", 0, 1) {
+        errorClass.defineMethod(new LoxNativeCallable("init", 0, 1, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 Object msg = null;
                 if (args.size() > 0 && args.get(0) != null) {
@@ -1383,9 +1464,10 @@ class Runtime {
                 return instance;
             }
         });
-        errorClass.defineMethod(new LoxNativeCallable("toString", 0, 0) {
+        errorClass.defineMethod(new LoxNativeCallable("toString", 0, 0, null, null) {
             @Override
-            protected Object _call(Interpreter interp, List<Object> args, Token tok) {
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
                 LoxInstance instance = interp.environment.getThis();
                 StringBuffer buf = new StringBuffer();
                 buf.append(instance.getKlass().getName());

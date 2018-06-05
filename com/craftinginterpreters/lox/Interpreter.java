@@ -182,7 +182,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         LoxClass arrayClass = classMap.get("Array");
         Token tok = tokenFromExpr(expr);
         // Construct the array instance and return it
-        Object instance = evaluateCall(arrayClass, objs, tok);
+        Object instance = evaluateCall(arrayClass, objs, LoxUtil.EMPTY_KWARGS, tok);
         return instance;
     }
 
@@ -201,7 +201,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (indexGetMeth != null) {
             List<Object> indexValArgs = new ArrayList<>();
             indexValArgs.add(index);
-            return evaluateCall(indexGetMeth, indexValArgs, tokenFromExpr(expr));
+            return evaluateCall(indexGetMeth, indexValArgs, LoxUtil.EMPTY_KWARGS, tokenFromExpr(expr));
         }
         if (Runtime.isArray(obj)) {
             LoxInstance ary = Runtime.toInstance(obj);
@@ -249,7 +249,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             List<Object> indexValArgs = new ArrayList<>();
             indexValArgs.add(index);
             indexValArgs.add(val);
-            return evaluateCall(indexSetMeth, indexValArgs, tokenFromExpr(expr));
+            return evaluateCall(indexSetMeth, indexValArgs, LoxUtil.EMPTY_KWARGS, tokenFromExpr(expr));
         }
         if (Runtime.isArray(obj)) {
             LoxInstance ary = (LoxInstance)obj;
@@ -338,7 +338,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     if (diffMeth != null) {
                         List<Object> diffArgs = new ArrayList<>();
                         diffArgs.add(right);
-                        return evaluateCall(diffMeth, diffArgs, tokenFromExpr(expr));
+                        return evaluateCall(diffMeth, diffArgs, LoxUtil.EMPTY_KWARGS, tokenFromExpr(expr));
                     } else {
                         System.err.println("opDiff not found for class " + leftInst.getKlass().getName());
                         // raise error: method opDiff not found
@@ -354,7 +354,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     if (divMeth != null) {
                         List<Object> divArgs = new ArrayList<>();
                         divArgs.add(right);
-                        return evaluateCall(divMeth, divArgs, tokenFromExpr(expr));
+                        return evaluateCall(divMeth, divArgs, LoxUtil.EMPTY_KWARGS, tokenFromExpr(expr));
                     } else {
                         System.err.println("opDiv not found for class " + leftInst.getKlass().getName());
                         String className = leftInst.getKlass().getName();
@@ -376,7 +376,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     if (mulMeth != null) {
                         List<Object> mulArgs = new ArrayList<>();
                         mulArgs.add(right);
-                        return evaluateCall(mulMeth, mulArgs, tokenFromExpr(expr));
+                        return evaluateCall(mulMeth, mulArgs, LoxUtil.EMPTY_KWARGS, tokenFromExpr(expr));
                     } else {
                         System.err.println("opMul not found for class " + leftInst.getKlass().getName());
                         // raise error: method opMul not found
@@ -394,7 +394,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     if (addMeth != null) {
                         List<Object> addArgs = new ArrayList<>();
                         addArgs.add(right);
-                        return evaluateCall(addMeth, addArgs, tokenFromExpr(expr));
+                        return evaluateCall(addMeth, addArgs, LoxUtil.EMPTY_KWARGS, tokenFromExpr(expr));
                     } else {
                         String className = leftInst.getKlass().getName();
                         throwLoxError("NoSuchMethodError", tokenFromExpr(expr.left),
@@ -509,11 +509,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public Object visitCallExpr(Expr.Call callExpr) {
         Object obj = evaluate(callExpr.left);
         if (obj instanceof LoxCallable) {
+            LoxCallable callable = (LoxCallable)obj;
             List<Object> args = null;
+            Map<String,Object> kwargs = null;
             if (callExpr.args.size() == 0) {
                 args = LoxUtil.EMPTY_ARGS; // small optimization
+                kwargs = LoxUtil.EMPTY_KWARGS;
             } else {
                 args = new ArrayList<>();
+                kwargs = new HashMap<>();
             }
 
             // need to evaluate args first before seeing if the function can
@@ -529,13 +533,18 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     LoxInstance aryInstance = (LoxInstance)ary;
                     List<Object> elements = (List<Object>)aryInstance.getHiddenProp("ary");
                     args.addAll(elements);
+                } else if (expr instanceof Expr.KeywordArg) {
+                    // TODO: check that this keyword argument is valid for the callable
+                    // Also, pass in default keyword arguments that aren't
+                    // given here!
+                    Expr.KeywordArg kwArgExpr = (Expr.KeywordArg)expr;
+                    kwargs.put(kwArgExpr.name.lexeme, evaluate(kwArgExpr.expression));
                 } else {
                     args.add(evaluate(expr));
                 }
             }
 
-            LoxCallable callable = (LoxCallable)obj;
-            if (!Runtime.acceptsNArgs(callable, args.size())) {
+            if (!Runtime.acceptsNArgs(callable, args.size(), kwargs.size())) {
                 int arityMin = callable.arityMin();
                 int arityMax = callable.arityMax();
                 String expectedNStr;
@@ -554,7 +563,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     expectedNStr + ", got " + actualNStr + "."
                 );
             }
-            return evaluateCall(callable, args, tokenFromExpr(callExpr.left));
+            // FIXME: use keyword arguments
+            return evaluateCall(callable, args, kwargs, tokenFromExpr(callExpr.left));
         } else {
             Token tok = tokenFromExpr(callExpr.left);
             // FIXME: show the object or the class, if there is one as the LHS
@@ -570,6 +580,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     // see visitCallExpr
     @Override
     public Object visitSplatCallExpr(Expr.SplatCall expr) {
+        return null;
+    }
+
+    // see visitCallExpr
+    @Override
+    public Object visitKeywordArgExpr(Expr.KeywordArg expr) {
         return null;
     }
 
@@ -641,11 +657,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         return null;
     }
 
-    public Object evaluateCall(LoxCallable callable, List<Object> args, Token callToken) {
+    public Object evaluateCall(LoxCallable callable, List<Object> args, Map<String,Object> kwargs, Token callToken) {
         LoxCallable oldFnCall = this.fnCall;
         try {
             this.fnCall = callable;
-            return callable.call(this, args, callToken);
+            return callable.call(this, args, kwargs, callToken);
         } finally {
             this.fnCall = oldFnCall;
         }
@@ -812,7 +828,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             }
             if (iterMethod != null) {
                 LoxCallable iterCallable = (LoxCallable)iterMethod;
-                evalObj =  evaluateCall(iterCallable, new ArrayList<Object>(), tokenFromExpr(stmt.obj));
+                evalObj = evaluateCall(iterCallable, LoxUtil.EMPTY_ARGS,
+                            LoxUtil.EMPTY_KWARGS, tokenFromExpr(stmt.obj));
                 if (Runtime.isInstance(evalObj) && !Runtime.isArray(evalObj)) {
                     nextIterMethod = ((LoxInstance)evalObj).getMethod("nextIter", this);
                     if (nextIterMethod == null) {
@@ -849,7 +866,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 // FIXME: check OOB array access
                 Object val;
                 if (useNextIter) {
-                    val = evaluateCall((LoxCallable)nextIterMethod, LoxUtil.EMPTY_ARGS, null);
+                    val = evaluateCall((LoxCallable)nextIterMethod, LoxUtil.EMPTY_ARGS,
+                            LoxUtil.EMPTY_KWARGS, null);
                     if (val == null) { break; }
                 } else {
                     val = elements.get(i);
@@ -1168,7 +1186,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             LoxInstance instance = Runtime.toInstance(object);
             LoxCallable toStringMeth = instance.getMethod("toString", instance.getKlass(), this);
             if (toStringMeth != null) {
-                object = evaluateCall(toStringMeth, LoxUtil.EMPTY_ARGS, null);
+                object = evaluateCall(toStringMeth, LoxUtil.EMPTY_ARGS, LoxUtil.EMPTY_KWARGS, null);
             }
         }
 
@@ -1205,7 +1223,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return (double)methodOrProp;
             }
             if (methodOrProp instanceof LoxCallable) {
-                return evaluateCall((LoxCallable)methodOrProp, LoxUtil.EMPTY_ARGS, tok);
+                return evaluateCall((LoxCallable)methodOrProp, LoxUtil.EMPTY_ARGS, LoxUtil.EMPTY_KWARGS, tok);
             }
         }
         throwLoxError("TypeError", tok,
@@ -1338,27 +1356,31 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    public LoxInstance createInstance(String className, List<Object> initArgs) {
+    public LoxInstance createInstance(String className, List<Object> initArgs, Map<String,Object> kwargs) {
         LoxClass klass = classMap.get(className);
         if (klass == null) {
             throw new RuntimeException("class " + className + " doesn't exist!");
         }
-        Object instance = evaluateCall(klass, initArgs, null);
+        Object instance = evaluateCall(klass, initArgs, kwargs, null);
         return Runtime.toInstance(instance);
     }
 
-    public LoxInstance createInstance(String className) {
-        return createInstance(className, LoxUtil.EMPTY_ARGS);
+    public LoxInstance createInstance(String className, List<Object> initArgs) {
+        return createInstance(className, initArgs, LoxUtil.EMPTY_KWARGS);
     }
 
-    public Object callMethod(String methodName, LoxInstance instance, List<Object> args) {
+    public LoxInstance createInstance(String className) {
+        return createInstance(className, LoxUtil.EMPTY_ARGS, LoxUtil.EMPTY_KWARGS);
+    }
+
+    public Object callMethod(String methodName, LoxInstance instance, List<Object> args, Map<String,Object> kwargs) {
         LoxCallable method = instance.getMethod(methodName, instance.getKlass(), this); // FIXME: doesn't look in singleton class
         // TODO: raise error
         if (method == null) {
             System.err.println("Error: method not found: " + methodName);
             return null;
         }
-        return evaluateCall(method, args, null);
+        return evaluateCall(method, args, kwargs, null);
     }
 
     private List<String> loadPathJavaStrings() {
@@ -1428,7 +1450,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         LoxCallable errConstructor = classMap.get(errClass);
         List<Object> args = new ArrayList<>();
         args.add(Runtime.createString(errMsg, this));
-        Object objInstance = evaluateCall(errConstructor, args, null);
+        Object objInstance = evaluateCall(errConstructor, args, LoxUtil.EMPTY_KWARGS, null);
         throw new RuntimeThrow(objInstance, tok);
     }
 

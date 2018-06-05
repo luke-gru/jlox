@@ -8,9 +8,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Collections;
+import java.util.Map;
+import java.util.HashMap;
 
 class LoxUtil {
     static List<Object> EMPTY_ARGS = Collections.unmodifiableList(new ArrayList<>());
+    static Map<String,Object> EMPTY_KWARGS = Collections.unmodifiableMap(new HashMap<>());
 
     static String readFile(String path) throws IOException {
         byte[] encoded = Files.readAllBytes(Paths.get(path));

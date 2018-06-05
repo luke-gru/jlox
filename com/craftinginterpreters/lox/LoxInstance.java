@@ -75,7 +75,7 @@ class LoxInstance {
                 LoxCallable func = getter.bind(this, interp.environment);
                 LoxCallable oldFunc = interp.fnCall;
                 interp.fnCall = func;
-                Object ret = func.call(interp, objs, null);
+                Object ret = func.call(interp, objs, LoxUtil.EMPTY_KWARGS, null);
                 interp.fnCall = oldFunc;
                 return ret;
             }
@@ -100,7 +100,7 @@ class LoxInstance {
         }
         LoxCallable oldFnCall = interp.fnCall;
         interp.fnCall = propMissingFunc;
-        Object ret = propMissingFunc.call(interp, propMissingArgs, null);
+        Object ret = propMissingFunc.call(interp, propMissingArgs, LoxUtil.EMPTY_KWARGS, null);
         interp.fnCall = oldFnCall;
         return ret;
     }
@@ -125,7 +125,7 @@ class LoxInstance {
             LoxCallable initDupMeth = (LoxCallable)initDup;
             List<Object> args = new ArrayList<>();
             args.add(this);
-            interp.evaluateCall(initDupMeth, args, null);
+            interp.evaluateCall(initDupMeth, args, LoxUtil.EMPTY_KWARGS, null);
         }
         return newInstance;
     }
@@ -138,7 +138,7 @@ class LoxInstance {
         if (setterFunc != null) {
             List<Object> objs = new ArrayList<>();
             objs.add(value);
-            setterFunc.bind(this, interp.environment).call(interp, objs, null);
+            setterFunc.bind(this, interp.environment).call(interp, objs, LoxUtil.EMPTY_KWARGS, null);
             return;
         }
         properties.put(name, value);
@@ -180,7 +180,7 @@ class LoxInstance {
                 LoxUtil.debug("plookup", "  getter '" + name + "' found");
                 LoxCallable getter = klass.getters.get(name);
                 List<Object> args = LoxUtil.EMPTY_ARGS;
-                return getter.bind(this, interp.environment).call(interp, args, null);
+                return getter.bind(this, interp.environment).call(interp, args, LoxUtil.EMPTY_KWARGS, null);
             }
             klass = klass.getSuper();
         }
@@ -199,7 +199,7 @@ class LoxInstance {
                 if (singletonKlass.getters.containsKey(name)) {
                     LoxCallable getter = singletonKlass.getters.get(name);
                     List<Object> args = LoxUtil.EMPTY_ARGS;
-                    return getter.bind(this, interp.environment).call(interp, args, null);
+                    return getter.bind(this, interp.environment).call(interp, args, LoxUtil.EMPTY_KWARGS, null);
                 }
                 klass = klass.getSuper();
             }
@@ -209,7 +209,7 @@ class LoxInstance {
                 if (singletonKlass.getters.containsKey(name)) {
                     LoxCallable getter = singletonKlass.getters.get(name);
                     List<Object> args = LoxUtil.EMPTY_ARGS;
-                    return getter.bind(this, interp.environment).call(interp, args, null);
+                    return getter.bind(this, interp.environment).call(interp, args, LoxUtil.EMPTY_KWARGS, null);
                 }
             }
             LoxClass klass = getKlass();
@@ -217,7 +217,7 @@ class LoxInstance {
                 if (klass.getters.containsKey(name)) {
                     LoxCallable getter = singletonKlass.getters.get(name);
                     List<Object> args = LoxUtil.EMPTY_ARGS;
-                    return getter.bind(this, interp.environment).call(interp, args, null);
+                    return getter.bind(this, interp.environment).call(interp, args, LoxUtil.EMPTY_KWARGS, null);
                 }
                 klass = klass.getSuper();
             }
