@@ -94,6 +94,13 @@ class Runtime {
         return instance.isA("Array");
     }
 
+    static boolean isMap(Object obj) {
+        if (isClass(obj)) { return false; }
+        if (!isInstance(obj)) { return false; }
+        LoxInstance instance = (LoxInstance)obj;
+        return instance.isA("Map");
+    }
+
     static boolean isString(Object obj) {
         if (isClass(obj)) { return false; }
         if (!isInstance(obj)) { return false; }

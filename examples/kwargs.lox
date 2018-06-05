@@ -47,6 +47,19 @@ try {
 }
 print argErr && argErr._class;
 
+argErr = nil;
+
+var map = Map("name", "Raiz");
+greet3("What's up", *map); // splatted map argument turns to keywords
+
+map.put("other", "too many keywords!");
+try {
+  greet3("What's up", *map);
+} catch (ArgumentError e) {
+  argErr = e;
+}
+print argErr && argErr._class;
+
 __END__
 -- expect: --
 Welcome, Luke
@@ -56,4 +69,6 @@ Hey there, nil
 <class ArgumentError>
 What's up, Jerry
 <class ArgumentError>
+<class ArgumentError>
+What's up, Raiz
 <class ArgumentError>

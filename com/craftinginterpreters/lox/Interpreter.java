@@ -1,10 +1,11 @@
 package com.craftinginterpreters.lox;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Stack;
 import java.util.List;
 import java.util.Map;
+import java.util.Stack;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.io.IOException;
 import java.io.File;
 
@@ -523,14 +524,36 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             // evaluate to multiple arguments at runtime. See below.
             for (Expr expr : callExpr.args) {
                 if (expr instanceof Expr.SplatCall) {
-                    Object ary = evaluate(((Expr.SplatCall)expr).expression);
-                    if (!Runtime.isArray(ary)) {
+                    Object aryOrMap = evaluate(((Expr.SplatCall)expr).expression);
+                    if (!(Runtime.isArray(aryOrMap) || Runtime.isMap(aryOrMap))) {
                         throwLoxError("ArgumentError", tokenFromExpr(expr),
-                            "Splat arg expression must evaluate to an Array object");
+                            "Splat arg expression must evaluate to an Array or Map object");
                     }
-                    LoxInstance aryInstance = (LoxInstance)ary;
-                    List<Object> elements = (List<Object>)aryInstance.getHiddenProp("ary");
-                    args.addAll(elements);
+                    if (Runtime.isArray(aryOrMap)) {
+                        LoxInstance aryInstance = (LoxInstance)aryOrMap;
+                        List<Object> elements = (List<Object>)aryInstance.getHiddenProp("ary");
+                        args.addAll(elements);
+                    } else { // Map
+                        LoxInstance mapInstance = (LoxInstance)aryOrMap;
+                        Map<Object,Object> map = (Map<Object,Object>)mapInstance.getHiddenProp("map");
+                        Iterator iter = map.entrySet().iterator();
+                        while (iter.hasNext()) {
+                            Map.Entry pair = (Map.Entry)iter.next();
+                            Object key = pair.getKey();
+                            if (Runtime.isString(key)) {
+                                Object val = pair.getValue();
+                                LoxInstance strInstance = Runtime.toInstance(key);
+                                String str = ((StringBuffer)strInstance.getHiddenProp("buf")).toString();
+                                kwargs.put(str, val);
+                            } else {
+                                throwLoxError("ArgumentError", tokenFromExpr(expr),
+                                    "Invalid keyword argument due to splatted Map. Keys must be Strings, key " +
+                                    "given: " + stringify(key) + ", type: " +
+                                    nativeTypeof(tokenFromExpr(expr), key));
+                                // FIXME: throw error, keys must be strings in map splat
+                            }
+                        }
+                    }
                 } else if (expr instanceof Expr.KeywordArg) {
                     Expr.KeywordArg kwArgExpr = (Expr.KeywordArg)expr;
                     Map<String,Object> kwargParams = callable.getKwargParams();
@@ -538,7 +561,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                         throwLoxError("ArgumentError", tokenFromExpr(expr),
                             "Invalid keyword argument '" + kwArgExpr.name.lexeme + "'");
                     }
-                    // FIXME: check that this keyword argument is valid for the callable
                     //System.err.println("keyword arg getting set in call()");
                     kwargs.put(kwArgExpr.name.lexeme, evaluate(kwArgExpr.expression));
                 } else {
