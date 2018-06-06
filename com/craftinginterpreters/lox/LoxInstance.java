@@ -163,7 +163,7 @@ class LoxInstance {
                 superClass = getKlass();
                 className = "\"" + toString() + "\"";
             }
-            this.singletonKlass = new LoxClass(className + " (meta)", superClass, new HashMap<String, LoxCallable>());
+            this.singletonKlass = new LoxClass(className + " (meta)", superClass, new HashMap<>());
             this.singletonKlass.isSingletonKlass = true;
             this.singletonKlass.singletonOf = this;
         }

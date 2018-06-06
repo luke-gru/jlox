@@ -77,11 +77,18 @@ class LoxClass extends LoxModule implements LoxCallable {
         if (getName().equals("Class")) { // var myClass = Class(Object); // creates anonymous class
             Map<String, LoxCallable> methods = new HashMap<>();
             instance = new LoxClass(null, this, methods);
-        } else if (getName().equals("Module")) {
+        } else if (getName().equals("Module")) { // creates anonymous module
             Map<String, LoxCallable> methods = new HashMap<>();
             instance = new LoxModule(Runtime.getClass("Class"), "Class", null, methods);
         } else {
-            instance = new LoxInstance(this, this.name);
+            // creates instance
+            LoxClass klass = this;
+            if (klass.module != null) {
+                interp.throwLoxError("TypeError", callToken,
+                    "Tried to instantiate Module '" +
+                    klass.getName() + "'. Only classes can be instantiated.");
+            }
+            instance = new LoxInstance(klass, klass.getName());
         }
         LoxCallable constructor = getMethod("init");
         if (constructor != null) {

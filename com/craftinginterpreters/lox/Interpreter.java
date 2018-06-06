@@ -75,6 +75,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     private boolean isPaused = false; // debugger pauses interpreter
     private List<Stmt> statementsLeft = null; // for debugger
+    public boolean exited = false;
 
     public Interpreter() {
         HashMap<String, Object> opts = new HashMap<>();
@@ -104,6 +105,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
 
     public boolean interpret(List<Stmt> statements) {
+        this.exited = false;
         if (this.isPaused) { return true; }
         this.statementsLeft = new ArrayList<Stmt>(statements);
         if (!inited) {
@@ -120,12 +122,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         try {
             for (Stmt statement : statements) {
                 if (this.isPaused) { return true; }
-                if (statementsLeft.size() > 0) {
+                if (statementsLeft != null && statementsLeft.size() > 0) {
                     statementsLeft.remove(0);
                 }
                 execute(statement);
             }
             runAtExitHooks();
+            this.exited = true;
             return true;
         } catch (RuntimeError error) {
             this.runtimeError = error;
@@ -145,8 +148,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             Lox.hadRuntimeError = true;
         } catch (SimulateExit _error) {
             System.err.println("Simulating exit");
+            this.exited = true;
             return true;
         }
+        this.exited = true;
         return false;
     }
 
@@ -486,21 +491,51 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
+    // FIXME: doesn't work for multiple supers
     @Override
     public Object visitSuperExpr(Expr.Super expr) {
+        Stmt classOrModStmt = expr.classOrModStmt;
+
         Object objInstance = environment.get("this", true, expr.keyword);
         LoxInstance instance = Runtime.toInstance(objInstance);
         LoxClass lookupClassStart = null;
-        if (Runtime.isClass(instance)) {
-            lookupClassStart = ((LoxClass)instance).getSuper().getSingletonKlass();
-        } else {
-            lookupClassStart = instance.getKlass().getSuper();
+
+        if (classOrModStmt != null) {
+            String name = null;
+            if (classOrModStmt instanceof Stmt.Class) {
+                name = ((Stmt.Class)classOrModStmt).name.lexeme;
+            } else if (classOrModStmt instanceof Stmt.Module) {
+                name = ((Stmt.Module)classOrModStmt).name.lexeme;
+            } else {
+                LoxUtil.Assert(false); // unreachable
+            }
+            if (name != null) {
+                LoxClass klass = instance.getKlass().getSuper();
+                while (klass != null) {
+                    //System.err.println("Lookup class: " + klass.getName());
+                    if (klass.getName().equals(name)) {
+                     //   System.err.println("Class found: " + name);
+                        lookupClassStart = klass.getSuper();
+                        break;
+                    }
+                    klass = klass.getSuper();
+                }
+            }
         }
+
+        if (lookupClassStart == null) {
+            if (Runtime.isClass(instance)) {
+                lookupClassStart = ((LoxClass)instance).getSuper().getSingletonKlass();
+            } else {
+                lookupClassStart = instance.getKlass().getSuper();
+            }
+        }
+
         if (lookupClassStart == null) {
             throwLoxError("NameError", tokenFromExpr(expr),
                 "'super' keyword couldn't find superclass.");
         }
-        // FIXME: what if `this.super = rval`, should look for setter method!
+        //System.err.println("super lookup class start: " + lookupClassStart.getName());
         Object value = instance.getMethodOrGetterProp(
             expr.property.lexeme, lookupClassStart, this);
         if (value == null) {
@@ -1220,7 +1255,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             return text;
         }
 
-        if (Runtime.isInstance(object) && !(Runtime.isString(object) || Runtime.isClass(object))) {
+        if (Runtime.isInstance(object) && !(Runtime.isString(object) || Runtime.isModule(object))) {
             LoxInstance instance = Runtime.toInstance(object);
             LoxCallable toStringMeth = instance.getMethod("toString", instance.getKlass(), this);
             if (toStringMeth != null) {
@@ -1415,7 +1450,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public Object callMethod(String methodName, LoxInstance instance, List<Object> args, Map<String,Object> kwargs) {
         LoxCallable method = instance.getMethod(methodName, instance.getKlass(), this); // FIXME: doesn't look in singleton class
-        // TODO: raise error
+        // TODO: throw lox error (MethodNotFound)
         if (method == null) {
             System.err.println("Error: method not found: " + methodName);
             return null;
@@ -1526,7 +1561,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (!this.isPaused) {
             throw new RuntimeException("interpreter should be paused");
         }
+        if (this.exited) return;
         if (statementsLeft == null || statementsLeft.size() == 0) {
+            this.statementsLeft = new ArrayList<Stmt>();
+            continueInterpreter();
             return;
         }
         List<Stmt> nextStatement = new ArrayList<>();

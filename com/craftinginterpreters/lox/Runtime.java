@@ -87,6 +87,7 @@ class Runtime {
         return (obj instanceof LoxClass);
     }
 
+    // NOTE: LoxClass < LoxModule, so returns true for LoxClass as well
     static boolean isModule(Object obj) {
         return (obj instanceof LoxModule);
     }
@@ -157,7 +158,7 @@ class Runtime {
     }
 
     static String toJavaString(LoxInstance loxStr) {
-        return ((StringBuffer)loxStr.getHiddenProp("buf")).toString();
+        return loxStr.getHiddenProp("buf").toString();
     }
 
     // dup either Lox object or Lox internal representation of the object
@@ -511,14 +512,23 @@ class Runtime {
 
         // class Module
         LoxNativeClass modClass = new LoxNativeClass("Module", objClass);
-        modClass.defineMethod(new LoxNativeCallable("init", 0, -1, null, null) {
+        // Allow anonymous modules to be instantiated
+        modClass.defineMethod(new LoxNativeCallable("init", 0, 1, null, null) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args,
                     Map<String,Object> kwargs, Token tok) {
-                LoxModule mod = (LoxModule)interp.environment.getThis();
-                interp.throwLoxError("TypeError", tok,
-                    "Cannot instantiate a module. Tried to insantiate module '" + mod.getName() + "'");
-                return null;
+                if (args.size() == 1) {
+                    LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
+                }
+                LoxModule newMod = (LoxModule)interp.environment.getThis();
+                if (args.size() == 1) {
+                    LoxInstance strInst = (LoxInstance)args.get(0);
+                    String name = strInst.getHiddenProp("buf").toString();
+                    newMod.name = name;
+                    modMap.put(name, newMod);
+                }
+                // TODO: set name if name given
+                return newMod;
             }
         });
         modClass.defineMethod(new LoxNativeCallable("include", 1, -1, null, null) {
@@ -533,6 +543,22 @@ class Runtime {
                             "tried to include " + interp.stringify(arg) + ")");
                     }
                     ((LoxModule)arg).includeIn(thisModOrClass);
+                }
+                return null;
+            }
+        });
+        objClass.defineMethod(new LoxNativeCallable("extend", 1, -1, null, null) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+                for (Object arg : args) {
+                    if (!Runtime.isModule(arg)) {
+                        interp.throwLoxError("ArgumentError", tok,
+                            "Only modules may be extended (" + instance.toString() +
+                            "tried to extend " + interp.stringify(arg) + ")");
+                    }
+                    ((LoxModule)arg).includeIn(instance.getSingletonKlass());
                 }
                 return null;
             }
@@ -616,6 +642,7 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args,
                     Map<String,Object> kwargs, Token tok) {
                 LoxClass klass = interp.environment.getThisClass();
+                //System.err.println("superclass for class: " + klass.toString());
                 return klass.getSuper();
             }
         });
@@ -623,36 +650,55 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args,
                     Map<String,Object> kwargs, Token tok) {
-                LoxClass klass = interp.environment.getThisClass();
+                LoxClass klass = (LoxClass)interp.environment.getThisClass();
                 boolean isSClass = klass.isSingletonKlass;
                 boolean sClassOfClass = false;
                 LoxClass sClassOfKlass = null;
                 if (isSClass) {
-                    sClassOfClass = (klass.singletonOf instanceof LoxModule);
+                    sClassOfClass = (klass.singletonOf instanceof LoxClass);
                     if (sClassOfClass) {
                         sClassOfKlass = (LoxClass)klass.singletonOf;
                     }
                 }
                 List<Object> list = new ArrayList<>();
+                List<Object> modList = new ArrayList<>();
                 while (klass != null) {
+                    LoxModule mod = klass.module == null ? klass : klass.module;
                     if (isSClass && sClassOfClass) {
-                        list.add(klass); // singleton class of the class
+                        if (!modList.contains(mod)) {
+                            list.add(klass); // singleton class of the class
+                            modList.add(mod);
+                        }
                         LoxClass cSuper = sClassOfKlass.getSuper();
                         while (cSuper != null) {
                             klass = cSuper.getSingletonKlass();
-                            list.add(klass);
+                            mod = klass.module == null ? klass : klass.module;
+                            if (!modList.contains(mod)) {
+                                list.add(klass);
+                                modList.add(mod);
+                            }
                             cSuper = cSuper.getSuper();
                         }
                         klass = Runtime.getClass("Class"); // now start at <class Class> and move up
                         while (klass != null) {
-                            list.add(klass);
+                            mod = klass.module == null ? klass : klass.module;
+                            if (!modList.contains(mod)) {
+                                list.add(klass);
+                                modList.add(mod);
+                            }
                             klass = klass.getSuper();
                         }
                     } else if (isSClass) { // singleton lookup first, then regular class ancestry lookup
-                        list.add(klass);
+                        if (!modList.contains(mod)) {
+                            list.add(klass);
+                            modList.add(mod);
+                        }
                         klass = klass.getSuper();
                     } else { // regular class ancestry lookup
-                        list.add(klass);
+                        if (!modList.contains(mod)) {
+                            list.add(klass);
+                            modList.add(mod);
+                        }
                         klass = klass.getSuper();
                     }
                 }

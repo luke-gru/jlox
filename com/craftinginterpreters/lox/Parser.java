@@ -88,8 +88,9 @@ public class Parser {
     public Map<String, Stmt.Class> classMap = new HashMap<>();
     public Map<String, Stmt.Module> modMap = new HashMap<>();
     private List<String> nativeClassNames = new ArrayList<>();
-    private Stmt.Class currentClass = null;
-    private Stmt.Module currentMod = null;
+    private Stmt.Class currentClass = null; // class stmt
+    private Stmt.Module currentMod = null; // module stmt
+    private Stmt currentModStmt = null; // class or module stmt
 
     public enum FunctionType {
         NONE,
@@ -153,24 +154,30 @@ public class Parser {
                 }
                 consumeTok(LEFT_BRACE, "Expected '{' after class name");
                 Stmt.Class enclosingClass = this.currentClass;
+                Stmt oldCurrentModStmt = this.currentModStmt;
                 Stmt.Class classStmt = new Stmt.Class(name, superNameVar, null, null); // body set below
                 this.currentClass = classStmt;
+                this.currentModStmt = classStmt;
                 List<Stmt> classBody = classBody();
                 classStmt.body = classBody;
                 classMap.put(name.lexeme, classStmt);
                 this.currentClass = enclosingClass;
+                this.currentModStmt = oldCurrentModStmt;
                 return classStmt;
             }
             if (matchAny(MODULE)) {
                 Token name = consumeTok(IDENTIFIER, "Expected identifier after 'module' keyword");
                 consumeTok(LEFT_BRACE, "Expected '{' after module name");
                 Stmt.Module enclosingMod = this.currentMod;
+                Stmt oldCurrentModStmt = this.currentModStmt;
                 Stmt.Module modStmt = new Stmt.Module(name, null); // body set below
                 this.currentMod = modStmt;
+                this.currentModStmt = modStmt;
                 List<Stmt> modBody = classBody();
                 modStmt.body = modBody;
                 modMap.put(name.lexeme, modStmt);
                 this.currentMod = enclosingMod;
+                this.currentModStmt = oldCurrentModStmt;
                 return modStmt;
             }
             return statement();
@@ -792,7 +799,7 @@ public class Parser {
             Token superTok = prevTok();
             consumeTok(DOT, "Expected '.' after 'super' keyword");
             Token propName = consumeTok(IDENTIFIER, "Expected identifier after 'super.'");
-            Expr superExpr = new Expr.Super(superTok, propName);
+            Expr superExpr = new Expr.Super(superTok, propName, this.currentModStmt);
             return superExpr;
         }
 

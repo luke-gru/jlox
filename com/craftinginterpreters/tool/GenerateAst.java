@@ -31,7 +31,7 @@ public class GenerateAst {
         "PropAccess : Expr left, Token property",
         "PropSet    : Expr object, Token property, Expr value",
         "This       : Token keyword",
-        "Super      : Token keyword, Token property",
+        "Super      : Token keyword, Token property, Stmt classOrModStmt",
         "SplatCall  : Expr expression",
         "KeywordArg : Token name, Expr expression"
     ));

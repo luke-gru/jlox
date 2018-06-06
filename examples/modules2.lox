@@ -1,0 +1,38 @@
+class Batter {
+  swing() { print "Hit!"; super.swing(); }
+}
+
+module Steroids {
+  swing() { super.swing(); print "What a play!"; }
+}
+
+module Workout {
+  swing() { print "That's gotta be some kind of record."; }
+}
+
+class Batter {
+  this.include(Workout);
+  this.include(Steroids);
+}
+
+print Batter.ancestors();
+
+var b = Batter();
+print b._class;
+print Batter.superClass;
+print Batter.superClass.superClass;
+b.swing();
+
+var anonM = Module();
+print anonM;
+
+__END__
+-- expect: --
+[<class Batter>,<module Steroids>,<module Workout>,<class Object>]
+<class Batter>
+<module Steroids>
+<module Workout>
+Hit!
+That's gotta be some kind of record.
+What a play!
+<module (Anon)>

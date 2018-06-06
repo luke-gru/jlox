@@ -10,6 +10,10 @@ o.greet("hey there");
 [].greet("hey there again");
 print Array.ancestors();
 
+var s = "a stringers";
+s.extend(Greetable);
+print s._singletonClass.ancestors();
+
 __END__
 -- expect: --
 <module Greetable>
@@ -17,3 +21,4 @@ __END__
 hey there from object of <class Object>
 hey there again from object of <class Array>
 [<class Array>,<class Object>,<module Greetable>]
+[<class "a stringers" (meta)>,<module Greetable>,<class String>,<class Object>]

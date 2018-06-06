@@ -42,6 +42,9 @@ class Debugger {
             }
             if (line.equals("next") || line.equals("n")) {
                 interp.interpretNextStatement();
+                if (interp.exited) {
+                    break;
+                }
                 continue;
             }
             if (line.equals("exit") || line.equals("e")) {
@@ -79,6 +82,8 @@ class Debugger {
             }
         }
         out.println("-- Ending lox debugger -- ");
-        interp.continueInterpreter();
+        if (!interp.exited) {
+            interp.continueInterpreter();
+        }
     }
 }
