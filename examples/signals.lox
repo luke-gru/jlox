@@ -1,0 +1,14 @@
+/*
+Signal.handle("HUP", fun() {
+  print "HANDLED HUP";
+});
+Signal.handle("EXIT", fun() {
+  print "HANDLED EXIT";
+});
+print Signal.handle;
+System.sleep(1000);
+print "ended";
+*/
+
+__END__
+-- noexpect: --

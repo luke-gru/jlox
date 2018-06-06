@@ -1565,6 +1565,21 @@ class Runtime {
                 return null;
             }
         });
+        systemMod.defineSingletonMethod(new LoxNativeCallable("sleep", 1, 1, null, null) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                Object numObj = args.get(0);
+                LoxUtil.checkIsA("number", numObj, interp, "ArgumentError", null, 1);
+                int num = (int)(double)numObj;
+                try {
+                    Thread.sleep(num * 1000);
+                } catch (Exception e) {
+                    System.err.println(e);
+                }
+                return null;
+            }
+        });
         systemMod.defineSingletonMethod(new LoxNativeCallable("debugger", 0, 0, null, null) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args,
@@ -1580,6 +1595,27 @@ class Runtime {
             }
         });
         registerModule(systemMod);
+
+        // Signal module
+        LoxNativeModule sigMod = new LoxNativeModule("Signal");
+        // Signal.handle(signame, fun() { });
+        sigMod.defineSingletonMethod(new LoxNativeCallable("handle", 2, 2, null, null) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                Object strObj = args.get(0);
+                Object funcObj = args.get(1);
+                LoxUtil.checkString(strObj, interp, "ArgumentError",
+                    "Expected argument 1 to be a String, the signal name", 1);
+                LoxUtil.checkIsA("function", funcObj, interp, "ArgumentError",
+                    "Expected argument 2 to be a function, the signal handler", 2);
+                LoxInstance sigName = Runtime.toString(strObj);
+                LoxCallable func = (LoxCallable)funcObj;
+                SigHandler.register(sigName.getHiddenProp("buf").toString(), func, interp);
+                return null;
+            }
+        });
+        registerModule(sigMod);
 
         LoxNativeClass argErrorClass = new LoxNativeClass("ArgumentError", errorClass);
         registerClass(argErrorClass);

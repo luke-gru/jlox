@@ -130,6 +130,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             runAtExitHooks();
             this.exited = true;
             return true;
+        // Java error was thrown. Shouldn't occur in running programs.
         } catch (RuntimeError error) {
             this.runtimeError = error;
             System.err.println("==============");
@@ -138,6 +139,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             System.err.println("Stacktrace:");
             System.err.println(stacktrace());
             System.err.println("==============");
+        // Lox error was thrown, wrapped in a java error for stack unwinding
+        // and control flow.
         } catch (RuntimeThrow error) {
             this.runtimeError = error;
             System.err.println("==============");

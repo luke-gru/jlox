@@ -86,7 +86,7 @@ class LoxInstance {
         if (method != null) return method;
         if (lookupKlass.isSingletonKlass) {
             LoxInstance singletonOf = lookupKlass.singletonOf;
-            if (Runtime.isClass(singletonOf)) {
+            if (Runtime.isModule(singletonOf)) {
                 Object val = getProperty(name, interp, Runtime.getClass("Class"));
                 if (val != null) return val;
             }
@@ -156,6 +156,12 @@ class LoxInstance {
                 LoxClass thisClass = (LoxClass)this;
                 LoxClass superKlass = thisClass.getSuper();
                 className = thisClass.getName();
+                if (superKlass != null) {
+                    superClass = superKlass.getSingletonKlass();
+                }
+            } else if (isModule()) {
+                LoxClass superKlass = Runtime.getClass("Module").getSuper();
+                className = ((LoxModule)this).getName();
                 if (superKlass != null) {
                     superClass = superKlass.getSingletonKlass();
                 }
@@ -299,6 +305,10 @@ class LoxInstance {
 
     public boolean isClass() {
         return Runtime.isClass(this);
+    }
+
+    public boolean isModule() {
+        return Runtime.isModule(this);
     }
 
     // checks if the given actual property exists on the instance, does not
