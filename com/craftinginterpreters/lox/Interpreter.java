@@ -76,7 +76,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     // debugger fields
     public Object prevNode = null;
-    public Object currentNode = null;
+    public Object currentNode = null; // Expr or Stmt
     private boolean isPaused = false; // debugger pauses interpreter
     private List<Stmt> statementsLeft = null; // for debugger
     public boolean exited = false;
@@ -1409,6 +1409,27 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
+    public Integer lineForNode(Object node) {
+        if (node == null) {
+            System.err.println("Warning: lineForNode got null");
+            return null;
+        }
+        Token tok = null;
+        if (node instanceof Stmt) {
+            tok = tokenFromStmt((Stmt)node);
+        } else if (node instanceof Expr) {
+            tok = tokenFromExpr((Expr)node);
+        } else {
+            throw new RuntimeException(
+                "Interpreter#lineForNode called with non-AST node");
+        }
+        if (tok == null) {
+            return null;
+        } else {
+            return tok.line;
+        }
+    }
+
     private Token tokenFromExpr(Expr expr) {
         Token tok = null;
         boolean warnOnFallthru = false;
@@ -1462,6 +1483,53 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 exprClass) ;
         }
         return tok;
+    }
+
+    private Token tokenFromStmt(Stmt stmt) {
+        if (stmt instanceof Stmt.Expression) {
+            return tokenFromExpr(((Stmt.Expression)stmt).expression);
+        } else if (stmt instanceof Stmt.Print) {
+            return tokenFromExpr(((Stmt.Print)stmt).expression);
+        } else if (stmt instanceof Stmt.Var) {
+            return ((Stmt.Var)stmt).names.get(0);
+        } else if (stmt instanceof Stmt.Block) {
+            if ( ((Stmt.Block)stmt).statements.size() == 0 ) {
+                return null;
+            }
+            return tokenFromStmt(((Stmt.Block)stmt).statements.get(0));
+        } else if (stmt instanceof Stmt.If) {
+            return tokenFromExpr(((Stmt.If)stmt).condition);
+        } else if (stmt instanceof Stmt.While) {
+            return tokenFromExpr(((Stmt.While)stmt).condition);
+        } else if (stmt instanceof Stmt.For) {
+            return tokenFromStmt(((Stmt.For)stmt).body);
+        } else if (stmt instanceof Stmt.Foreach) {
+            return ((Stmt.Foreach)stmt).variables.get(0);
+        } else if (stmt instanceof Stmt.Continue) {
+            return ((Stmt.Continue)stmt).token;
+        } else if (stmt instanceof Stmt.Break) {
+            return ((Stmt.Break)stmt).token;
+        } else if (stmt instanceof Stmt.Function) {
+            return ((Stmt.Function)stmt).name;
+        } else if (stmt instanceof Stmt.Return) {
+            return ((Stmt.Return)stmt).token;
+        } else if (stmt instanceof Stmt.Class) {
+            return ((Stmt.Class)stmt).name;
+        } else if (stmt instanceof Stmt.Module) {
+            return ((Stmt.Module)stmt).name;
+        } else if (stmt instanceof Stmt.Try) {
+            return tokenFromStmt(((Stmt.Try)stmt).tryBlock);
+        } else if (stmt instanceof Stmt.Throw) {
+            return ((Stmt.Throw)stmt).keyword;
+        } else if (stmt instanceof Stmt.In) {
+            return tokenFromExpr(((Stmt.In)stmt).object);
+        } else {
+            String stmtClass = stmt.getClass().getName();
+            System.err.println(
+                "[Warning]: fallthru on Interpreter#tokenFromStmt for type: " +
+                stmtClass);
+            return null;
+        }
     }
 
     public void resolve(Expr expr, int depth) {

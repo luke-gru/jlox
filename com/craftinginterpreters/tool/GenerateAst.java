@@ -19,7 +19,7 @@ public class GenerateAst {
         "Binary   : Expr left, Token operator, Expr right",
         "Logical  : Expr left, Token operator, Expr right",
         "Grouping : Expr expression",
-        "Literal  : Object value",
+        "Literal  : Object value", // TODO: add token
         "Array    : Token lbracket, List<Expr> expressions",
         "IndexedGet : Token lbracket, Expr left, Expr indexExpr",
         "IndexedSet : Token lbracket, Expr left, Expr indexExpr, Expr value",
@@ -37,10 +37,10 @@ public class GenerateAst {
     ));
     defineAst(outputDir, "Stmt", Arrays.asList(
         "Expression : Expr expression",
-        "Print      : Expr expression",
+        "Print      : Expr expression", // TODO: add token
         "Var        : List<Token> names, List<Expr> initializers",
-        "Block      : List<Stmt> statements",
-        "If         : Expr condition, Stmt ifBranch, Stmt elseBranch",
+        "Block      : List<Stmt> statements", // TODO: add token to get line for debugger if it's an empty block
+        "If         : Expr condition, Stmt ifBranch, Stmt elseBranch", // TODO: add token
         "While      : Expr condition, Stmt body",
         "For        : Stmt initializer, Expr test, Expr increment, Stmt body",
         "Foreach    : List<Token> variables, Expr obj, Block body",
@@ -50,10 +50,10 @@ public class GenerateAst {
         "Return     : Token token, Expr expression",
         "Class      : Token name, Expr.Variable superClassVar, Object superClass, List<Stmt> body",
         "Module     : Token name, List<Stmt> body",
-        "Try        : Block tryBlock, List<Catch> catchStmts",
-        "Catch      : Expr catchExpr, Expr.Variable catchVar, Block block",
+        "Try        : Block tryBlock, List<Catch> catchStmts", // TODO: add token
+        "Catch      : Expr catchExpr, Expr.Variable catchVar, Block block", // TODO: add token
         "Throw      : Token keyword, Expr throwExpr",
-        "In         : Expr object, List<Stmt> body"
+        "In         : Expr object, List<Stmt> body" // TODO: add keyword Token
     ));
   }
 
