@@ -112,6 +112,16 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     @Override
+    public void beforeVisit(Object obj) {
+        // do nothing
+    }
+
+    @Override
+    public void afterVisit(Object obj) {
+        // do nothing
+    }
+
+    @Override
     public String visitExpressionStmt(Stmt.Expression stmt) {
         return indent() + exprToString(stmt.expression);
     }

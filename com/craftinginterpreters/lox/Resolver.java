@@ -21,6 +21,16 @@ class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
     }
 
     @Override
+    public void beforeVisit(Object _obj) {
+        // do nothing
+    }
+
+    @Override
+    public void afterVisit(Object _obj) {
+        // do nothing
+    }
+
+    @Override
     public Void visitBinaryExpr(Expr.Binary expr) {
         resolve(expr.left);
         resolve(expr.right);

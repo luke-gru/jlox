@@ -1585,12 +1585,8 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args,
                     Map<String,Object> kwargs, Token tok) {
                 Debugger d = new Debugger(interp);
-                try {
-                    d.start();
-                } catch (IOException err) {
-                    System.err.println("Debugger error:");
-                    System.err.println(err);
-                }
+                interp.debugger = d;
+                d.awaitingPause = true;
                 return null;
             }
         });

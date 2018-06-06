@@ -10,21 +10,36 @@ class Debugger {
     final Interpreter interp;
 
     static String helpUsage = "Usage:\n" +
-        "  continue (c)\n" +
-        "  next (n)\n" +
-        "  exit (e)\n" +
-        "  help (h)\n" +
-        "  clear (cls)\n" +
+        "  next (n) [step over]\n" +
+        "  step (s) [step into]\n" +
         "  print (p) varname\n" +
-        "  stack (st)\n";
+        "  continue (c)\n" +
+        "  stack (st)\n" +
+        "  clear (cls)\n" +
+        "  exit (e)\n" +
+        "  help (h)\n";
 
     static Pattern printPat = Pattern.compile("^p(rint)?\\s+(\\w+?);?$");
+    public boolean awaitingPause = false;
 
     Debugger(Interpreter interp) {
         this.interp = interp;
     }
 
-    public void start() throws IOException {
+    public boolean isAwaitingPause() {
+        if (!awaitingPause) return false;
+        if (interp.awaitingOnMap.size() > 0) {
+            if (interp.awaitingOnMap.containsKey(interp.getVisitLevel())) {
+                int visitIdx = interp.awaitingOnMap.get(interp.getVisitLevel());
+                return visitIdx == interp.getVisitIdx();
+            }
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    public void onTracepoint(Object astNode) throws IOException {
         interp.pauseInterpreter();
         ConsoleReader reader = new ConsoleReader();
         PrintWriter out = new PrintWriter(reader.getOutput());
@@ -38,14 +53,54 @@ class Debugger {
                 break;
             }
             if (line.equals("continue") || line.equals("c")) {
+                this.awaitingPause = false;
+                interp.awaitingOnMap.clear();
                 break;
             }
-            if (line.equals("next") || line.equals("n")) {
-                interp.interpretNextStatement();
-                if (interp.exited) {
-                    break;
+            // step into
+            if (line.equals("step") || line.equals("s")) {
+                int visitLevel = 1;
+                if (interp.visitLevels.size() > 0) {
+                    visitLevel = interp.visitLevels.lastElement();
                 }
-                continue;
+                int visitIdxUp = 0;
+                int visitIdxNext = 0;
+                if (interp.visitIdxs.size() >= 2) {
+                    visitIdxUp = interp.visitIdxs.get(interp.visitIdxs.size()-2);
+                }
+                if (interp.visitIdxs.size() > 0) {
+                    visitIdxNext = interp.visitIdxs.lastElement();
+                }
+                int visitIdxDown = 0;
+                int visitLevelDown = visitLevel+1;
+                int visitLevelUp = visitLevel-1;
+                if (visitLevelUp < 1) visitLevelUp = 1;
+                this.awaitingPause = true;
+                interp.awaitingOnMap.put(visitLevelDown, visitIdxDown);
+                interp.awaitingOnMap.put(visitLevelUp, visitIdxUp);
+                interp.awaitingOnMap.put(visitLevel, visitIdxNext);
+                break;
+            }
+            // step over
+            if (line.equals("next") || line.equals("n")) {
+                int visitLevel = 1;
+                if (interp.visitLevels.size() > 0) {
+                    visitLevel = interp.visitLevels.lastElement();
+                }
+                int visitIdxUp = 0;
+                int visitIdxNext = 0;
+                if (interp.visitIdxs.size() >= 2) {
+                    visitIdxUp = interp.visitIdxs.get(interp.visitIdxs.size()-2);
+                }
+                if (interp.visitIdxs.size() > 0) {
+                    visitIdxNext = interp.visitIdxs.lastElement();
+                }
+                int visitLevelUp = visitLevel-1;
+                if (visitLevelUp < 1) visitLevelUp = 1;
+                this.awaitingPause = true;
+                interp.awaitingOnMap.put(visitLevelUp, visitIdxUp);
+                interp.awaitingOnMap.put(visitLevel, visitIdxNext);
+                break;
             }
             if (line.equals("exit") || line.equals("e")) {
                 interp.exitInterpreter(0);

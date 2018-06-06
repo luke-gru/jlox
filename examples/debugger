@@ -1,6 +1,9 @@
 var a = true;
 var s = "POE";
 System.debugger();
+if (true) {
+  print "HI";
+}
 print s;
 
 __END__

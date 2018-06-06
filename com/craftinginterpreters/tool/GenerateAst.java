@@ -93,6 +93,8 @@ public class GenerateAst {
           writer.println("    R visit" + typeName + baseName + "(" +
                   typeName + " " + baseName.toLowerCase() + ");");
       }
+      writer.println("    void beforeVisit(Object obj);");
+      writer.println("    void afterVisit(Object obj);");
 
       writer.println("  }");
   }
@@ -115,7 +117,10 @@ public class GenerateAst {
       // Visitor pattern
       writer.println();
       writer.println("    <R> R accept(Visitor<R> visitor) {");
-      writer.println("      return visitor.visit" + className + baseName + "(this);");
+      writer.println("      visitor.beforeVisit((Object)this);");
+      writer.println("      R ret = visitor.visit" + className + baseName + "(this);");
+      writer.println("      visitor.afterVisit((Object)this);");
+      writer.println("      return ret;");
       writer.println("    }");
 
       // Fields

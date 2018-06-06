@@ -72,10 +72,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private String filename; // FIXME: unused
     private boolean inited = false;
     public Object lastValue = null;
+    public Map<Integer,Integer> awaitingOnMap = new HashMap<>();
 
+    // debugger fields
+    public Object prevNode = null;
+    public Object currentNode = null;
     private boolean isPaused = false; // debugger pauses interpreter
     private List<Stmt> statementsLeft = null; // for debugger
     public boolean exited = false;
+    public Debugger debugger = null;
+    public Stack<Integer> visitLevels = new Stack<>();
+    public Stack<Integer> visitIdxs = new Stack<>();
+    public int lastVisit = 0;
+    private int VISIT_BEFORE = 0;
+    private int VISIT_AFTER = 1;
 
     public Interpreter() {
         HashMap<String, Object> opts = new HashMap<>();
@@ -173,6 +183,82 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             return false;
         }
         return interpret(stmts);
+    }
+
+    @Override
+    public void beforeVisit(Object obj) {
+        int firstVisitIdx = -1;
+        int firstVisitLevel = 0;
+        if (this.visitIdxs.size() > 0) {
+            firstVisitIdx = visitIdxs.lastElement();
+        }
+        if (this.visitLevels.size() > 0) {
+            firstVisitLevel = visitLevels.lastElement();
+        }
+
+        this.visitLevels.add(firstVisitLevel+1); // starts at 1
+        if (this.lastVisit == VISIT_BEFORE) {
+            this.visitIdxs.add(0);
+        } else {
+            if (this.visitIdxs.size() > 0) {
+                firstVisitIdx = this.visitIdxs.pop();
+            }
+            this.visitIdxs.add(firstVisitIdx+1);
+        }
+        int lastVisitLevel = visitLevels.size() == 0 ? 1 : visitLevels.lastElement();
+        int lastVisitIdx = visitIdxs.size() == 0 ? 0 : visitIdxs.lastElement();
+        //System.err.println("beforeVisit: level " +
+            //String.valueOf(lastVisitLevel) + " " +
+            //String.valueOf(lastVisitIdx));
+        this.prevNode = this.currentNode;
+        this.currentNode = obj;
+        this.lastVisit = VISIT_BEFORE;
+    }
+
+    @Override
+    public void afterVisit(Object obj) {
+        int lastVisitLevel = visitLevels.size() == 0 ? 1 : visitLevels.lastElement();
+        int lastVisitIdx = visitIdxs.size() == 0 ? 0 : visitIdxs.lastElement();
+        //System.err.println("afterVisit: level " +
+                //String.valueOf(lastVisitLevel) + " " +
+                //String.valueOf(lastVisitIdx));
+        onTracepoint(obj);
+        this.currentNode = this.prevNode;
+        if (this.visitLevels.size() > 0) {
+            this.visitLevels.pop();
+        }
+        if (this.visitIdxs.size() > 0) {
+            this.visitIdxs.pop();
+        }
+        this.lastVisit = VISIT_AFTER;
+    }
+
+    public void onTracepoint(Object obj) {
+        boolean startDebugger = this.debugger != null &&
+            this.debugger.isAwaitingPause();
+        if (startDebugger) {
+            try {
+                this.debugger.onTracepoint(obj);
+            } catch (IOException e) {
+                System.err.println("Couldn't start debugger: " + e.toString());
+            }
+        }
+    }
+
+    public int getVisitLevel() {
+        if (this.visitLevels.size() > 0) {
+            return visitLevels.lastElement();
+        } else {
+            return 1;
+        }
+    }
+
+    public int getVisitIdx() {
+        if (this.visitIdxs.size() > 0) {
+            return visitIdxs.lastElement();
+        } else {
+            return 0;
+        }
     }
 
     @Override
@@ -1560,34 +1646,12 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    public void interpretNextStatement() {
-        if (!this.isPaused) {
-            throw new RuntimeException("interpreter should be paused");
-        }
-        if (this.exited) return;
-        if (statementsLeft == null || statementsLeft.size() == 0) {
-            this.statementsLeft = new ArrayList<Stmt>();
-            continueInterpreter();
-            return;
-        }
-        List<Stmt> nextStatement = new ArrayList<>();
-        nextStatement.add(statementsLeft.remove(0));
-        List<Stmt> oldStatementsLeft = statementsLeft;
-        this.statementsLeft = nextStatement;
-        continueInterpreter();
-        this.statementsLeft = oldStatementsLeft;
-        this.isPaused = true;
-    }
-
     public void pauseInterpreter() {
         this.isPaused = true;
     }
 
     public void continueInterpreter() {
         this.isPaused = false;
-        if (statementsLeft != null) {
-            interpret(statementsLeft);
-        }
     }
 
     private void evalFile(String fullPath) {
