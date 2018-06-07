@@ -29,11 +29,13 @@ class Debugger {
         "  exit     (e) : exit interpreter\n" +
         "  setbr    (sbr) LINENO : set breakpoint at line\n" +
         "  delbr    (dbr) LINENO : delete breakpoint at line\n" +
+        "  eval     (e) CODE : evaluate code\n" +
         "  help     (h) : show this message\n";
 
     static Pattern printPat = Pattern.compile("^p(rint)?\\s+(\\w+?);?$");
     static Pattern setbrPat = Pattern.compile("^(setbr|sbr)\\s+(\\d+)\\s*;?$");
     static Pattern delbrPat = Pattern.compile("^(delbr|dbr)\\s+(\\d+)\\s*;?$");
+    static Pattern evalPat = Pattern.compile("^(eval|e)\\s+(.+)$");
     public boolean awaitingPause = false;
 
     Debugger(Interpreter interp) {
@@ -63,7 +65,6 @@ class Debugger {
     }
 
     public void onTracepoint(Object astNode) throws IOException {
-        interp.pauseInterpreter();
         ConsoleReader reader = new ConsoleReader();
         PrintWriter out = new PrintWriter(reader.getOutput());
         out.println("-- Started lox debugger -- ");
@@ -75,11 +76,13 @@ class Debugger {
             if (line == null) { // CTRL-d (EOF)
                 break;
             }
+
             if (line.equals("continue") || line.equals("c")) {
                 interp.awaitingOnMap.clear(); // clear step/next map
                 this.awaitingPause = interp.breakpoints.size() > 0;
                 break;
             }
+
             // step into
             if (line.equals("step") || line.equals("s")) {
                 int visitLevel = 1;
@@ -104,6 +107,7 @@ class Debugger {
                 interp.awaitingOnMap.put(visitLevel, visitIdxNext);
                 break;
             }
+
             // step over
             if (line.equals("next") || line.equals("n")) {
                 int visitLevel = 1;
@@ -125,15 +129,18 @@ class Debugger {
                 interp.awaitingOnMap.put(visitLevel, visitIdxNext);
                 break;
             }
+
             if (line.equals("exit") || line.equals("e")) {
                 interp.exitInterpreter(0);
                 return;
             }
+
             if (line.equals("cls") || line.equals("clear")) {
                 reader.clearScreen();
                 out.println(""); // avoid double-prompt at next input
                 continue;
             }
+
             if (line.equals("lines") || line.equals("l")) {
                 String fname = interp.runningFile;
                 if (fname == null) {
@@ -170,13 +177,16 @@ class Debugger {
                 }
                 continue;
             }
+
             if (line.equals("help") || line.equals("h")) {
                 out.println(helpUsage);
                 continue;
             }
+
             if (line.equals("stack") || line.equals("st")) {
                 out.println(interp.stacktrace());
             }
+
             Matcher printMatch = printPat.matcher(line);
             if (printMatch.find()) { // print
                 String varName = printMatch.group(2);
@@ -194,6 +204,7 @@ class Debugger {
                 out.println("  => " + interp.stringify(varVal));
                 continue;
             }
+
             Matcher setbrMatch = setbrPat.matcher(line);
             if (setbrMatch.find()) { // set breakpoint
                 String lineNoStr = setbrMatch.group(2);
@@ -209,6 +220,7 @@ class Debugger {
                 }
                 continue;
             }
+
             Matcher delbrMatch = delbrPat.matcher(line);
             if (delbrMatch.find()) { // delete breakpoint
                 String lineNoStr = delbrMatch.group(2);
@@ -224,11 +236,45 @@ class Debugger {
                 }
                 continue;
             }
+
+            Matcher evalMatch = evalPat.matcher(line);
+            if (evalMatch.find()) {
+                String src = evalMatch.group(2);
+                Scanner scanner = new Scanner(src);
+                scanner.scanUntilEnd();
+                while (scanner.inBlock > 0) {
+                    String promptStr = "> ";
+                    for (int i = scanner.inBlock; i > 0; i--) {
+                        promptStr += "  ";
+                    }
+                    reader.setPrompt(promptStr);
+                    line = reader.readLine();
+                    scanner.appendSrc(line);
+                    scanner.scanUntilEnd();
+                    src += ("\n" + line);
+                }
+                reader.setPrompt("> ");
+                boolean oldAwaitingPause = this.awaitingPause;
+                // set to false, otherwise we might end up back at the debugger by
+                // interpreting the line
+                this.awaitingPause = false;
+                Object ret = null;
+                try {
+                    ret = interp.evalSrc(src);
+                } catch (Throwable e) {
+                    out.println("Error evaluating code: " + e.toString());
+                    this.awaitingPause = oldAwaitingPause;
+                    continue;
+                }
+                this.awaitingPause = oldAwaitingPause;
+                out.println("  => " + interp.stringify(ret));
+                continue;
+            }
+
+            // invalid command
+            out.println("[Warning]: invalid command, 'help' for usage details");
         }
         out.println("-- Ending lox debugger -- ");
-        if (!interp.exited) {
-            interp.continueInterpreter();
-        }
     }
 
     // NOTE: assumes the interpreter's current running file has at least

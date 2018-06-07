@@ -76,8 +76,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     // debugger fields
     public Object prevNode = null;
     public Object currentNode = null; // Expr or Stmt
-    private boolean isPaused = false; // debugger pauses interpreter
-    private List<Stmt> statementsLeft = null; // for debugger
     public boolean exited = false;
     public Debugger debugger = null;
     public Stack<Integer> visitLevels = new Stack<>();
@@ -119,25 +117,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public boolean interpret(List<Stmt> statements) {
         this.exited = false;
-        if (this.isPaused) { return true; }
-        this.statementsLeft = new ArrayList<Stmt>(statements);
         if (!inited) {
             runtime.init(this);
             if (this.runningFile == null && Lox.initialScriptAbsolute != null) {
                 setRunningFile(Lox.initialScriptAbsolute);
             }
-            this.inited = true;
         }
+        this.inited = true;
         this.resolver.resolve(statements);
         if (this.resolver.hasErrors()) {
+            System.err.println("[Warning]: resolver errors");
             return false;
         }
         try {
             for (Stmt statement : statements) {
-                if (this.isPaused) { return true; }
-                if (statementsLeft != null && statementsLeft.size() > 0) {
-                    statementsLeft.remove(0);
-                }
                 execute(statement);
             }
             runAtExitHooks();
@@ -177,8 +170,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             if (this.runningFile == null && Lox.initialScriptAbsolute != null) {
                 setRunningFile(Lox.initialScriptAbsolute);
             }
-            this.inited = true;
         }
+        this.inited = true;
         this.parser = Parser.newFromSource(src);
         this.parser.setNativeClassNames(this.runtime.nativeClassNames());
         List<Stmt> stmts = this.parser.parse();
@@ -1713,12 +1706,21 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    public void pauseInterpreter() {
-        this.isPaused = true;
-    }
-
-    public void continueInterpreter() {
-        this.isPaused = false;
+    public Object evalSrc(String src) {
+        Parser oldParser = this.parser;
+        Parser parser = Parser.newFromSource(src);
+        this.parser = parser;
+        parser.setNativeClassNames(runtime.nativeClassNames());
+        List<Stmt> stmts = parser.parse();
+        if (parser.getError() != null) {
+            this.parser = oldParser;
+            System.err.println("[Warning]: ParseError in evalSrc");
+            return null;
+        }
+        this.lastValue = null;
+        interpret(stmts);
+        this.parser = oldParser;
+        return this.lastValue;
     }
 
     private void evalFile(String fullPath) {

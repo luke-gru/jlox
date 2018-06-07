@@ -76,7 +76,7 @@ class Scanner {
     }
 
     public void appendSrc(String src) {
-        this.source = source + src;
+        this.source += src;
     }
 
     public void addEOF() {

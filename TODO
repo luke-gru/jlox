@@ -27,8 +27,8 @@ class of the error, the RuntimeThrow class. [MOSTLY DONE, COULD BE BETTER]
 useful info. []
 * Add modules like Ruby's? As in, definitions of static and instance methods
 that can be reused across classes. [DONE, NEEDS MORE TESTING]
-* Add debugger capability [IN PROGRESS, HALTED], next() needs to work for nested
-statements
+* Add debugger capability [DONE], could use some more work though to add eval
+capabilities.
 * Add 'System' module, with singleton methods 'exit' [DONE], properties ARGV, ARGC []
 * Allow Module() to create anonymous module. [DONE]
 * Make sure if no init method for class or module, it effectively means it calls

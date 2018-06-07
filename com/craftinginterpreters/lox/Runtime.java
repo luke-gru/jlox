@@ -352,19 +352,7 @@ class Runtime {
                 LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
                 LoxInstance loxSrc = Runtime.toInstance(args.get(0));
                 String src = Runtime.toJavaString(loxSrc);
-                Parser oldParser = interp.parser;
-                Parser parser = Parser.newFromSource(src);
-                interp.parser = parser;
-                parser.setNativeClassNames(interp.runtime.nativeClassNames());
-                List<Stmt> stmts = parser.parse();
-                if (parser.getError() != null) {
-                    interp.parser = oldParser;
-                    return null;
-                }
-                interp.lastValue = null;
-                interp.interpret(stmts);
-                interp.parser = oldParser;
-                return interp.lastValue;
+                return interp.evalSrc(src);
             }
         });
         // FIXME: actually clone() the callable so that we set the new name on
