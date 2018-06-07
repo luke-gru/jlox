@@ -1,0 +1,46 @@
+module A {
+  test() { print "test from A"; }
+}
+
+module B {
+  test() { print "test from B"; super.test(); }
+}
+
+module Combined {
+  this.include(A);
+  this.include(B);
+}
+
+class C {
+  this.include(A);
+  this.include(B);
+
+  test() {
+    print "test from C";
+    super.test();
+  }
+}
+
+C().test();
+print "";
+
+class C2 {
+  this.include(Combined);
+
+  test() {
+    print "test from C2";
+    super.test();
+  }
+}
+
+C2().test();
+
+__END__
+-- expect: --
+test from C
+test from B
+test from A
+
+test from C2
+test from B
+test from A

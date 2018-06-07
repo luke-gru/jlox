@@ -31,14 +31,24 @@ public class Lox {
     public static Map<String, String> scriptsLoaded = new HashMap<>();
     public static Map<String, Boolean> debugKeys = new HashMap<>(); // given with -d flag, comma-separated
 
+    public static List<String> LOX_ARGV = new ArrayList<>();
+    public static int LOX_ARGC = 0;
+
     public static void main(String[] args) throws IOException {
         String fname = null;
         String loadPathStr = null;
         String debugKeysStr = null;
         List<String> loadPathExtra = new ArrayList<>();
         int i = 0;
+        boolean inLoxArgs = false;
 
         while (i < args.length) {
+            if (inLoxArgs) {
+                LOX_ARGV.add(args[i]);
+                LOX_ARGC++;
+                i += 1;
+                continue;
+            }
             if (args[i].equals("-f")) {
                 fname = args[i+1];
                 i += 2;
@@ -48,8 +58,11 @@ public class Lox {
             } else if (args[i].equals("-D")) {
                 debugKeysStr = args[i+1];
                 i += 2;
+            } else if (args[i].equals("--")) {
+                inLoxArgs = true;
+                i += 1;
             } else {
-                System.err.println("Usage: Lox [-f FILENAME]");
+                System.err.println("Usage: Lox [-f FILENAME] [-- PROGARGS,]");
                 System.exit(1);
             }
         }

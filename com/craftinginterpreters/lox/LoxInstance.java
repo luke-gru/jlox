@@ -144,6 +144,11 @@ class LoxInstance {
         properties.put(name, value);
     }
 
+    // Tries to set property on object, using setter function if given.
+    public void setProperty(String name, Object value) {
+        setProperty(name, value, null, null);
+    }
+
     public LoxClass getKlass() {
         return this.klass;
     }

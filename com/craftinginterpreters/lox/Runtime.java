@@ -188,8 +188,8 @@ class Runtime {
         if (inited) {
             return;
         }
-        defineGlobalFunctions();
-        defineBuiltinClassesAndModules();
+        defineGlobalFunctions(interp);
+        defineBuiltinClassesAndModules(interp);
         defineGlobalVariables(interp);
         inited = true;
     }
@@ -208,7 +208,7 @@ class Runtime {
        globalEnv.define("__FILE__", Runtime.createString("", interp)); // see Interpreter#setRunningFile to see how this is populated
     }
 
-    private void defineGlobalFunctions() {
+    private void defineGlobalFunctions(Interpreter interp) {
         globalEnv.define("clock", new LoxNativeCallable("clock", 0, 0, null, null) {
             @Override
             protected Object _call(Interpreter interpreter, List<Object> arguments,
@@ -392,7 +392,7 @@ class Runtime {
         });
     }
 
-    private void defineBuiltinClassesAndModules() {
+    private void defineBuiltinClassesAndModules(Interpreter interp) {
         // class Object
         LoxNativeClass objClass = new LoxNativeClass("Object", null);
         objClass.defineMethod(new LoxNativeCallable("equals", 1, 1, null, null) {
@@ -1579,6 +1579,14 @@ class Runtime {
             }
         });
         registerModule(systemMod);
+        List<String> argvAry = new ArrayList<String>(Lox.LOX_ARGV);
+        List<Object> argvLoxAry = new ArrayList<>();
+        for (String arg : argvAry) {
+            argvLoxAry.add(Runtime.createString(arg, interp));
+        }
+        LoxInstance argvInstance = interp.createInstance("Array", argvLoxAry);
+        systemMod.setProperty("ARGV", argvInstance);
+        systemMod.setProperty("ARGC", (double)Lox.LOX_ARGC);
 
         // Signal module
         LoxNativeModule sigMod = new LoxNativeModule("Signal");
