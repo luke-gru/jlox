@@ -72,7 +72,6 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     private String filename; // FIXME: unused
     private boolean inited = false;
     public Object lastValue = null;
-    public Map<Integer,Integer> awaitingOnMap = new HashMap<>();
 
     // debugger fields
     public Object prevNode = null;
@@ -86,6 +85,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public int lastVisit = 0;
     private int VISIT_BEFORE = 0;
     private int VISIT_AFTER = 1;
+    // map of visitLevel => visitIdx for the debugger's step over and step
+    // into functionality
+    public Map<Integer,Integer> awaitingOnMap = new HashMap<>();
+    public List<Integer> breakpoints = new ArrayList<>();
 
     public Interpreter() {
         HashMap<String, Object> opts = new HashMap<>();
