@@ -189,6 +189,7 @@ public class Parser {
     }
 
     private Stmt varDeclaration() {
+        Token varTok = prevTok();
         List<Token> names = new ArrayList<Token>();
         List<String> nameStrs = new ArrayList<String>();
         boolean expectNewName = true;
@@ -235,7 +236,7 @@ public class Parser {
         }
 
         consumeTok(SEMICOLON, "Expected ';' after variable declaration.");
-        return new Stmt.Var(names, initializers);
+        return new Stmt.Var(varTok, names, initializers);
     }
 
     private Stmt funDeclaration(FunctionType fnType) {
@@ -293,10 +294,11 @@ public class Parser {
         }
         Stmt.Function fnStmt = new Stmt.Function(name, formals, null, fnType, klass);
         if (matchAny(LEFT_BRACE)) {
+            Token blockTok = prevTok();
             Stmt.Function oldFn = this.currentFn;
             try {
                 this.currentFn = fnStmt;
-                body = new Stmt.Block(blockStmts());
+                body = new Stmt.Block(blockTok, blockStmts());
                 fnStmt.body = body;
             } finally {
                 this.currentFn = oldFn;
@@ -310,11 +312,12 @@ public class Parser {
     private Stmt getterDeclaration() {
         Token name = consumeTok(IDENTIFIER, "Expected getter name in getter decl");
         consumeTok(LEFT_BRACE, "Expected '{' after getter name in getter decl");
+        Token blockTok = prevTok();
         FunctionType fnType = FunctionType.GETTER;
         List<Param> params = new ArrayList<>();
         Stmt.Function fnStmt = new Stmt.Function(name, params, null, fnType, this.currentClass);
         this.currentFn = fnStmt;
-        Stmt body = new Stmt.Block(blockStmts());
+        Stmt body = new Stmt.Block(blockTok, blockStmts());
         fnStmt.body = body;
         this.currentFn = null;
         return fnStmt;
@@ -330,9 +333,10 @@ public class Parser {
         params.add(new Param(paramTok, null, false, false));
         consumeTok(RIGHT_PAREN, "Expected ')' after parameter in setter decl");
         consumeTok(LEFT_BRACE, "Expected '{' after parameter in setter decl");
+        Token blockTok = prevTok();
         Stmt.Function fnStmt = new Stmt.Function(name, params, null, fnType, this.currentClass);
         this.currentFn = fnStmt;
-        Stmt body = new Stmt.Block(blockStmts());
+        Stmt body = new Stmt.Block(blockTok, blockStmts());
         fnStmt.body = body;
         this.currentFn = null;
         return fnStmt;
@@ -376,8 +380,12 @@ public class Parser {
 
     private Stmt statement() {
         if (matchAny(PRINT)) return printStatement();
-        if (matchAny(LEFT_BRACE)) return new Stmt.Block(blockStmts());
+        if (matchAny(LEFT_BRACE)) {
+            Token blockTok = prevTok();
+            return new Stmt.Block(blockTok, blockStmts());
+        }
         if (matchAny(IF)) {
+            Token ifTok = prevTok();
             consumeTok(LEFT_PAREN, "Expected '(' after keyword 'if'.");
             Expr cond = expression();
             consumeTok(RIGHT_PAREN, "Expected ')' after condition in 'if' statement.");
@@ -386,9 +394,10 @@ public class Parser {
             if (matchAny(ELSE)) {
                 else_stmt = statement();
             }
-            return new Stmt.If(cond, if_stmt, else_stmt);
+            return new Stmt.If(ifTok, cond, if_stmt, else_stmt);
         }
         if (matchAny(WHILE)) {
+            Token whileTok = prevTok();
             consumeTok(LEFT_PAREN, "Expected '(' after keyword 'while'");
             Expr cond = expression();
             consumeTok(RIGHT_PAREN, "Expected ')' after 'while' condition");
@@ -396,7 +405,7 @@ public class Parser {
             Stmt body;
             Stmt.While whileStmt;
             try {
-                whileStmt = new Stmt.While(cond, null);
+                whileStmt = new Stmt.While(whileTok, cond, null);
                 this.inLoopStmt = whileStmt;
                 body = statement();
                 whileStmt.body = body;
@@ -406,6 +415,7 @@ public class Parser {
             return (Stmt)whileStmt;
         }
         if (matchAny(FOR)) { // for (..;.. ;..) or (for var in obj)
+            Token forTok = prevTok();
             consumeTok(LEFT_PAREN, "expected '(' after keyword 'for'");
             Stmt initializer = null;
             if (peekTok().type != SEMICOLON) {
@@ -431,7 +441,7 @@ public class Parser {
                 increment = expression();
                 consumeTok(RIGHT_PAREN, "Expected ')' in 'for' statement after increment part");
             }
-            Stmt.For forStmt = new Stmt.For(initializer, test, increment, null);
+            Stmt.For forStmt = new Stmt.For(forTok, initializer, test, increment, null);
             Stmt oldInLoopStmt = this.inLoopStmt;
             this.inLoopStmt = forStmt;
             Stmt body = statement();
@@ -440,6 +450,7 @@ public class Parser {
             return forStmt;
         }
         if (matchAny(FOREACH)) {
+            Token foreachTok = prevTok();
             consumeTok(LEFT_PAREN, "expected '(' after keyword 'foreach'");
             List<Token> variables = new ArrayList<>();
             while (matchAny(IDENTIFIER)) {
@@ -455,22 +466,26 @@ public class Parser {
             Expr expr = expression();
             consumeTok(RIGHT_PAREN, "expected ')' to end 'foreach' statement");
             Stmt.Block body = (Stmt.Block)statement();
-            return new Stmt.Foreach(variables, expr, body);
+            return new Stmt.Foreach(foreachTok, variables, expr, body);
         }
         if (matchAny(IN)) {
+            Token inTok = prevTok();
             consumeTok(LEFT_PAREN, "expected '(' after keyword 'in'");
             Expr objectExpr = expression();
             consumeTok(RIGHT_PAREN, "Expected ')' to end 'in' expression");
             consumeTok(LEFT_BRACE, "Expected '{' to start 'in' block");
             List<Stmt> inBody = classBody();
-            return new Stmt.In(objectExpr, inBody);
+            return new Stmt.In(inTok, objectExpr, inBody);
         }
         if (matchAny(TRY)) {
+            Token tryTok = prevTok();
             consumeTok(LEFT_BRACE, "Expected '{' after keyword 'try'");
+            Token blockTok = prevTok();
             List<Stmt> tryBlockStmts = blockStmts();
-            Stmt.Block tryBlock = new Stmt.Block(tryBlockStmts);
+            Stmt.Block tryBlock = new Stmt.Block(blockTok, tryBlockStmts);
             List<Stmt.Catch> catchStmts = new ArrayList<>();
             while (matchAny(CATCH)) {
+                Token catchTok = prevTok();
                 consumeTok(LEFT_PAREN, "Expected '(' after keyword 'catch'");
                 Expr catchExpr = expression();
                 Token identToken = null;
@@ -479,11 +494,12 @@ public class Parser {
                 }
                 consumeTok(RIGHT_PAREN, "Expected ')' after 'catch' expression");
                 consumeTok(LEFT_BRACE, "Expected '{' after 'catch' expression");
-                Stmt.Block catchBlock = new Stmt.Block(blockStmts());
-                Stmt.Catch catchStmt = new Stmt.Catch(catchExpr, identToken == null ? null : new Expr.Variable(identToken), catchBlock);
+                blockTok = prevTok();
+                Stmt.Block catchBlock = new Stmt.Block(blockTok, blockStmts());
+                Stmt.Catch catchStmt = new Stmt.Catch(catchTok, catchExpr, identToken == null ? null : new Expr.Variable(identToken), catchBlock);
                 catchStmts.add(catchStmt);
             }
-            return new Stmt.Try(tryBlock, catchStmts);
+            return new Stmt.Try(tryTok, tryBlock, catchStmts);
         }
         if (matchAny(THROW)) {
             Token throwTok = prevTok();
@@ -531,9 +547,10 @@ public class Parser {
     }
 
     private Stmt printStatement() {
+        Token printTok = prevTok();
         Expr value = expression();
         consumeTok(SEMICOLON, "Expected ';' after 'print' expression.");
-        return new Stmt.Print(value);
+        return new Stmt.Print(printTok, value);
     }
 
     private Stmt expressionStatement() {
@@ -664,14 +681,16 @@ public class Parser {
         List<String> kwArgsGiven = new ArrayList<>();
         while (true) {
             if (matchAny(LEFT_PAREN)) {
+                Token lparenTok = prevTok();
                 if (matchAny(RIGHT_PAREN)) {
                     // no args
                 } else {
                     while (true) {
                         Expr arg;
                         if (matchAny(STAR)) {
+                            Token splatTok = prevTok();
                             arg = expression();
-                            arg = new Expr.SplatCall(arg);
+                            arg = new Expr.SplatCall(splatTok, arg);
                         } else {
                             if (peekTok().type == IDENTIFIER && peekTokN(1).type == COLON) { // keyword argument
                                 Token kwTok = consumeTok(IDENTIFIER, "BUG");
@@ -696,7 +715,7 @@ public class Parser {
                         }
                     }
                 }
-                expr = new Expr.Call(expr, args);
+                expr = new Expr.Call(lparenTok, expr, args);
             } else if (checkTok(DOT)) {
                 advance();
                 Token name = consumeTok(IDENTIFIER, "Expected identifier after '.' in object property access");
@@ -715,20 +734,21 @@ public class Parser {
     }
 
     private Expr primary() {
-        if (matchAny(FALSE)) return new Expr.Literal(false);
-        if (matchAny(TRUE)) return new Expr.Literal(true);
-        if (matchAny(NIL)) return new Expr.Literal(null);
+        if (matchAny(FALSE)) return new Expr.Literal(prevTok(), false);
+        if (matchAny(TRUE)) return new Expr.Literal(prevTok(), true);
+        if (matchAny(NIL)) return new Expr.Literal(prevTok(), null);
 
         if (matchAny(NUMBER)) {
-            return new Expr.Literal(prevTok().literal);
+            return new Expr.Literal(prevTok(), prevTok().literal);
         }
         if (matchAny(SQ_STRING)) {
-            return new Expr.Literal(
+            return new Expr.Literal(prevTok(),
                 new StringBuffer((String)prevTok().literal)
             );
         }
         if (matchAny(DQ_STRING)) {
             // parse out any string interpolation, "${expr}"
+            Token litTok = prevTok();
             String str = (String)prevTok().literal;
             Pattern p = Pattern.compile("\\$\\{.+?\\}");
             Matcher m = p.matcher(str);
@@ -763,9 +783,9 @@ public class Parser {
                 // interpolation transformation: change
                 //   "Welcome, ${person.name}!" to
                 //   "Welcome, " + person.name + "!"
-                Expr.Grouping group = new Expr.Grouping(null);
-                Expr.Literal litBefore = new Expr.Literal(strBefore);
-                Expr.Literal litAfter = new Expr.Literal(strAfter);
+                Expr.Grouping group = new Expr.Grouping(litTok, null);
+                Expr.Literal litBefore = new Expr.Literal(litTok, strBefore);
+                Expr.Literal litAfter = new Expr.Literal(litTok, strAfter);
                 Expr.Binary plusOp1 = new Expr.Binary(
                     litBefore,
                     new Token(PLUS, "+", null, prevToken.line),
@@ -779,19 +799,20 @@ public class Parser {
                 group.expression = plusOp2;
                 return group;
             }
-            return new Expr.Literal(new StringBuffer(str));
+            return new Expr.Literal(litTok, new StringBuffer(str));
         }
         // static string (var s = s"frozen, static string")
         if (matchAny(ST_STRING)) {
-            return new Expr.Literal(
+            return new Expr.Literal(prevTok(),
                 (String)prevTok().literal
             );
         }
 
         if (matchAny(LEFT_PAREN)) {
+            Token lparenTok = prevTok();
             Expr expr = expression();
             consumeTok(RIGHT_PAREN, "Expected ')' after group expression.");
-            return new Expr.Grouping(expr);
+            return new Expr.Grouping(lparenTok, expr);
         }
 
         if (matchAny(THIS)) return new Expr.This(prevTok());
@@ -874,7 +895,7 @@ public class Parser {
             consumeTok(RIGHT_PAREN, "Expected ')' to end anon function parameter list.");
             Stmt body = null;
             if (matchAny(LEFT_BRACE)) {
-                body = new Stmt.Block(blockStmts());
+                body = new Stmt.Block(prevTok(), blockStmts());
             } else {
                 consumeTok(LEFT_BRACE, "Expected '{' after anonymous function's parameter list");
             }

@@ -1276,7 +1276,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Void visitReturnStmt(Stmt.Return stmt) {
         if (fnCall == null) {
-            throw new RuntimeError(stmt.token, "Keyword 'return' can only be used inside function/method bodies");
+            throw new RuntimeError(stmt.keyword, "Keyword 'return' can only be used inside function/method bodies");
         }
         Object value = null;
         if (stmt.expression != null) {
@@ -1444,12 +1444,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } else if (expr instanceof Expr.Assign) {
             tok = ((Expr.Assign)expr).name;
         } else if (expr instanceof Expr.Call) {
-            tok = tokenFromExpr(((Expr.Call)expr).left);
+            tok = ((Expr.Call)expr).lparen;
         } else if (expr instanceof Expr.Grouping) {
-            tok = tokenFromExpr(((Expr.Grouping)expr).expression);
+            tok = ((Expr.Grouping)expr).lparen;
         } else if (expr instanceof Expr.Literal) {
-            tok = null;
-            warnOnFallthru = false;
+            tok = ((Expr.Literal)expr).token;
         } else if (expr instanceof Expr.PropAccess) {
             tok = ((Expr.PropAccess)expr).property;
         } else if (expr instanceof Expr.PropSet) {
@@ -1467,7 +1466,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         } else if (expr instanceof Expr.IndexedSet) {
             tok = ((Expr.IndexedSet)expr).lbracket;
         } else if (expr instanceof Expr.SplatCall) {
-            tok = tokenFromExpr(((Expr.SplatCall)expr).expression);
+            tok = ((Expr.SplatCall)expr).splat;
         } else if (expr instanceof Expr.KeywordArg) {
             tok = ((Expr.KeywordArg)expr).name;
         } else {
@@ -1489,40 +1488,37 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (stmt instanceof Stmt.Expression) {
             return tokenFromExpr(((Stmt.Expression)stmt).expression);
         } else if (stmt instanceof Stmt.Print) {
-            return tokenFromExpr(((Stmt.Print)stmt).expression);
+            return ((Stmt.Print)stmt).keyword;
         } else if (stmt instanceof Stmt.Var) {
-            return ((Stmt.Var)stmt).names.get(0);
+            return ((Stmt.Var)stmt).keyword;
         } else if (stmt instanceof Stmt.Block) {
-            if ( ((Stmt.Block)stmt).statements.size() == 0 ) {
-                return null;
-            }
-            return tokenFromStmt(((Stmt.Block)stmt).statements.get(0));
+            return ((Stmt.Block)stmt).token;
         } else if (stmt instanceof Stmt.If) {
-            return tokenFromExpr(((Stmt.If)stmt).condition);
+            return ((Stmt.If)stmt).keyword;
         } else if (stmt instanceof Stmt.While) {
-            return tokenFromExpr(((Stmt.While)stmt).condition);
+            return ((Stmt.While)stmt).keyword;
         } else if (stmt instanceof Stmt.For) {
-            return tokenFromStmt(((Stmt.For)stmt).body);
+            return ((Stmt.For)stmt).keyword;
         } else if (stmt instanceof Stmt.Foreach) {
-            return ((Stmt.Foreach)stmt).variables.get(0);
+            return ((Stmt.Foreach)stmt).keyword;
         } else if (stmt instanceof Stmt.Continue) {
-            return ((Stmt.Continue)stmt).token;
+            return ((Stmt.Continue)stmt).keyword;
         } else if (stmt instanceof Stmt.Break) {
-            return ((Stmt.Break)stmt).token;
+            return ((Stmt.Break)stmt).keyword;
         } else if (stmt instanceof Stmt.Function) {
             return ((Stmt.Function)stmt).name;
         } else if (stmt instanceof Stmt.Return) {
-            return ((Stmt.Return)stmt).token;
+            return ((Stmt.Return)stmt).keyword;
         } else if (stmt instanceof Stmt.Class) {
             return ((Stmt.Class)stmt).name;
         } else if (stmt instanceof Stmt.Module) {
             return ((Stmt.Module)stmt).name;
         } else if (stmt instanceof Stmt.Try) {
-            return tokenFromStmt(((Stmt.Try)stmt).tryBlock);
+            return ((Stmt.Try)stmt).keyword;
         } else if (stmt instanceof Stmt.Throw) {
             return ((Stmt.Throw)stmt).keyword;
         } else if (stmt instanceof Stmt.In) {
-            return tokenFromExpr(((Stmt.In)stmt).object);
+            return ((Stmt.In)stmt).keyword;
         } else {
             String stmtClass = stmt.getClass().getName();
             System.err.println(

@@ -16,44 +16,44 @@ public class GenerateAst {
     // Interpreter#tokenFromExpr as well as the various visitor methods
     // (compiler will catch visitor methods, though).
     defineAst(outputDir, "Expr", Arrays.asList(
-        "Binary   : Expr left, Token operator, Expr right",
-        "Logical  : Expr left, Token operator, Expr right",
-        "Grouping : Expr expression",
-        "Literal  : Object value", // TODO: add token
-        "Array    : Token lbracket, List<Expr> expressions",
+        "Binary     : Expr left, Token operator, Expr right",
+        "Logical    : Expr left, Token operator, Expr right",
+        "Grouping   : Token lparen, Expr expression",
+        "Literal    : Token token, Object value",
+        "Array      : Token lbracket, List<Expr> expressions",
         "IndexedGet : Token lbracket, Expr left, Expr indexExpr",
         "IndexedSet : Token lbracket, Expr left, Expr indexExpr, Expr value",
-        "Unary    : Token operator, Expr right",
-        "Variable : Token name",
-        "Assign   : Token name, Expr value", // TODO: allow multiple assignment
-        "Call     : Expr left, List<Expr> args",
-        "AnonFn   : Token fun, List<Param> formals, Stmt body",
+        "Unary      : Token operator, Expr right",
+        "Variable   : Token name",
+        "Assign     : Token name, Expr value", // TODO: allow multiple assignment
+        "Call       : Token lparen, Expr left, List<Expr> args",
+        "AnonFn     : Token fun, List<Param> formals, Stmt body",
         "PropAccess : Expr left, Token property",
         "PropSet    : Expr object, Token property, Expr value",
         "This       : Token keyword",
         "Super      : Token keyword, Token property, Stmt classOrModStmt",
-        "SplatCall  : Expr expression",
+        "SplatCall  : Token splat, Expr expression",
         "KeywordArg : Token name, Expr expression"
     ));
     defineAst(outputDir, "Stmt", Arrays.asList(
         "Expression : Expr expression",
-        "Print      : Expr expression", // TODO: add token
-        "Var        : List<Token> names, List<Expr> initializers",
-        "Block      : List<Stmt> statements", // TODO: add token to get line for debugger if it's an empty block
-        "If         : Expr condition, Stmt ifBranch, Stmt elseBranch", // TODO: add token
-        "While      : Expr condition, Stmt body",
-        "For        : Stmt initializer, Expr test, Expr increment, Stmt body",
-        "Foreach    : List<Token> variables, Expr obj, Block body",
-        "Continue   : Token token, Stmt loopStmt", // in while or for stmt
-        "Break      : Token token, Stmt loopStmt", // in while or for stmt
+        "Print      : Token keyword, Expr expression",
+        "Var        : Token keyword, List<Token> names, List<Expr> initializers",
+        "Block      : Token token, List<Stmt> statements",
+        "If         : Token keyword, Expr condition, Stmt ifBranch, Stmt elseBranch",
+        "While      : Token keyword, Expr condition, Stmt body",
+        "For        : Token keyword, Stmt initializer, Expr test, Expr increment, Stmt body",
+        "Foreach    : Token keyword, List<Token> variables, Expr obj, Block body",
+        "Continue   : Token keyword, Stmt loopStmt", // in while/for/foreach stmts
+        "Break      : Token keyword, Stmt loopStmt", // in while/for/foreach stmts
         "Function   : Token name, List<Param> formals, Stmt body, Parser.FunctionType type, Class klass",
-        "Return     : Token token, Expr expression",
+        "Return     : Token keyword, Expr expression",
         "Class      : Token name, Expr.Variable superClassVar, Object superClass, List<Stmt> body",
         "Module     : Token name, List<Stmt> body",
-        "Try        : Block tryBlock, List<Catch> catchStmts", // TODO: add token
-        "Catch      : Expr catchExpr, Expr.Variable catchVar, Block block", // TODO: add token
+        "Try        : Token keyword, Block tryBlock, List<Catch> catchStmts",
+        "Catch      : Token keyword, Expr catchExpr, Expr.Variable catchVar, Block block", // TODO: add token
         "Throw      : Token keyword, Expr throwExpr",
-        "In         : Expr object, List<Stmt> body" // TODO: add keyword Token
+        "In         : Token keyword, Expr object, List<Stmt> body"
     ));
   }
 
