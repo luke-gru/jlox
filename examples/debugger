@@ -3,6 +3,8 @@ var s = "POE";
 System.debugger();
 if (true) {
   print "HI";
+  var b = "INNER";
+  print b;
 }
 print s;
 

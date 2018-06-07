@@ -6,10 +6,13 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.Iterator;
+import java.util.Map;
 
 /**
  * Follows a design based on the paper found here:
@@ -22,6 +25,9 @@ class Debugger {
         "  next     (n) : step over to next statement or expression\n" +
         "  step     (s) : step into next statement or expression\n" +
         "  print    (p) VARNAME : print variable name\n" +
+        "  vars     (va) [LEVEL] : print variable names and values in scope.\n" +
+        "           LEVEL defaults to 0, local scope only. -1 for all scopes,\n" +
+        "           1 for local and enclosing scope, etc.\n" +
         "  continue (c) : continue interpreter\n" +
         "  stack    (st) : show stacktrace\n" +
         "  clear    (cls) : clear screen\n" +
@@ -33,6 +39,7 @@ class Debugger {
         "  help     (h) : show this message\n";
 
     static Pattern printPat = Pattern.compile("^p(rint)?\\s+(\\w+?);?$");
+    static Pattern varsPat = Pattern.compile("^va(rs)?\\s*(-?\\d*).*$");
     static Pattern setbrPat = Pattern.compile("^(setbr|sbr)\\s+(\\d+)\\s*;?$");
     static Pattern delbrPat = Pattern.compile("^(delbr|dbr)\\s+(\\d+)\\s*;?$");
     static Pattern evalPat = Pattern.compile("^(eval|e)\\s+(.+)$");
@@ -95,7 +102,7 @@ class Debugger {
                     visitIdxUp = interp.visitIdxs.get(interp.visitIdxs.size()-2);
                 }
                 if (interp.visitIdxs.size() > 0) {
-                    visitIdxNext = interp.visitIdxs.lastElement();
+                    visitIdxNext = interp.visitIdxs.lastElement()+1;
                 }
                 int visitIdxDown = 0;
                 int visitLevelDown = visitLevel+1;
@@ -120,7 +127,7 @@ class Debugger {
                     visitIdxUp = interp.visitIdxs.get(interp.visitIdxs.size()-2);
                 }
                 if (interp.visitIdxs.size() > 0) {
-                    visitIdxNext = interp.visitIdxs.lastElement();
+                    visitIdxNext = interp.visitIdxs.lastElement()+1;
                 }
                 int visitLevelUp = visitLevel-1;
                 if (visitLevelUp < 1) visitLevelUp = 1;
@@ -202,6 +209,71 @@ class Debugger {
                     continue;
                 }
                 out.println("  => " + interp.stringify(varVal));
+                continue;
+            }
+
+            Matcher varsMatch = varsPat.matcher(line);
+            if (varsMatch.find()) { // show variable names and values in specified scope(s)
+                String scopeNumStr = varsMatch.group(2);
+                int scopeNum = 0;
+                if (scopeNumStr != null && !scopeNumStr.equals("")) {
+                    scopeNum = Integer.parseInt(scopeNumStr);
+                }
+                if (scopeNum < 0) {
+                    scopeNum = -1; // use all scopes
+                }
+                List<String> outputLines = new ArrayList<>();
+
+                Environment curEnv = interp.environment; // local (current) scope
+                int i = (scopeNum == -1 ? 10000 : scopeNum+1);
+                int scopeIdx = 0;
+                while (curEnv != null && i > 0) {
+                    String scopeStr = "";
+                    if (curEnv.enclosing == null) {
+                        scopeStr = " (global)";
+                    } else if (scopeIdx == 0) {
+                        scopeStr = " (local)";
+                    }
+                    Iterator iter = curEnv.values.entrySet().iterator();
+                    boolean hasAtLeast1Var = false;
+                    while (iter.hasNext()) {
+                        Map.Entry<String,Object> pair = (Map.Entry<String,Object>)iter.next();
+                        String key = pair.getKey();
+                        Object val = pair.getValue();
+                        // don't show top-level native functions
+                        if (val instanceof LoxNativeCallable) {
+                            continue;
+                        }
+                        // don't show native classes
+                        if (val instanceof LoxNativeClass) {
+                            continue;
+                        }
+                        // don't show native modules
+                        if (val instanceof LoxNativeModule) {
+                            continue;
+                        }
+                        outputLines.add("\t" + key + " => " + interp.stringify(val) + " (" +
+                                interp.nativeTypeof(null, val) + ")");
+                        hasAtLeast1Var = true;
+                    }
+                    String suffixStr = "";
+                    if (!hasAtLeast1Var) {
+                        suffixStr = " [None]";
+                    }
+                    outputLines.add("Scope " + String.valueOf(scopeIdx) + scopeStr + ":" +
+                            suffixStr);
+                    curEnv = curEnv.enclosing;
+                    i--;
+                    scopeIdx++;
+                }
+
+                // show outer scope(s) first, so they show above the innermost
+                // scope on the console
+                Collections.reverse(outputLines);
+
+                for (String ln : outputLines) {
+                    out.println(ln);
+                }
                 continue;
             }
 

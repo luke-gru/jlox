@@ -4,9 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 class Environment {
-  private final Map<String, Object> values = new HashMap<>();
-  private final Map<String, Stmt.Function> functions = new HashMap<>();
-  final Environment enclosing;
+  public final Map<String, Object> values = new HashMap<>();
+  public final Map<String, Stmt.Function> functions = new HashMap<>();
+  public final Environment enclosing;
 
   Environment() {
       enclosing = null;
