@@ -13,6 +13,7 @@ import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Follows a design based on the paper found here:
@@ -45,6 +46,12 @@ class Debugger {
     static Pattern evalPat = Pattern.compile("^(eval|e)\\s+(.+)$");
     public boolean awaitingPause = false;
 
+    // Map of {filename => {lineno => AST node}} that we break on for breakpoints.
+    // Used because if we're caught on a breakpoint and enter "next", we won't get
+    // caught on the same breakpoint again even if the next statement/expression
+    // evaluated is on the same line (the node is different).
+    private static Map<String,Map<Integer,Object>> breakptMap = new HashMap<>();
+
     Debugger(Interpreter interp) {
         this.interp = interp;
     }
@@ -63,9 +70,12 @@ class Debugger {
                 System.err.println("[Warning]: debugger couldn't find line for node");
                 return false;
             }
-            int lineNo = (int)lineNoInt;
             //System.err.println("checking breakpoint at " + String.valueOf(lineNo));
-            return interp.breakpoints.contains(lineNoInt);
+            if (couldBeInBreakpoint()) {
+                return registerNodeForBreakpoint();
+            } else {
+                return false;
+            }
         } else {
             return true;
         }
@@ -352,10 +362,6 @@ class Debugger {
     // NOTE: assumes the interpreter's current running file has at least
     // `lineNo` lines.
     // TODO: check that this line exists for the current file.
-    // TODO: Also, cache, per interpreted file, the objectid of the node that
-    // we pause at first at breakpoints, so we can actually go the next line
-    // when continuing, instead of stopping at the next node that has a token
-    // for the same line.
     private boolean setBreakpointAt(int lineNo) {
         if (interp.breakpoints.contains((Integer)lineNo)) {
             return false;
@@ -373,7 +379,52 @@ class Debugger {
         }
         interp.awaitingOnMap.clear(); // clear step/next map
         interp.breakpoints.remove(idx);
+        deregisterNodeForBreakpoint(lineNo);
         this.awaitingPause = true;
         return true;
+    }
+
+    private String getCurrentFilename() {
+        if (interp.runningFile == null) {
+            return "<unknown>";
+        } else {
+            return interp.runningFile;
+        }
+    }
+
+    private boolean couldBeInBreakpoint() {
+        if (!this.awaitingPause) return false;
+        if (interp.awaitingOnMap.size() > 0) return false;
+        Integer lineNoInt = interp.lineForNode(interp.currentNode);
+        if (lineNoInt == null) return false;
+        return interp.breakpoints.contains(lineNoInt);
+    }
+
+    private boolean registerNodeForBreakpoint() {
+        String fname = getCurrentFilename();
+        Map innerMap = breakptMap.get(fname);
+        Integer lineNoInt = interp.lineForNode(interp.currentNode);
+        if (innerMap == null) {
+            innerMap = new HashMap<Integer,Object>();
+            breakptMap.put(fname, innerMap);
+        }
+        LoxUtil.Assert(lineNoInt != null);
+        if (innerMap.containsKey(lineNoInt)) {
+            return innerMap.get(lineNoInt) == interp.currentNode;
+        }
+        innerMap.put(lineNoInt, interp.currentNode);
+        return true;
+    }
+
+    private void deregisterNodeForBreakpoint(int lineNo) {
+        String fname = getCurrentFilename();
+        Map innerMap = breakptMap.get(fname);
+        if (innerMap == null) {
+            return;
+        }
+        if (!innerMap.containsKey((Integer)lineNo)) {
+            return;
+        }
+        innerMap.remove((Integer)lineNo);
     }
 }

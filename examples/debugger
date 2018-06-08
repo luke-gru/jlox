@@ -5,6 +5,9 @@ if (true) {
   print "HI";
   var b = "INNER";
   print b;
+  foreach (el in [1,2,3,4,5]) {
+    print el;
+  }
 }
 print s;
 

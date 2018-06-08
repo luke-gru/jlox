@@ -86,6 +86,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     // map of visitLevel => visitIdx for the debugger's step over and step
     // into functionality
     public Map<Integer,Integer> awaitingOnMap = new HashMap<>();
+    // TODO: make this a map, per file for breakpoints
     public List<Integer> breakpoints = new ArrayList<>();
 
     public Interpreter() {

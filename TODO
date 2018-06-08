@@ -2,7 +2,7 @@ TODO:
 * multiple assignment []
 * throw Interrupt errors on interrupts, so the program can catch them when
 the interpreter is running. []
-* signal handling []
+* signal handling [DONE]
 * add keyword arguments [DONE, NEEDS TESTING], could use more testing though
 * Figure out what it means to dup a class. Should this be possible? It is in
 Ruby, for example. If not, disallow. []
@@ -27,3 +27,5 @@ useful info. [] This should work for scanner errors, parser errors and
 interpreter errors.
 * Add modules like Ruby's? As in, definitions of static and instance methods
 that can be reused across classes. [DONE, NEEDS MORE TESTING]
+* Fix debugger breakpoints so that when unset they don't break on the same
+line anymore [DONE]
