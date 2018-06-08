@@ -1,0 +1,13 @@
+class MyClass {
+  myGetter { return "my value"; }
+}
+
+var obj = MyClass();
+print obj.properties();
+
+print obj.properties(includeGetters: true);
+
+__END__
+-- expect: --
+{}
+{myGetter => my value}

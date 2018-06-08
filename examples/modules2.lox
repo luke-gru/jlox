@@ -16,6 +16,7 @@ class Batter {
 }
 
 print Batter.ancestors();
+print Workout.ancestors();
 
 var b = Batter();
 print b._class;
@@ -29,6 +30,7 @@ print anonM;
 __END__
 -- expect: --
 [<class Batter>,<module Steroids>,<module Workout>,<class Object>]
+[<module Workout>]
 <class Batter>
 <module Steroids>
 <module Workout>

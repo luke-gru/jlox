@@ -113,7 +113,7 @@ class LoxClass extends LoxModule implements LoxCallable {
     }
 
     @Override
-    public Map<String,Object> getKwargParams() {
+    public Map<String,Object> getDefaultKwargs(Interpreter interp) {
         Stmt.Function funcDecl = getDecl();
         List<Param> params = null;
         if (funcDecl == null) {
@@ -123,7 +123,11 @@ class LoxClass extends LoxModule implements LoxCallable {
             Map<String,Object> ret = new HashMap<>();
             for (Param param : params) {
                 if (param.isKwarg) {
-                    ret.put(param.varName(), param.defaultVal);
+                    Object value = param.defaultVal;
+                    if (interp != null && value != null && (value instanceof Expr)) {
+                        value = interp.evaluate((Expr)value);
+                    }
+                    ret.put(param.varName(), value);
                 }
             }
             return ret;
@@ -202,6 +206,62 @@ class LoxClass extends LoxModule implements LoxCallable {
             klass = klass.getSuper();
         }
         return new ArrayList<String>(methods);
+    }
+
+    public List<Object> ancestors() {
+        LoxClass klass = this;
+        boolean isSClass = klass.isSingletonKlass;
+        boolean sClassOfClass = false;
+        LoxClass sClassOfKlass = null;
+        if (isSClass) {
+            sClassOfClass = (klass.singletonOf instanceof LoxClass);
+            if (sClassOfClass) {
+                sClassOfKlass = (LoxClass)klass.singletonOf;
+            }
+        }
+        List<Object> list = new ArrayList<>();
+        List<LoxModule> modList = new ArrayList<>();
+        while (klass != null) {
+            LoxModule mod = klass.module == null ? klass : klass.module;
+            if (isSClass && sClassOfClass) {
+                if (!modList.contains(mod)) {
+                    list.add(klass); // singleton class of the class
+                    modList.add(mod);
+                }
+                LoxClass cSuper = sClassOfKlass.getSuper();
+                while (cSuper != null) {
+                    klass = cSuper.getSingletonKlass();
+                    mod = klass.module == null ? klass : klass.module;
+                    if (!modList.contains(mod)) {
+                        list.add(klass);
+                        modList.add(mod);
+                    }
+                    cSuper = cSuper.getSuper();
+                }
+                klass = Runtime.getClass("Class"); // now start at <class Class> and move up
+                while (klass != null) {
+                    mod = klass.module == null ? klass : klass.module;
+                    if (!modList.contains(mod)) {
+                        list.add(klass);
+                        modList.add(mod);
+                    }
+                    klass = klass.getSuper();
+                }
+            } else if (isSClass) { // singleton lookup first, then regular class ancestry lookup
+                if (!modList.contains(mod)) {
+                    list.add(klass);
+                    modList.add(mod);
+                }
+                klass = klass.getSuper();
+            } else { // regular class ancestry lookup
+                if (!modList.contains(mod)) {
+                    list.add(klass);
+                    modList.add(mod);
+                }
+                klass = klass.getSuper();
+            }
+        }
+        return list;
     }
 
 }

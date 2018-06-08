@@ -338,4 +338,8 @@ class LoxInstance {
         properties.put(propName, value);
     }
 
+    public Map<String,Object> getProperties() {
+        return properties;
+    }
+
 }

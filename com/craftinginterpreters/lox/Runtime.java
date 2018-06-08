@@ -426,6 +426,69 @@ class Runtime {
                 }
             }
         });
+        Map<String,Object> propertiesKwargsDefaults = new HashMap<>();
+        propertiesKwargsDefaults.put("includeGetters", false);
+        propertiesKwargsDefaults.put("includeNativeGetters", false);
+        objClass.defineMethod(new LoxNativeCallable("properties", 0, 2, null,
+                    propertiesKwargsDefaults) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                LoxInstance instance = interp.environment.getThis();
+
+                List<Object> argsForMap = new ArrayList<>();
+                Iterator iter = instance.getProperties().entrySet().iterator();
+                // Map([[1,2],[3,4]])
+                while (iter.hasNext()) {
+                    Map.Entry pair = (Map.Entry)iter.next();
+                    LoxInstance propKeyStr = Runtime.createString((String)pair.getKey(), interp);
+                    Object propValue = pair.getValue();
+                    List<Object> aryArgs = new ArrayList<>();
+                    aryArgs.add(propKeyStr);
+                    aryArgs.add(propValue);
+                    LoxInstance loxDouble = interp.createInstance("Array", aryArgs);
+                    argsForMap.add(loxDouble);
+                }
+                LoxInstance argsForMapInst = interp.createInstance("Array", argsForMap);
+                List<Object> realArgsForMap = new ArrayList<Object>();
+                realArgsForMap.add(argsForMapInst);
+                LoxInstance retMap = interp.createInstance("Map", realArgsForMap);
+                Map<Object,Object> retMapInternal = (Map<Object,Object>)retMap.getHiddenProp("map");
+
+                List<String> nativeGetterNames = new ArrayList<>();
+                nativeGetterNames.add("_class");
+                nativeGetterNames.add("_singletonClass");
+                nativeGetterNames.add("objectId");
+
+                if (kwargs.get("includeGetters") == (Boolean)true) {
+                    LoxClass startClass = instance.getSingletonKlass();
+                    List<Object> ancestorsAry = startClass.ancestors();
+                    for (Object ancestor : ancestorsAry) {
+                        LoxUtil.Assert(ancestor instanceof LoxClass);
+                        LoxClass ancestorClass = (LoxClass)ancestor;
+                        Iterator getterIter = ancestorClass.getters.entrySet().iterator();
+                        while (getterIter.hasNext()) {
+                            Map.Entry pair = (Map.Entry)getterIter.next();
+                            String propName = (String)pair.getKey();
+                            if (kwargs.get("includeNativeGetters") != (Boolean)true) {
+                                if (nativeGetterNames.contains(propName)) {
+                                    continue;
+                                }
+                            }
+                            Object propVal = instance.getProperty(propName, interp, ancestorClass);
+                            Object propNameStr = Runtime.createString(propName, interp);
+                            if (!retMapInternal.containsKey(propNameStr)) {
+                                retMapInternal.put(propNameStr, propVal);
+                            }
+                        }
+
+                    }
+                }
+
+                return retMap;
+            }
+
+        });
         objClass.defineGetter(new LoxNativeCallable("_class", 0, 0, null, null) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args,
@@ -630,7 +693,6 @@ class Runtime {
             protected Object _call(Interpreter interp, List<Object> args,
                     Map<String,Object> kwargs, Token tok) {
                 LoxClass klass = interp.environment.getThisClass();
-                //System.err.println("superclass for class: " + klass.toString());
                 return klass.getSuper();
             }
         });
@@ -638,59 +700,14 @@ class Runtime {
             @Override
             protected Object _call(Interpreter interp, List<Object> args,
                     Map<String,Object> kwargs, Token tok) {
-                LoxClass klass = (LoxClass)interp.environment.getThisClass();
-                boolean isSClass = klass.isSingletonKlass;
-                boolean sClassOfClass = false;
-                LoxClass sClassOfKlass = null;
-                if (isSClass) {
-                    sClassOfClass = (klass.singletonOf instanceof LoxClass);
-                    if (sClassOfClass) {
-                        sClassOfKlass = (LoxClass)klass.singletonOf;
-                    }
+                LoxClass klass = interp.environment.getThisClass();
+                if (klass == null) { // this is a module, which is an instance of class Module
+                    List<Object> modList = new ArrayList<>();
+                    modList.add(interp.environment.getThis());
+                    return interp.createInstance("Array", modList);
                 }
-                List<Object> list = new ArrayList<>();
-                List<Object> modList = new ArrayList<>();
-                while (klass != null) {
-                    LoxModule mod = klass.module == null ? klass : klass.module;
-                    if (isSClass && sClassOfClass) {
-                        if (!modList.contains(mod)) {
-                            list.add(klass); // singleton class of the class
-                            modList.add(mod);
-                        }
-                        LoxClass cSuper = sClassOfKlass.getSuper();
-                        while (cSuper != null) {
-                            klass = cSuper.getSingletonKlass();
-                            mod = klass.module == null ? klass : klass.module;
-                            if (!modList.contains(mod)) {
-                                list.add(klass);
-                                modList.add(mod);
-                            }
-                            cSuper = cSuper.getSuper();
-                        }
-                        klass = Runtime.getClass("Class"); // now start at <class Class> and move up
-                        while (klass != null) {
-                            mod = klass.module == null ? klass : klass.module;
-                            if (!modList.contains(mod)) {
-                                list.add(klass);
-                                modList.add(mod);
-                            }
-                            klass = klass.getSuper();
-                        }
-                    } else if (isSClass) { // singleton lookup first, then regular class ancestry lookup
-                        if (!modList.contains(mod)) {
-                            list.add(klass);
-                            modList.add(mod);
-                        }
-                        klass = klass.getSuper();
-                    } else { // regular class ancestry lookup
-                        if (!modList.contains(mod)) {
-                            list.add(klass);
-                            modList.add(mod);
-                        }
-                        klass = klass.getSuper();
-                    }
-                }
-                return interp.createInstance("Array", list);
+                List<Object> classList = klass.ancestors();
+                return interp.createInstance("Array", classList);
             }
         });
         classClass.defineMethod(new LoxNativeCallable("methodNames", 0, 1, null, null) {
@@ -1579,6 +1596,7 @@ class Runtime {
             }
         });
         registerModule(systemMod);
+        // add ARGV/ARGC properties to System module.
         List<String> argvAry = new ArrayList<String>(Lox.LOX_ARGV);
         List<Object> argvLoxAry = new ArrayList<>();
         for (String arg : argvAry) {

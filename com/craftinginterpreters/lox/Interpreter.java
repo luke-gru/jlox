@@ -657,6 +657,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 args = new ArrayList<>();
             }
 
+
+            Map<String,Object> defaultKwargs = callable.getDefaultKwargs(this);
+
             // need to evaluate args first before seeing if the function can
             // accept that number of arguments because splat arguments `fnCall(*args)` can
             // evaluate to multiple arguments at runtime. See below.
@@ -693,8 +696,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     }
                 } else if (expr instanceof Expr.KeywordArg) {
                     Expr.KeywordArg kwArgExpr = (Expr.KeywordArg)expr;
-                    Map<String,Object> kwargParams = callable.getKwargParams();
-                    if (kwargParams != null && !kwargParams.containsKey(kwArgExpr.name.lexeme)) {
+                    if (defaultKwargs != null && !defaultKwargs.containsKey(kwArgExpr.name.lexeme)) {
                         throwLoxError("ArgumentError", tokenFromExpr(expr),
                             "Invalid keyword argument '" + kwArgExpr.name.lexeme + "'");
                     }
@@ -704,6 +706,20 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     args.add(evaluate(expr));
                 }
             }
+
+            // add default keyword arguments
+            if (defaultKwargs != null) {
+                Iterator defKwargsIter = defaultKwargs.entrySet().iterator();
+                while (defKwargsIter.hasNext()) {
+                    Map.Entry pair = (Map.Entry)defKwargsIter.next();
+                    String key = (String)pair.getKey();
+                    if (!kwargs.containsKey(key)) {
+                        Object val = pair.getValue();
+                        kwargs.put(key, val);
+                    }
+                }
+            }
+
 
             if (!Runtime.acceptsNArgs(callable, args.size(), kwargs.size())) {
                 int arityMin = callable.arityMin();

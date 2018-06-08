@@ -184,7 +184,7 @@ class LoxFunction implements LoxCallable {
     }
 
     @Override
-    public Map<String,Object> getKwargParams() {
+    public Map<String,Object> getDefaultKwargs(Interpreter interp) {
         Stmt.Function funcDecl = getDecl();
         List<Param> params = null;
         if (funcDecl == null) {
@@ -194,7 +194,11 @@ class LoxFunction implements LoxCallable {
             Map<String,Object> ret = new HashMap<>();
             for (Param param : params) {
                 if (param.isKwarg) {
-                    ret.put(param.varName(), param.defaultVal);
+                    Object value = param.defaultVal;
+                    if (interp != null && value != null && (value instanceof Expr)) {
+                        value = interp.evaluate((Expr)value);
+                    }
+                    ret.put(param.varName(), value);
                 }
             }
             return ret;
