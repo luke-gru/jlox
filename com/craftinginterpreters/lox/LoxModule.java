@@ -32,6 +32,10 @@ class LoxModule extends LoxInstance {
         }
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     // Add a new class in this given class's class hierarchy, right above the given class.
     // A new LoxClass is created with the name of this module.
     public void includeIn(LoxModule modOrClass) {

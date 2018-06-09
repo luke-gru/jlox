@@ -37,6 +37,12 @@ class LoxClass extends LoxModule implements LoxCallable {
     }
 
     @Override
+    public LoxCallable clone() {
+        // TODO: don't allow clone
+        return this;
+    }
+
+    @Override
     public LoxModule getModuleDefinedIn() {
         return this.modDefinedIn;
     }

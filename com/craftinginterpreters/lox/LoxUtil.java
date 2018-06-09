@@ -51,7 +51,64 @@ class LoxUtil {
         checkIsA("String", obj, interp, errClass, errMsg, argNo);
     }
 
-    // throws lox Error if obj != lox class given as argument 1
+    // throws lox Error if obj isn't one of lox types given as argument 1
+    static void checkIsOneOf(List<String> classNamesList, Object obj, Interpreter interp, String errClass, String errMsg, int argNo) {
+        String typeStr = interp.nativeTypeof(null, obj);
+        String objClassName = typeStr;
+        if (typeStr.equals("nil") && classNamesList.contains("nil")) {
+            return;
+        }
+        if (typeStr.equals("boolean") && classNamesList.contains("boolean")) {
+            return;
+        }
+        if (typeStr.equals("number") && classNamesList.contains("number")) {
+            return;
+        }
+        if (typeStr.equals("function") && classNamesList.contains("function")) {
+            return;
+        }
+        if (typeStr.equals("class") && (classNamesList.contains("Class") || classNamesList.contains("class"))) {
+            return;
+        }
+        if (typeStr.equals("string") && (classNamesList.contains("String") || classNamesList.contains("string"))) {
+            return;
+        }
+        if (typeStr.equals("array") && (classNamesList.contains("Array") || classNamesList.contains("array"))) {
+            return;
+        }
+        if (typeStr.equals("instance")) {
+            LoxInstance instance = Runtime.toInstance(obj);
+            objClassName = instance.getKlass().getName();
+            LoxClass klass = instance.getKlass();
+            while (klass != null) {
+                if (classNamesList.contains(klass.getName())) {
+                    return;
+                }
+                klass = klass.superClass;
+            }
+        }
+        // Error time!
+        if (errClass == null) {
+            errClass = "ArgumentError";
+        }
+        if (errMsg == null && errClass.equals("ArgumentError")) {
+            String errClassNames = null;
+            if (classNamesList.size() > 1) {
+                errClassNames = " to be one of types ";
+                for (String className : classNamesList) {
+                    errClassNames += className;
+                    errClassNames += ", ";
+                }
+            } else {
+                errClassNames = " to be of type " + classNamesList.get(0) + " ";
+            }
+            errMsg = "Expected argument " + String.valueOf(argNo) +
+                errClassNames + "got: " + objClassName;
+        }
+        interp.throwLoxError(errClass, errMsg);
+    }
+
+    // throws lox Error if obj isn't the lox type given as argument 1
     static void checkIsA(String loxClassName, Object obj, Interpreter interp, String errClass, String errMsg, int argNo) {
         String typeStr = interp.nativeTypeof(null, obj);
         String objClassName = typeStr;

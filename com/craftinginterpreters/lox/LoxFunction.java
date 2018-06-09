@@ -11,6 +11,8 @@ class LoxFunction implements LoxCallable {
     final boolean isInitializer;
     private LoxModule modDefinedIn = null;
 
+    public static String ANON_NAME = "(anon)";
+
     LoxFunction(Stmt.Function declaration, Environment closure, boolean isInitializer) {
         this.declaration = declaration;
         this.closure = closure;
@@ -114,7 +116,7 @@ class LoxFunction implements LoxCallable {
     @Override
     public String getName() {
         if (declaration.name == null) {
-            return "(anon)";
+            return ANON_NAME;
         } else {
             String prefix = "";
             if (modDefinedIn != null) {
@@ -122,6 +124,12 @@ class LoxFunction implements LoxCallable {
             }
             return prefix + declaration.name.lexeme;
         }
+    }
+
+    @Override
+    public void setName(String name) {
+        LoxUtil.Assert(declaration.name != null);
+        declaration.name.lexeme = name;
     }
 
     @Override
@@ -181,6 +189,20 @@ class LoxFunction implements LoxCallable {
         Environment environment = new Environment(env);
         environment.define("this", instance);
         return new LoxFunction(declaration, environment, isInitializer);
+    }
+
+    @Override
+    public LoxCallable clone() {
+        Stmt.Function newDecl = null;
+        if (declaration != null) {
+            Token tok = declaration.name;
+            Token newTok = new Token(tok.type, tok.lexeme, tok.literal, tok.line);
+            newDecl = new Stmt.Function(newTok, new ArrayList<Param>(declaration.formals),
+                declaration.body, declaration.type, declaration.klass);
+        }
+        LoxFunction func = new LoxFunction(newDecl, closure, isInitializer);
+        func.setModuleDefinedIn(modDefinedIn);
+        return func;
     }
 
     @Override

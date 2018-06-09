@@ -268,15 +268,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         // static (frozen) string
         } else if (expr.value instanceof String) {
             String staticStr = (String)expr.value;
-            if (staticStringPool.containsKey(staticStr)) {
-                return staticStringPool.get(staticStr);
-            } else {
-                LoxInstance string = createInstance("String", new ArrayList<Object>());
-                ((StringBuffer)string.getHiddenProp("buf")).append(staticStr);
-                string.freeze();
-                staticStringPool.put(staticStr, string);
-                return string;
-            }
+            return Runtime.getStaticString(staticStr, this);
         } else {
             return expr.value;
         }
@@ -1379,6 +1371,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         if (Runtime.isNumber(object)) { return "number"; }
         if (Runtime.isString(object)) { return "string"; }
         if (object instanceof LoxClass) { return "class"; }
+        if (object instanceof LoxModule) { return "module"; }
         if (Runtime.isArray(object)) { return "array"; }
         if (object instanceof LoxInstance) { return "instance"; }
         if (object instanceof LoxCallable) { return "function"; }
@@ -1738,6 +1731,53 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         interpret(stmts);
         this.parser = oldParser;
         return this.lastValue;
+    }
+
+    public void aliasFunction(String oldName, String newName, String aliasType, Object envOrClass, Token tok) {
+        if (aliasType.equals("function")) {
+            Environment env = (Environment)envOrClass;
+            // FIXME: throws undefined variable when not found!
+            Object callableObj = env.get(oldName, true, null);
+            String objType = nativeTypeof(tok, callableObj);
+            if (!objType.equals("function")) {
+                throwLoxError("TypeError", "<alias> argument 1 needs to be a function");
+                return;
+            }
+            LoxCallable clonedFunc = ((LoxCallable)callableObj).clone();
+            clonedFunc.setName(newName);
+            // TODO: maybe warn if variable already exists in this scope?
+            if (clonedFunc.getDecl() != null) {
+                env.functions.put(newName, clonedFunc.getDecl());
+            }
+            env.define(newName, clonedFunc);
+        } else if (aliasType.equals("method")) {
+            LoxClass klass = (LoxClass)envOrClass;
+            if (!Runtime.isClass(klass)) {
+                String klassName = nativeTypeof(null, klass);
+                throwLoxError("TypeError", "<alias>, when given type: 'method' needs to have the scope it's called in be a class or module, is a: " + klassName);
+                return;
+            }
+            LoxCallable func = null;
+            // FIXME: check that newName is unique per method/setter/getter
+            if ((func = klass.getMethod(oldName)) != null) {
+                LoxCallable clonedFunc = ((LoxCallable)func).clone();
+                clonedFunc.setName(newName);
+                klass.methods.put(newName, clonedFunc);
+            } else if ((func = klass.getGetter(oldName)) != null) {
+                LoxCallable clonedFunc = ((LoxCallable)func).clone();
+                clonedFunc.setName(newName);
+                klass.getters.put(newName, clonedFunc);
+            } else if ((func = klass.getSetter(oldName)) != null) {
+                LoxCallable clonedFunc = ((LoxCallable)func).clone();
+                clonedFunc.setName(newName);
+                klass.setters.put(newName, clonedFunc);
+            } else {
+                throwLoxError("MethodNotFound", "<alias> couldn't find method/getter/setter '" + oldName + "'");
+                return;
+            }
+        } else {
+            throw new RuntimeException("unreachable");
+        }
     }
 
     private void evalFile(String fullPath) {

@@ -6,13 +6,13 @@ import java.util.List;
 import java.util.ArrayList;
 
 class LoxNativeCallable implements LoxCallable {
-    final String name;
+    public String name;
     final int arityMin;
     final int arityMax;
     final List<Object> defaultArgs;
     public Map<String,Object> kwArgs = null;
     LoxInstance boundInstance = null;
-    private LoxModule modDefinedIn = null;
+    protected LoxModule modDefinedIn = null;
 
     LoxNativeCallable(String name, int arityMin, int arityMax,
             List<Object> defaultArgs, Map<String,Object> kwargs) {
@@ -68,6 +68,22 @@ class LoxNativeCallable implements LoxCallable {
             prefix = modDefinedIn.getName() + "#";
         }
         return prefix + this.name;
+    }
+
+    @Override
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public LoxCallable clone() {
+        //LoxNativeCallable callable = new LoxNativeCallable(
+            //name, arityMin, arityMax, new ArrayList<Object>(defaultArgs),
+            //new HashMap<String,Object>(kwArgs)
+        //);
+        //callable.modDefinedIn = modDefinedIn;
+        //return callable;
+        return this;
     }
 
     @Override

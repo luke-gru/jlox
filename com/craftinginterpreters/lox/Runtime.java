@@ -1,6 +1,7 @@
 package com.craftinginterpreters.lox;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Stack;
 import java.util.List;
@@ -157,6 +158,17 @@ class Runtime {
         return createString(obj.toString(), interp);
     }
 
+    static LoxInstance getStaticString(String staticStr, Interpreter interp) {
+        if (interp.staticStringPool.containsKey(staticStr)) {
+            return interp.staticStringPool.get(staticStr);
+        } else {
+            LoxInstance strInst = createString(staticStr, interp);
+            strInst.freeze();
+            interp.staticStringPool.put(staticStr, strInst);
+            return strInst;
+        }
+    }
+
     static String toJavaString(LoxInstance loxStr) {
         return loxStr.getHiddenProp("buf").toString();
     }
@@ -188,8 +200,8 @@ class Runtime {
         if (inited) {
             return;
         }
-        defineGlobalFunctions(interp);
         defineBuiltinClassesAndModules(interp);
+        defineGlobalFunctions(interp);
         defineGlobalVariables(interp);
         inited = true;
     }
@@ -355,30 +367,44 @@ class Runtime {
                 return interp.evalSrc(src);
             }
         });
-        // FIXME: actually clone() the callable so that we set the new name on
-        // it for stack traces. Also make sure the name is a proper
-        // identifier.
         globalEnv.define("alias", new LoxNativeCallable("alias", 2, 2, null, null) {
             @Override
             protected Object _call(Interpreter interp, List<Object> args,
                     Map<String,Object> kwargs, Token tok) {
-                Object callableObj = args.get(0);
+                Object callableOrStr = args.get(0); // String instance or LoxCallable
                 Object newNameObj = args.get(1);
-                if (!Runtime.isCallable(callableObj)) {
-                    LoxUtil.checkIsA("function", callableObj, interp, "ArgumentError", null, 1);
+                if (!Runtime.isCallable(callableOrStr) && !Runtime.isString(callableOrStr)) {
+                    LoxUtil.checkIsOneOf(Arrays.asList(new String[]{"function", "string"}),
+                        callableOrStr, interp, "ArgumentError", null, 1);
+                }
+                if (Runtime.isModule(callableOrStr)) { // can't alias modules and classes
+                    LoxUtil.checkIsOneOf(Arrays.asList(new String[]{"function", "string"}),
+                        callableOrStr, interp, "ArgumentError", null, 1);
                 }
                 LoxUtil.checkString(newNameObj, interp, "ArgumentError", null, 2);
 
-                LoxCallable callable = (LoxCallable)args.get(0);
-                LoxInstance newNameLox = Runtime.toString(newNameObj);
+                String callableName = null;
+                if (Runtime.isCallable(callableOrStr)) {
+                    callableName = ((LoxCallable)callableOrStr).getName();
+                } else {
+                    callableName = Runtime.toString(callableOrStr).
+                        getHiddenProp("buf").toString();
+                }
 
-                String newNameJava = Runtime.toJavaString(newNameLox);
-                if (!LoxUtil.isValidIdentifier(newNameJava)) {
+                if (callableName.equals(LoxFunction.ANON_NAME)) {
+                    interp.throwLoxError("ArgumentError", "can't alias anonymous functions");
+                }
+
+                LoxInstance newNameInst = Runtime.toString(newNameObj);
+                String newName = Runtime.toJavaString(newNameInst);
+
+                if (!LoxUtil.isValidIdentifier(newName)) {
                     interp.throwLoxError("ArgumentError",
                         "invalid identifier given to 'alias' for function '" +
-                        callable.getName() + "'");
+                        callableName + "'");
                 }
-                interp.environment.enclosing.define(newNameJava, callableObj);
+
+                interp.aliasFunction(callableName, newName, "function", interp.environment.enclosing, tok);
                 return null;
             }
         });
@@ -678,6 +704,29 @@ class Runtime {
                     klass.superClass = superClass;
                 }
                 return klass;
+            }
+        });
+        // alias a method/getter/setter
+        classClass.defineMethod(new LoxNativeCallable("alias", 2, 2, null, null) {
+            @Override
+            protected Object _call(Interpreter interp, List<Object> args,
+                    Map<String,Object> kwargs, Token tok) {
+                LoxClass klass = interp.environment.getThisClass();
+                LoxUtil.checkString(args.get(0), interp, "ArgumentError", null, 1);
+                LoxUtil.checkString(args.get(1), interp, "ArgumentError", null, 2);
+                LoxInstance oldNameInst = Runtime.toInstance(args.get(0));
+                LoxInstance newNameInst = Runtime.toInstance(args.get(1));
+                String oldName = oldNameInst.getHiddenProp("buf").toString();
+                String newName = newNameInst.getHiddenProp("buf").toString();
+
+                if (oldName.charAt(oldName.length()-1) == '=') {
+                    oldName = oldName.substring(0, oldName.length()-1);
+                }
+                if (newName.charAt(newName.length()-1) == '=') {
+                    newName = newName.substring(0, newName.length()-1);
+                }
+                interp.aliasFunction(oldName, newName, "method", klass, tok);
+                return null;
             }
         });
         classClass.defineGetter(new LoxNativeCallable("name", 0, 0, null, null) {
