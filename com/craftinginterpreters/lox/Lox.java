@@ -27,6 +27,7 @@ public class Lox {
     // the initial load path.
     public static List<String> initialLoadPath = new ArrayList<>(); // list of directories to load scripts from. Ex: "/home/luke/projects/lox_scripts"
     public static String initialScriptAbsolute = null; // filename given to command-line -f flag
+    private static String REPL_FNAME = "(repl)";
     public static Map<String, String> scriptsLoadedOnce = new HashMap<>();
     public static Map<String, String> scriptsLoaded = new HashMap<>();
     public static Map<String, Boolean> debugKeys = new HashMap<>(); // given with -d flag, comma-separated
@@ -184,14 +185,19 @@ public class Lox {
         PrintWriter out = new PrintWriter(reader.getOutput());
         reader.setPrompt("> ");
 
+        interpreter.init();
+        interpreter.setRunningFile(REPL_FNAME);
         Scanner scanner = new Scanner("");
+        scanner.setFilename(REPL_FNAME);
         Parser parser;
         List<Token> tokens;
         List<Stmt> statements;
 
         String line;
+        int lineno = 1;
         for (;;) {
             line = reader.readLine();
+            lineno++;
             if (line == null) {
                 break;
             }
@@ -219,11 +225,15 @@ public class Lox {
                 if (hadError) { // error message has already been displayed to stderr
                     hadError = false;
                     scanner = new Scanner("");
+                    scanner.setFilename(REPL_FNAME);
+                    scanner.line = lineno;
                     reader.setPrompt("> ");
                     continue;
                 }
                 runStmts(statements);
                 scanner = new Scanner("");
+                scanner.setFilename(REPL_FNAME);
+                scanner.line = lineno;
                 reader.setPrompt("> ");
             }
             hadError = false;
@@ -232,6 +242,7 @@ public class Lox {
 
     static void runSrc(String src) {
         Scanner scanner = new Scanner(src);
+        scanner.setFilename(initialScriptAbsolute);
         List<Token> tokens = scanner.scanTokens();
         Parser parser = new Parser(tokens);
         interpreter.runtime.init(interpreter);
@@ -248,35 +259,46 @@ public class Lox {
     // parse error
     static void error(Token tok, String message) {
         if (tok.type == TokenType.EOF) {
-            report(tok.line, " at end", message);
+            report(tok.file, tok.line, " at end", message);
         } else {
-            report(tok.line, " at '" + tok.lexeme + "'", message);
+            report(tok.file, tok.line, " at '" + tok.lexeme + "'", message);
         }
     }
 
-    // parse error
-    static void error(int line, String message) {
+    // parse error / lex error
+    static void error(String filename, int line, String message) {
         if (!silenceParseErrors) {
-            System.err.println("[line " + line + "] Error: " + message);
+            String fnameStr = "[";
+            if (filename != null) {
+                fnameStr = "['" + filename + "': ";
+            }
+            System.err.println(fnameStr + "line " + line +
+                "] Error: " + message);
         }
         hadError = true;
     }
 
     static void runtimeError(RuntimeError error) {
         if (!silenceRuntimeErrors) {
-            String lineStr = "";
+            String where = "";
             if (error.token != null) {
-                lineStr = "\n[line " + error.token.line + "]";
+                where = "\n['" + error.token.file + "': line " +
+                    error.token.line + "]";
             }
-            System.err.println(error.getMessage() + lineStr);
+            System.err.println(error.getMessage() + where);
         }
         hadRuntimeError = true;
     }
 
     // parse error
-    private static void report(int line, String where, String message) {
+    private static void report(String filename, int line, String where, String message) {
         if (!silenceParseErrors) {
-            System.err.println("[line " + line + "] Error" + where + ": " + message);
+            String fnameStr = "[";
+            if (filename != null) {
+                fnameStr = "['" + filename + "': ";
+            }
+            System.err.println(fnameStr + "line " + line +
+                "] Error" + where + ": " + message);
         }
         hadError = true;
     }

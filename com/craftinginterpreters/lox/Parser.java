@@ -106,8 +106,9 @@ public class Parser {
         this.tokens = tokens;
     }
 
-    static Parser newFromSource(String source) {
+    static Parser newFromSource(String fname, String source) {
         Scanner scanner = new Scanner(source);
+        scanner.setFilename(fname);
         List<Token> tokens = scanner.scanTokens();
         return new Parser(tokens);
     }
@@ -788,12 +789,12 @@ public class Parser {
                 Expr.Literal litAfter = new Expr.Literal(litTok, strAfter);
                 Expr.Binary plusOp1 = new Expr.Binary(
                     litBefore,
-                    new Token(PLUS, "+", null, prevToken.line),
+                    new Token(PLUS, "+", null, prevToken.file, prevToken.line),
                     innerExpr
                 );
                 Expr.Binary plusOp2 = new Expr.Binary(
                     plusOp1,
-                    new Token(PLUS, "+", null, prevToken.line),
+                    new Token(PLUS, "+", null, prevToken.file, prevToken.line),
                     litAfter
                 );
                 group.expression = plusOp2;

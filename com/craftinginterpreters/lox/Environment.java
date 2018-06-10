@@ -8,6 +8,12 @@ class Environment {
   public final Map<String, Stmt.Function> functions = new HashMap<>();
   public final Environment enclosing;
 
+  public static class VariableNotFound extends RuntimeError {
+      VariableNotFound(Token tok, String msg) {
+          super(tok, msg);
+      }
+  }
+
   Environment() {
       enclosing = null;
   }
@@ -32,13 +38,12 @@ class Environment {
           return;
       }
 
-      throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "' (assignment).");
+      throw new VariableNotFound(name,
+          "Undefined variable '" + name.lexeme + "' (assignment). To define the variable, " +
+          "keyword 'var' must be used");
   }
 
   public void defineFunction(Token name, Stmt.Function fnStmt) {
-      //if (functions.containsKey(name.lexeme)) {
-          //throw new RuntimeError(name, "Cannot redefine function '" + name.lexeme + "'.");
-      //}
       functions.put(name.lexeme, fnStmt);
   }
 
@@ -63,7 +68,7 @@ class Environment {
           return enclosing.get(name, true);
       }
 
-      throw new RuntimeError(name,
+      throw new VariableNotFound(name,
               "Undefined variable '" + name.lexeme + "'.");
   }
 
@@ -76,7 +81,7 @@ class Environment {
           return enclosing.get(name, true, errTok);
       }
 
-      throw new RuntimeError(errTok,
+      throw new VariableNotFound(errTok,
               "Undefined variable '" + name + "'.");
   }
 

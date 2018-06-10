@@ -9,6 +9,7 @@ import static com.craftinginterpreters.lox.TokenType.*;
 
 class Scanner {
     private String source;
+    private String filename;
     private final List<Token> tokens = new ArrayList<>();
 
     private int start = 0;
@@ -50,6 +51,11 @@ class Scanner {
 
     Scanner(String source) {
         this.source = source;
+        this.filename = null;
+    }
+
+    public void setFilename(String fname) {
+        this.filename = fname;
     }
 
     public void reset() {
@@ -80,7 +86,7 @@ class Scanner {
     }
 
     public void addEOF() {
-        tokens.add(new Token(EOF, "", null, line));
+        tokens.add(new Token(EOF, "", null, filename, line));
     }
 
     private boolean isAtEnd() {
@@ -197,7 +203,7 @@ class Scanner {
                 } else if (LoxUtil.isAlpha(c)) {
                     identifier();
                 } else {
-                    Lox.error(line, "Unexpected character.");
+                    Lox.error(filename, line, "Unexpected character.");
                 }
                 break;
         }
@@ -236,7 +242,7 @@ class Scanner {
 
         // Unterminated string.
         if (isAtEnd()) {
-            Lox.error(line, "Unterminated string.");
+            Lox.error(filename, line, "Unterminated string.");
             return;
         }
 
@@ -264,7 +270,7 @@ class Scanner {
 
         // Unterminated string.
         if (isAtEnd()) {
-            Lox.error(line, "Unterminated string.");
+            Lox.error(filename, line, "Unterminated string.");
             return;
         }
 
@@ -301,7 +307,7 @@ class Scanner {
 
     private void addToken(TokenType ttype, Object literal) {
         String text = source.substring(start, current);
-        tokens.add(new Token(ttype, text, literal, line));
+        tokens.add(new Token(ttype, text, literal, filename, line));
     }
 
     private char peek() {

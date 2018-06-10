@@ -196,7 +196,7 @@ class LoxFunction implements LoxCallable {
         Stmt.Function newDecl = null;
         if (declaration != null) {
             Token tok = declaration.name;
-            Token newTok = new Token(tok.type, tok.lexeme, tok.literal, tok.line);
+            Token newTok = new Token(tok.type, tok.lexeme, tok.literal, tok.file, tok.line);
             newDecl = new Stmt.Function(newTok, new ArrayList<Param>(declaration.formals),
                 declaration.body, declaration.type, declaration.klass);
         }

@@ -10,6 +10,37 @@ foreach (num1, num2 in a2) {
   print num1+num2;
 }
 
+print "";
+
+var err = nil;
+try {
+foreach (el in nil) { print el; }
+} catch (TypeError e) {
+  err = e;
+}
+
+print err != nil;
+err = nil;
+
+print "";
+
+try {
+  foreach (a, b, c in [1]) {
+    print a;
+    print b;
+    print c;
+  }
+} catch (TypeError e) {
+  err = e;
+}
+
+print err != nil;
+err = nil;
+
+print "";
+
+foreach (a, b, c in [[1]]) { print a; print b; print c; }
+
 __END__
 -- expect: --
 1
@@ -18,3 +49,11 @@ __END__
 
 3
 7
+
+true
+
+true
+
+1
+nil
+nil

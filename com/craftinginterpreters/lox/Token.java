@@ -4,12 +4,14 @@ class Token {
   TokenType type;
   String lexeme;
   final Object literal;
+  final String file;
   final int line;
 
-  Token(TokenType type, String lexeme, Object literal, int line) {
+  Token(TokenType type, String lexeme, Object literal, String file, int line) {
     this.type = type;
     this.lexeme = lexeme;
     this.literal = literal;
+    this.file = file;
     this.line = line;
   }
 

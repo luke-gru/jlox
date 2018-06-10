@@ -46,9 +46,10 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
         if (src == null) {
             byte[] bytes = Files.readAllBytes(Paths.get(fname));
             src = new String(bytes, Charset.defaultCharset());
+            Lox.registerInitialScript(fname);
         }
 
-        Parser parser = Parser.newFromSource(src);
+        Parser parser = Parser.newFromSource(Lox.initialScriptAbsolute, src);
         boolean silenceErrorsOld = Lox.silenceParseErrors;
         if (silenceErrorOutput) {
             Lox.silenceParseErrors = true;
@@ -70,7 +71,7 @@ public class AstPrinter implements Expr.Visitor<String>, Stmt.Visitor<String> {
     }
 
     public static String print(String src, boolean printVarResolution) {
-        Parser parser = Parser.newFromSource(src);
+        Parser parser = Parser.newFromSource(Lox.initialScriptAbsolute, src);
         boolean silenceErrorsOld = Lox.silenceParseErrors;
         if (silenceErrorOutput) {
             Lox.silenceParseErrors = true;

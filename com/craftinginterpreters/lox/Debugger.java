@@ -159,7 +159,7 @@ class Debugger {
             }
 
             if (line.equals("lines") || line.equals("l")) {
-                String fname = interp.runningFile;
+                String fname = interp.getRunningFile();
                 if (fname == null) {
                     out.println("Couldn't get name of current file to show lines (BUG)!");
                     continue;
@@ -385,10 +385,10 @@ class Debugger {
     }
 
     private String getCurrentFilename() {
-        if (interp.runningFile == null) {
+        if (interp.getRunningFile() == null) {
             return "<unknown>";
         } else {
-            return interp.runningFile;
+            return interp.getRunningFile();
         }
     }
 

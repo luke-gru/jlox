@@ -27,7 +27,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         public String toString(Interpreter interp) {
             String errMsg = interp.stringify(this.value);
             if (tok != null) {
-                errMsg += ("\nError at '" + tok.lexeme + "' on line " + String.valueOf(tok.line));
+                errMsg += ("\nError at '" + tok.lexeme + "' in " + tok.file +
+                    ":line " + String.valueOf(tok.line));
             }
             return errMsg;
         }
@@ -47,7 +48,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         }
     }
 
-    public String runningFile = null;
+    private String runningFile = null;
     public static Map<String, LoxInstance> staticStringPool = new HashMap<>();
 
     public final Map<Expr, Integer> locals = new HashMap<>();
@@ -115,16 +116,22 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         this.runtime = Runtime.create(globals, classMap, modMap);
     }
 
-
-    public boolean interpret(List<Stmt> statements) {
-        this.exited = false;
+    public boolean init() {
+        if (inited) return false;
         if (!inited) {
             runtime.init(this);
+            this.inited = true;
             if (this.runningFile == null && Lox.initialScriptAbsolute != null) {
                 setRunningFile(Lox.initialScriptAbsolute);
             }
         }
-        this.inited = true;
+        return true;
+    }
+
+
+    public boolean interpret(List<Stmt> statements) {
+        this.exited = false;
+        init();
         this.resolver.resolve(statements);
         if (this.resolver.hasErrors()) {
             System.err.println("[Warning]: resolver errors");
@@ -166,14 +173,8 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public boolean interpret(String src) {
-        if (!inited) {
-            runtime.init(this);
-            if (this.runningFile == null && Lox.initialScriptAbsolute != null) {
-                setRunningFile(Lox.initialScriptAbsolute);
-            }
-        }
-        this.inited = true;
-        this.parser = Parser.newFromSource(src);
+        init();
+        this.parser = Parser.newFromSource(this.runningFile, src);
         this.parser.setNativeClassNames(this.runtime.nativeClassNames());
         List<Stmt> stmts = this.parser.parse();
         if (this.parser.getError() != null) {
@@ -422,7 +423,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 return -(double)right;
         }
 
-        // Unreachable.
+        unreachable("visitUnaryExpr");
         return null;
     }
 
@@ -551,30 +552,48 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
         Integer distance = locals.get(expr);
-        if (distance != null) {
-            return environment.getAt(distance, expr.name);
-        } else {
-            return globals.get(expr.name, false);
+        Object obj = null;
+        try {
+            if (distance != null) {
+                obj = environment.getAt(distance, expr.name);
+            } else {
+                obj = globals.get(expr.name, false);
+            }
+        } catch (Environment.VariableNotFound err) {
+            throwLoxError("NameError", err.token, err.getMessage());
         }
+        return obj;
     }
 
     @Override
     public Object visitThisExpr(Expr.This expr) {
         Integer distance = locals.get(expr);
         if (distance != null) {
-            return environment.getAt(distance, expr.keyword);
+            Object obj = null;
+            try {
+                obj = environment.getAt(distance, expr.keyword);
+            } catch (Environment.VariableNotFound err) {
+                throwLoxError("NameError", err.token, err.getMessage());
+            }
+            return obj;
         } else {
             Lox.error(expr.keyword, "this can only be used inside function/method declarations");
             return null;
         }
     }
 
-    // FIXME: doesn't work for multiple supers
     @Override
     public Object visitSuperExpr(Expr.Super expr) {
         Stmt classOrModStmt = expr.classOrModStmt;
 
-        Object objInstance = environment.get("this", true, expr.keyword);
+        Object objInstance = null;
+        try {
+            objInstance = environment.get("this", true, expr.keyword);
+        } catch (Environment.VariableNotFound _err) {
+            throwLoxError("NameError", expr.keyword,
+                "'super' may only be used in class/module context " +
+                "('this' not found)");
+        }
         LoxInstance instance = Runtime.toInstance(objInstance);
         LoxClass lookupClassStart = null;
 
@@ -585,7 +604,7 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             } else if (classOrModStmt instanceof Stmt.Module) {
                 name = ((Stmt.Module)classOrModStmt).name.lexeme;
             } else {
-                LoxUtil.Assert(false); // unreachable
+                LoxUtil.Assert(false, "unreachable");
             }
             if (name != null) {
                 LoxClass klass = instance.getKlass().getSuper();
@@ -782,12 +801,19 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         String propName = expr.property.lexeme;
         // "super.property = rvalue"
         if (expr.object instanceof Expr.Super) {
-            obj = environment.get("this", true, ((Expr.Super)expr.object).keyword);
-            // FIXME: getDecl() can return null if it's a natively defined method!
+            Token superTok = ((Expr.Super)expr.object).keyword;
+            try {
+                obj = environment.get("this", true, superTok);
+            } catch (Environment.VariableNotFound _err) {
+                throwLoxError("NameError", superTok, "'super' may only be used in class/module context ('this' not found)");
+            }
+            // NOTE: getDecl() will never return NULL here, because natively
+            // defined methods are not turned into AST nodes (thus not visited
+            // in this way).
             Stmt.Class classStmt = this.fnCall.getDecl().klass;
             Object superKlassObj = classStmt.superClass;
             if (superKlassObj == null) {
-                throwLoxError("NameError", tokenFromExpr(expr.object),
+                throwLoxError("NameError", superTok,
                     "Superclass not found for class " + classStmt.name);
             }
             LoxClass superKlass = (LoxClass)superKlassObj;
@@ -878,8 +904,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (useArrayElements) {
                     LoxInstance aryValue = (LoxInstance)value;
                     List<Object> aryElements = (List<Object>)aryValue.getHiddenProp("ary");
-                    // FIXME: check OOB array access
-                    Object val = aryElements.get(useArrayElementsIdx);
+                    Object val = null;
+                    if (aryElements.size() >= useArrayElementsIdx+1) {
+                        val = aryElements.get(useArrayElementsIdx);
+                    }
                     environment.define(varTok.lexeme, val);
                     useArrayElementsIdx++;
                 } else {
@@ -984,13 +1012,17 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         boolean useNextIter = false;
         Object iterMethod = null;
         Object nextIterMethod = null;
+        if (!Runtime.isArray(evalObj) && (!Runtime.isInstance(evalObj) || Runtime.isString(evalObj))) {
+            throwLoxError("TypeError", tokenFromExpr(stmt.obj),
+                "expression given to 'foreach' must evaluate to an Array or a non-String instance");
+        }
         if (!Runtime.isArray(evalObj) && (evalObj instanceof LoxInstance)) {
             LoxInstance instance = (LoxInstance)evalObj;
             iterMethod = instance.getMethod("iter", this);
             nextIterMethod = instance.getMethod("nextIter", this);
             if (iterMethod == null && nextIterMethod == null) {
                 throwLoxError("TypeError", tokenFromExpr(stmt.obj),
-                    "foreach expr must be an Array object or object that responds to " +
+                    "'foreach' expr must be an Array object or object that responds to " +
                     "iter() or nextIter(), is: " + stringify(instance)
                 );
             }
@@ -1031,13 +1063,13 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                 if (!useNextIter && i >= len) {
                     break;
                 }
-                // FIXME: check OOB array access
                 Object val;
                 if (useNextIter) {
                     val = evaluateCall((LoxCallable)nextIterMethod, LoxUtil.EMPTY_ARGS,
                             LoxUtil.EMPTY_KWARGS, null);
                     if (val == null) { break; }
                 } else {
+                    LoxUtil.Assert(elements.size() > i, "OOB access BUG");
                     val = elements.get(i);
                     i++;
                 }
@@ -1052,8 +1084,11 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
                     List<Object> valElements = (List<Object>)valObj.getHiddenProp("ary");
                     for (int j = 0; j < numVars; j++) {
                         Token elemVar = stmt.variables.get(j);
-                        // FIXME: check OOB array access
-                        environment.define(elemVar.lexeme, valElements.get(j));
+                        Object valEl = null;
+                        if (valElements.size() >= j+1) {
+                            valEl = valElements.get(j);
+                        }
+                        environment.define(elemVar.lexeme, valEl);
                     }
                 } else {
                     environment.define(stmt.variables.get(0).lexeme, val);
@@ -1667,8 +1702,9 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     }
 
     public void setRunningFile(String absPath) {
+        if (!inited) return;
         if (absPath == null) { return; }
-        if (absPath.charAt(0) == '(') { // Example: "(eval)" when in evaluated string
+        if (absPath.charAt(0) == '(') { // Example: "(eval)" when in evaluated string, (repl) when in repl
             globals.define("__DIR__", Runtime.createString("", this));
             globals.define("__FILE__", Runtime.createString(absPath, this));
         } else {
@@ -1678,6 +1714,10 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             globals.define("__FILE__", Runtime.createString(absPath, this));
         }
         this.runningFile = absPath;
+    }
+
+    public String getRunningFile() {
+        return this.runningFile;
     }
 
     public void throwLoxError(String errClass, Token tok, String errMsg) throws RuntimeThrow {
@@ -1718,13 +1758,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
     public Object evalSrc(String src) {
         Parser oldParser = this.parser;
-        Parser parser = Parser.newFromSource(src);
+        String fname = "(eval)";
+        if (this.runningFile != null) {
+            fname += " in " + this.runningFile;
+        }
+        Parser parser = Parser.newFromSource(fname, src);
         this.parser = parser;
         parser.setNativeClassNames(runtime.nativeClassNames());
         List<Stmt> stmts = parser.parse();
         if (parser.getError() != null) {
             this.parser = oldParser;
-            System.err.println("[Warning]: ParseError in evalSrc");
             return null;
         }
         this.lastValue = null;
@@ -1736,11 +1779,15 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
     public void aliasFunction(String oldName, String newName, String aliasType, Object envOrClass, Token tok) {
         if (aliasType.equals("function")) {
             Environment env = (Environment)envOrClass;
-            // FIXME: throws undefined variable when not found!
-            Object callableObj = env.get(oldName, true, null);
+            Object callableObj = null;
+            try {
+                callableObj = env.get(oldName, true, null);
+            } catch (Environment.VariableNotFound err) {
+                throwLoxError("NameError", err.token, err.getMessage());
+            }
             String objType = nativeTypeof(tok, callableObj);
             if (!objType.equals("function")) {
-                throwLoxError("TypeError", "<alias> argument 1 needs to be a function");
+                throwLoxError("TypeError", tok, "<alias> argument 1 needs to be a function");
                 return;
             }
             LoxCallable clonedFunc = ((LoxCallable)callableObj).clone();
@@ -1752,31 +1799,33 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
             env.define(newName, clonedFunc);
         } else if (aliasType.equals("method")) {
             LoxClass klass = (LoxClass)envOrClass;
-            if (!Runtime.isClass(klass)) {
-                String klassName = nativeTypeof(null, klass);
-                throwLoxError("TypeError", "<alias>, when given type: 'method' needs to have the scope it's called in be a class or module, is a: " + klassName);
-                return;
-            }
+            LoxUtil.Assert(Runtime.isClass(klass));
             LoxCallable func = null;
             // FIXME: check that newName is unique per method/setter/getter
             if ((func = klass.getMethod(oldName)) != null) {
+                LoxModule mod = func.getModuleDefinedIn();
+                LoxUtil.Assert(mod != null);
                 LoxCallable clonedFunc = ((LoxCallable)func).clone();
                 clonedFunc.setName(newName);
-                klass.methods.put(newName, clonedFunc);
+                mod.methods.put(newName, clonedFunc);
             } else if ((func = klass.getGetter(oldName)) != null) {
+                LoxModule mod = func.getModuleDefinedIn();
+                LoxUtil.Assert(mod != null);
                 LoxCallable clonedFunc = ((LoxCallable)func).clone();
                 clonedFunc.setName(newName);
-                klass.getters.put(newName, clonedFunc);
+                mod.getters.put(newName, clonedFunc);
             } else if ((func = klass.getSetter(oldName)) != null) {
+                LoxModule mod = func.getModuleDefinedIn();
+                LoxUtil.Assert(mod != null);
                 LoxCallable clonedFunc = ((LoxCallable)func).clone();
                 clonedFunc.setName(newName);
-                klass.setters.put(newName, clonedFunc);
+                mod.setters.put(newName, clonedFunc);
             } else {
-                throwLoxError("MethodNotFound", "<alias> couldn't find method/getter/setter '" + oldName + "'");
+                throwLoxError("MethodNotFound", tok, "<alias> couldn't find method/getter/setter '" + oldName + "'");
                 return;
             }
         } else {
-            throw new RuntimeException("unreachable");
+            throw new RuntimeException("unreachable (BUG)");
         }
     }
 
