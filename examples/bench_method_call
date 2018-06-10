@@ -1,0 +1,21 @@
+loadScript("prelude.lox");
+
+class A {
+  method() { }
+}
+
+class B < A { }
+class C < B { }
+
+var cObj = C();
+
+fun benchMethodCall() {
+  cObj.method();
+}
+
+var time = benchmark(benchMethodCall, iterations: 100000);
+print "Seconds taken for 100000 method calls:";
+print time;
+
+__END__
+-- noexpect: --

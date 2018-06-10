@@ -45,3 +45,20 @@ module Enumerable {
 
 Array.include(Enumerable);
 Map.include(Enumerable);
+
+fun benchmark(callback, iterations: 1000, times: 2) {
+  var secsTaken = [];
+  for (var i = 0; i < times; i += 1) {
+    var start = clock();
+    for (var j = 0; j < iterations; j += 1) {
+      callback();
+    }
+    var end = clock();
+    secsTaken.push(end - start);
+  }
+  var sumTime = 0.0;
+  foreach (time in secsTaken) {
+    sumTime += time;
+  }
+  return sumTime / secsTaken.length;
+}

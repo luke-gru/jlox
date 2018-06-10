@@ -1192,16 +1192,16 @@ public class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
         LoxModule mod = this.currentMod;
         LoxCallable callable = new LoxFunction(func, this.environment, isInitializer);
         if (isStaticMethod) {
-            mod.getSingletonKlass().methods.put(func.name.lexeme, callable);
+            mod.getSingletonKlass().addMethod(func.name.lexeme, callable);
             callable.setModuleDefinedIn(mod.getSingletonKlass());
         } else if (isGetter) {
-            mod.getters.put(func.name.lexeme, callable);
+            mod.addGetter(func.name.lexeme, callable);
             callable.setModuleDefinedIn(mod);
         } else if (isSetter) {
-            mod.setters.put(func.name.lexeme, callable);
+            mod.addSetter(func.name.lexeme, callable);
             callable.setModuleDefinedIn(mod);
         } else  if (isInstanceMethod){
-            mod.methods.put(func.name.lexeme, callable);
+            mod.addMethod(func.name.lexeme, callable);
             callable.setModuleDefinedIn(mod);
         } else {
             environment.defineFunction(stmt.name, stmt);

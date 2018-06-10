@@ -36,6 +36,10 @@ class LoxModule extends LoxInstance {
         this.name = name;
     }
 
+    public boolean isAnon() {
+        return this.name == null;
+    }
+
     // Add a new class in this given class's class hierarchy, right above the given class.
     // A new LoxClass is created with the name of this module.
     public void includeIn(LoxModule modOrClass) {
@@ -52,5 +56,17 @@ class LoxModule extends LoxInstance {
         } else {
             modOrClass.includedModules.add(this);
         }
+    }
+
+    public void addMethod(String name, LoxCallable func) {
+        methods.put(name, func);
+    }
+
+    public void addGetter(String name, LoxCallable func) {
+        getters.put(name, func);
+    }
+
+    public void addSetter(String name, LoxCallable func) {
+        setters.put(name, func);
     }
 }

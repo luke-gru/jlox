@@ -7,8 +7,6 @@ the interpreter is running. []
 * Figure out what it means to dup a class. Should this be possible? It is in
 Ruby, for example. If not, disallow. []
 * Allow undefining methods and functions (undef) []
-* Fix Class#alias() function to put the new method in the class in which
-the old method was found instead of the class it was called on [IN PROGRESS]
 * Add more files to stdlib []
 * Make functions LoxInstances, instead of treating them differently. []
 * Add Class#methodNames(bool), Class#getterNames(bool) and

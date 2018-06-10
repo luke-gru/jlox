@@ -14,6 +14,8 @@ class LoxClass extends LoxModule implements LoxCallable {
     private LoxModule modDefinedIn = null; // for LoxCallable
     public LoxModule module = null; // if this is a class created when a class includes another module.
 
+    //private static Map<String, LoxCallable> methodCache = new HashMap<>();
+
     LoxClass(String name, LoxClass superClass, Map<String, LoxCallable> methods) {
         super(null, "Class", name, methods);
         LoxClass klass = null;
@@ -38,7 +40,7 @@ class LoxClass extends LoxModule implements LoxCallable {
 
     @Override
     public LoxCallable clone() {
-        // TODO: don't allow clone
+        // Clone not really supported for classes
         return this;
     }
 
@@ -99,7 +101,8 @@ class LoxClass extends LoxModule implements LoxCallable {
         LoxCallable constructor = getMethod("init");
         if (constructor != null) {
             if (!Runtime.acceptsNArgs(constructor, args.size(), kwargs.size())) {
-                Lox.error(constructor.getDecl().name, "constructor called with wrong number of arguments");
+                Lox.error(constructor.getDecl().name,
+                    "constructor called with wrong number of arguments");
                 return null;
             }
             constructor.bind(instance, interp.environment).call(
@@ -163,11 +166,20 @@ class LoxClass extends LoxModule implements LoxCallable {
     // returns an unbound LoxCallable instance method for the class
     public LoxCallable getMethod(String name) {
         LoxClass klass = this;
+        LoxClass lookupKlass = klass;
+        LoxCallable func = null;
+        //if ((func = methodCache.get(klass.getName() +"#"+name)) != null) {
+            //LoxUtil.debug("mlookup", "method " + name + " found in cache for " + klass.toString());
+            //return func;
+        //}
         while (klass != null) {
             LoxUtil.debug("mlookup", "Looking up method " + name + " in " + klass.toString());
-            LoxCallable func = klass.methods.get(name);
+            func = klass.methods.get(name);
             if (func != null) {
                 LoxUtil.debug("mlookup", "  Method " + name + " found");
+                //if (!lookupKlass.isAnon()) {
+                    //methodCache.put(lookupKlass.getName()+"#"+name, func);
+                //}
                 return func;
             }
             klass = klass.getSuper();
@@ -179,26 +191,50 @@ class LoxClass extends LoxModule implements LoxCallable {
     // returns an unbound LoxCallable instance getter method for the class
     public LoxCallable getGetter(String name) {
         LoxClass klass = this;
+        LoxClass lookupKlass = klass;
+        LoxCallable func = null;
+        //if ((func = methodCache.get(klass.getName() +"#"+name)) != null) {
+            //LoxUtil.debug("mlookup", "getter " + name + " found in cache for " + klass.toString());
+            //return func;
+        //}
         while (klass != null) {
-            LoxCallable func = klass.getters.get(name);
+            LoxUtil.debug("mlookup", "Looking up getter " + name + " in " + klass.toString());
+            func = klass.getters.get(name);
             if (func != null) {
+                LoxUtil.debug("mlookup", "  Getter " + name + " found");
+                //if (!lookupKlass.isAnon()) {
+                    //methodCache.put(lookupKlass.getName()+"#"+name, func);
+                //}
                 return func;
             }
             klass = klass.getSuper();
         }
+        LoxUtil.debug("mlookup", "Getter " + name + " not found");
         return null;
     }
 
     // returns an unbound LoxCallable instance setter method for the class
     public LoxCallable getSetter(String name) {
         LoxClass klass = this;
+        LoxClass lookupKlass = klass;
+        LoxCallable func = null;
+        //if ((func = methodCache.get(klass.getName() +"#"+name)) != null) {
+            //LoxUtil.debug("mlookup", "setter " + name + " found in cache for " + klass.toString());
+            //return func;
+        //}
         while (klass != null) {
-            LoxCallable func = klass.setters.get(name);
+            LoxUtil.debug("mlookup", "Looking up setter " + name + " in " + klass.toString());
+            func = klass.setters.get(name);
             if (func != null) {
+                LoxUtil.debug("mlookup", "  Setter " + name + " found");
+                //if (!lookupKlass.isAnon()) {
+                    //methodCache.put(lookupKlass.getName()+"#"+name, func);
+                //}
                 return func;
             }
             klass = klass.getSuper();
         }
+        LoxUtil.debug("mlookup", "Setter " + name + " not found");
         return null;
     }
 
